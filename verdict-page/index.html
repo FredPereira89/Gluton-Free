@@ -1,0 +1,618 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Verdict Page Variants</title>
+<!--
+  PROTOTYPE — throwaway. Gluton-Free map ticket "Verdict page: how Evidence is shown" (#8).
+  Plan: three structurally different Verdict-page variants on one page, switchable via ?variant=A|B|C,
+  each rendered in six page states via ?state=verdict|provisional|redflag|thin|ingesting|refreshing.
+  All data is MOCK, for a fictional Restaurant. Double-click to open; no build, no persistence.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F4F6F8; --surface:#FFFFFF; --sunk:#EAEEF2; --ink:#15202B; --muted:#5B6673; --faint:#8A95A1; --line:#DCE2E8;
+  --accent:#0E6170; --accent-soft:#DCEEF0;
+  --t-avoid:#B42318; --t-ok:#66707C; --t-good:#2F7D57; --t-must:#2446A8; --t-life:#9A5B00;
+  --t-avoid-bg:#FBE9E7; --t-ok-bg:#ECEFF2; --t-good-bg:#E4F2EA; --t-must-bg:#E6ECFA; --t-life-bg:#FAF0DC;
+  --flag:#B42318; --flag-bg:#FDF0EE; --warn:#8A5A00; --warn-bg:#FBF3E0;
+  --band:#E3E8ED; --shadow:0 1px 2px rgba(21,32,43,.06),0 4px 16px rgba(21,32,43,.06);
+  --sans:"Schibsted Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0F151B; --surface:#172029; --sunk:#111920; --ink:#E6ECF1; --muted:#9AA6B2; --faint:#6D7986; --line:#2A3642;
+    --accent:#5CC3D2; --accent-soft:#16343A;
+    --t-avoid:#F0786B; --t-ok:#A3ABB5; --t-good:#5CC08D; --t-must:#86A2FF; --t-life:#E3AA48;
+    --t-avoid-bg:#3A1A17; --t-ok-bg:#232C35; --t-good-bg:#16301F; --t-must-bg:#1B2544; --t-life-bg:#35270F;
+    --flag:#F0786B; --flag-bg:#2E1715; --warn:#E3AA48; --warn-bg:#2E2410; --band:#202B35;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0F151B; --surface:#172029; --sunk:#111920; --ink:#E6ECF1; --muted:#9AA6B2; --faint:#6D7986; --line:#2A3642;
+  --accent:#5CC3D2; --accent-soft:#16343A;
+  --t-avoid:#F0786B; --t-ok:#A3ABB5; --t-good:#5CC08D; --t-must:#86A2FF; --t-life:#E3AA48;
+  --t-avoid-bg:#3A1A17; --t-ok-bg:#232C35; --t-good-bg:#16301F; --t-must-bg:#1B2544; --t-life-bg:#35270F;
+  --flag:#F0786B; --flag-bg:#2E1715; --warn:#E3AA48; --warn-bg:#2E2410; --band:#202B35;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:0 110px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.15}
+p{margin:0}
+a{color:var(--accent);text-underline-offset:2px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.eyebrow{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+.proto-banner{max-width:1080px;margin:0 auto;padding-block:10px;font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.proto-banner b{background:var(--ink);color:var(--ground);padding:2px 7px;border-radius:3px;font-size:11px;letter-spacing:.06em}
+#app{max-width:1080px;margin:0 auto}
+
+/* ---------- shared atoms ---------- */
+.tier{--c:var(--t-ok);--bg:var(--t-ok-bg);display:inline-flex;align-items:center;gap:8px;color:var(--c);background:var(--bg);border:1.5px solid var(--c);border-radius:6px;padding:4px 10px;font-weight:700;letter-spacing:.01em;white-space:nowrap}
+.tier .pips{display:inline-flex;gap:3px}
+.tier .pips i{width:6px;height:10px;border-radius:1.5px;background:var(--c);opacity:.22}
+.tier .pips i.on{opacity:1}
+.tier.lg{font-size:28px;padding:8px 16px;border-width:2px;border-radius:8px}
+.tier.lg .pips i{width:8px;height:18px}
+.tier.xl{font-size:clamp(34px,7vw,52px);padding:10px 20px;border-width:2.5px;border-radius:10px;font-weight:800;letter-spacing:-.01em}
+.tier.xl .pips i{width:10px;height:26px;border-radius:2px}
+.tier.dashed{border-style:dashed}
+.t-avoid{--c:var(--t-avoid);--bg:var(--t-avoid-bg)} .t-ok{--c:var(--t-ok);--bg:var(--t-ok-bg)} .t-good{--c:var(--t-good);--bg:var(--t-good-bg)}
+.t-must{--c:var(--t-must);--bg:var(--t-must-bg)} .t-life{--c:var(--t-life);--bg:var(--t-life-bg)}
+.nee{display:inline-flex;align-items:center;gap:8px;border:2px dashed var(--faint);color:var(--muted);border-radius:8px;padding:8px 14px;font-weight:700;font-size:22px}
+
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--sunk);color:var(--ink);white-space:nowrap}
+.chip.conf-High{background:var(--t-good-bg);color:var(--t-good)} .chip.conf-Medium{background:var(--warn-bg);color:var(--warn)} .chip.conf-Low{background:var(--t-avoid-bg);color:var(--t-avoid)}
+.chip .dots{display:inline-flex;gap:2px}.chip .dots i{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.25}.chip .dots i.on{opacity:1}
+.chip.prov{background:var(--warn-bg);color:var(--warn)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+
+.flag{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;background:var(--flag-bg);border:1px solid color-mix(in srgb,var(--flag) 40%,transparent);border-left:4px solid var(--flag);border-radius:6px;padding:12px 14px}
+.flag .ico{grid-row:span 2;width:22px;height:22px;border-radius:50%;background:var(--flag);color:var(--surface);display:grid;place-items:center;font-weight:800;font-size:14px}
+.flag.minor{background:var(--sunk);border-color:var(--line);border-left-color:var(--warn)}
+.flag.minor .ico{background:var(--warn)}
+.flag b{font-weight:700}
+
+/* percentile strip */
+.strip{display:grid;grid-template-columns:minmax(92px,120px) 1fr 64px;align-items:center;gap:10px;padding:7px 0}
+.strip .lab{font-weight:600;font-size:14px;line-height:1.2}
+.strip .lab small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.strip .val{text-align:right;font-family:var(--mono);font-size:13.5px;font-weight:500}
+.track{position:relative;height:22px}
+.track .rail{position:absolute;left:0;right:0;top:9px;height:4px;border-radius:2px;background:var(--band)}
+.track .fill{position:absolute;left:0;top:9px;height:4px;border-radius:2px;background:var(--ink);opacity:.8}
+.track .med{position:absolute;top:4px;width:1px;height:14px;background:var(--faint)}
+.track .floor{position:absolute;top:2px;width:0;height:18px;border-left:2px dotted var(--warn)}
+.track .dot{position:absolute;top:4px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--ink);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--ink)}
+.strip.info .lab,.strip.info .val{color:var(--faint)}
+.strip.info .fill,.strip.info .dot{background:var(--faint);box-shadow:0 0 0 1px var(--faint)}
+.strip.low .val{color:var(--t-avoid)}
+.axis{display:grid;grid-template-columns:minmax(92px,120px) 1fr 64px;gap:10px;font-size:11px;color:var(--faint);font-family:var(--mono)}
+.axis .ticks{position:relative;height:14px}
+.axis .ticks span{position:absolute;transform:translateX(-50%)}
+.axis .ticks span:first-child{transform:none}.axis .ticks span:last-child{transform:translateX(-100%)}
+.hit{position:relative}
+.hit[data-tip]:hover::after,.hit[data-tip]:focus-visible::after{content:attr(data-tip);position:absolute;z-index:5;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--ground);font-size:12px;font-family:var(--sans);font-weight:500;line-height:1.35;padding:6px 9px;border-radius:5px;white-space:pre;pointer-events:none}
+
+/* quotes */
+.quote{display:grid;gap:8px}
+.quote blockquote{margin:0;font-size:16px;line-height:1.45}
+.quote .meta{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12.5px;color:var(--muted)}
+.quote .lang{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:3px;padding:0 4px;color:var(--muted)}
+.quote .tr{background:none;border:0;padding:0;color:var(--accent);font-weight:600;font-size:12.5px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.quote.neg blockquote{color:var(--ink)}
+.stars{color:var(--ink);letter-spacing:1px}
+.tag{font-size:11px;font-weight:600;color:var(--muted);background:var(--sunk);border-radius:3px;padding:1px 6px}
+
+/* themes */
+.theme{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:6px 0}
+.theme .bar{grid-column:1/-1;height:6px;border-radius:0 3px 3px 0;background:var(--t-good);opacity:.85}
+.theme.neg .bar{background:var(--t-avoid)}
+.theme .n{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+
+/* sources table */
+.tbl-wrap{overflow-x:auto}
+table.src{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+table.src th{text-align:left;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.src td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.src td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+table.src th.num{text-align:right}
+.acc{font-size:11px;font-weight:600;border-radius:3px;padding:1px 6px;white-space:nowrap}
+.acc.personal{background:var(--warn-bg);color:var(--warn)} .acc.public{background:var(--t-good-bg);color:var(--t-good)}
+
+/* trend chart */
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{fill:var(--muted);font-family:var(--mono);font-size:10.5px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .cut{stroke:var(--faint);stroke-width:1;stroke-dasharray:3 3}
+.chart .line{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .area{fill:var(--ink);opacity:.06}
+.chart .pt{fill:var(--ink);stroke:var(--surface);stroke-width:2}
+.chart .pt.end{fill:var(--t-must)}
+.chart .vol{fill:var(--faint);opacity:.55}
+.chart .hitpt{fill:transparent;cursor:default}
+.chart .bandlab{font-family:var(--sans);font-size:10.5px;font-weight:600}
+
+/* job stepper */
+.steps{display:grid;gap:0}
+.step{display:grid;grid-template-columns:26px 1fr;gap:10px;padding-block:8px}
+.step .ic{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:800;margin-top:1px}
+.step.done .ic{background:var(--t-good);border-color:var(--t-good);color:var(--surface)}
+.step.run .ic{border-color:var(--accent);border-top-color:transparent;animation:spin 1s linear infinite}
+.step.wait .ic{border-style:dashed}
+.step .t{font-weight:600}
+.step .d{font-size:13px;color:var(--muted)}
+.prog{height:6px;border-radius:3px;background:var(--band);overflow:hidden;margin-top:6px;max-width:320px}
+.prog i{display:block;height:100%;background:var(--accent);border-radius:3px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.step.run .ic{animation:none;border-style:dotted}}
+.skel{background:linear-gradient(90deg,var(--sunk),var(--band),var(--sunk));background-size:200% 100%;border-radius:4px;height:12px;animation:sh 1.6s ease-in-out infinite}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+
+.banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);color:var(--ink);border-radius:6px;padding:9px 12px;font-size:13.5px}
+.banner .spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--accent);border-top-color:transparent;animation:spin 1s linear infinite}
+@media (prefers-reduced-motion:reduce){.banner .spin{animation:none}}
+.check{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.check .ok{color:var(--t-good);font-weight:800}.check .no{color:var(--t-avoid);font-weight:800}
+
+/* ================= Variant A: Report (linear) ================= */
+.A{display:grid;gap:14px;max-width:720px;margin:0 auto}
+.A .hero{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:22px;display:grid;gap:14px}
+.A .name h1{font-size:clamp(26px,5vw,34px);font-weight:800;letter-spacing:-.015em}
+.A .name p{color:var(--muted);font-size:14px;margin-top:4px}
+.A .explain{font-size:17px;line-height:1.5;max-width:62ch}
+.A .sec{padding:18px 4px;border-top:1px solid var(--line);display:grid;gap:12px}
+.A .sec h2{font-size:18px;font-weight:700}
+.A .sec .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.A .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.A .quotes{display:grid;gap:16px}
+.A .quotes .quote{padding-left:14px;border-left:3px solid var(--t-good)}
+.A .quotes .quote.neg{border-left-color:var(--t-avoid)}
+.A .ev-list{display:grid;gap:8px}
+.A .ev-list a{font-weight:600}
+
+/* ================= Variant B: Case file (claims → evidence) ================= */
+.B{max-width:760px;margin:0 auto;display:grid;gap:18px}
+.B .head{display:grid;gap:10px;padding-block:14px 4px}
+.B .head .where{font-size:13px;color:var(--muted)}
+.B .head h1{font-size:clamp(28px,6vw,44px);font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.B .head h1 .tw{color:var(--tc)}
+.B .head .sub{font-size:16px;color:var(--muted);max-width:60ch}
+.B .claims{background:var(--surface);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.B details{border-top:1px solid var(--line)}
+.B details:first-child{border-top:0}
+.B summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:4px 1fr auto;gap:14px;align-items:center;padding:14px 16px 14px 0}
+.B summary::-webkit-details-marker{display:none}
+.B summary .rail{align-self:stretch;background:var(--rc,var(--line))}
+.B summary .txt{font-size:16px;font-weight:600;line-height:1.35}
+.B summary .txt small{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.B summary .role{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center}
+.B summary .role::after{content:"+";font-size:18px;font-weight:500;color:var(--accent);width:14px;text-align:center}
+.B details[open] summary .role::after{content:"–"}
+.B .body{padding:4px 18px 18px 18px;display:grid;gap:14px}
+.B .body .quote{padding:12px 14px;background:var(--sunk);border-radius:6px}
+.B .foot{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.B .panel{padding:14px 0;border-top:2px solid var(--ink);display:grid;gap:10px}
+.B .panel h3{font-size:14px;font-weight:700}
+
+/* ================= Variant C: Standing (position-first, tabbed evidence) ================= */
+.C{display:grid;gap:16px}
+.C .top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 20px;align-items:end;padding-block:10px 0}
+.C .top h1{font-size:clamp(24px,4.5vw,32px);font-weight:800;letter-spacing:-.015em}
+.C .top .meta{color:var(--muted);font-size:13.5px}
+.C .grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.C .grid{grid-template-columns:minmax(0,1fr)}}
+.C .card{background:var(--surface);border-radius:10px;box-shadow:var(--shadow);padding:18px;display:grid;gap:12px}
+.C .card h2{font-size:15px;font-weight:700}
+.C .swarm svg{display:block;width:100%;height:auto;overflow:visible}
+.C .swarm text{fill:var(--muted);font-family:var(--mono);font-size:10.5px}
+.C .swarm .peer{fill:var(--faint);opacity:.55}
+.C .swarm .me{stroke:var(--surface);stroke-width:2.5}
+.C .swarm .was{fill:none;stroke:var(--faint);stroke-width:1.5;stroke-dasharray:2 2}
+.C .swarm .cut{stroke:var(--ink);stroke-width:1;opacity:.35}
+.C .swarm .tl{font-family:var(--sans);font-size:11px;font-weight:700}
+.C .boot{display:flex;height:22px;border-radius:4px;overflow:hidden;gap:2px}
+.C .boot span{display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--surface);min-width:0;overflow:hidden;white-space:nowrap}
+.C .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
+.C .tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:9px 12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+.C .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.C .tabpane{display:grid;gap:14px;padding-top:4px}
+.C .explain{font-size:15.5px;max-width:62ch}
+.C .mini-quote{padding-block:10px;border-bottom:1px solid var(--line)}
+
+/* ---------- floating switcher ---------- */
+.switcher{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;display:flex;align-items:center;gap:6px;background:#0B0F14;color:#F2F5F8;border-radius:999px;padding:6px 8px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:13px;max-width:calc(100vw - 24px);flex-wrap:wrap;justify-content:center}
+.switcher button{background:#243040;border:0;color:#F2F5F8;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px}
+.switcher button:hover{background:#34445A}
+.switcher .lbl{font-weight:700;min-width:150px;text-align:center}
+.switcher select{background:#243040;color:#F2F5F8;border:0;border-radius:999px;padding:6px 10px;font:inherit;font-size:12.5px}
+.switcher .sep{width:1px;height:20px;background:#3A4758;margin-inline:4px}
+</style>
+
+<div class="proto-banner"><b>PROTOTYPE</b> Mock data for a fictional Restaurant. Throwaway, for the map ticket “Verdict page: how Evidence is shown”. Quotes are invented examples, not real Reviews.</div>
+<main id="app"></main>
+
+<div class="switcher" role="toolbar" aria-label="Prototype controls">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="lbl" id="vlabel"></span>
+  <button id="next" aria-label="Next variant">→</button>
+  <span class="sep"></span>
+  <label for="stateSel" class="small" style="opacity:.7">State</label>
+  <select id="stateSel"></select>
+</div>
+
+<script>
+/* ============================== MOCK DATA ============================== */
+const R = {
+  name: "Tasca do Protótipo", area: "Graça, Lisbon", format: "Tasca", family: "Traditional Portuguese", price: "€€",
+  peers: 142,
+};
+const TIERS = ["avoid","ok","good","must","life"];
+const TIER_NAME = {avoid:"Avoid",ok:"OK",good:"Good",must:"Must Go",life:"Life Changing"};
+const CUTS = [{p:10,t:"ok"},{p:45,t:"good"},{p:85,t:"must"},{p:98,t:"life"}]; // composite percentile cut-offs
+
+const ASPECTS = [ // p = percentile among Peers; theta on -2..+2; w = weight; nEff
+  {k:"food",   name:"Food",          p:93, theta:+1.21, w:30, n:212, floors:{must:75,good:40}},
+  {k:"service",name:"Service",       p:71, theta:+0.62, w:20, n:188, floors:{must:50,good:25}},
+  {k:"stars",  name:"Overall stars", p:88, theta:null,  w:15, n:1986, note:"4.57 ★ pooled"},
+  {k:"value",  name:"Value",         p:84, theta:+0.88, w:15, n:131},
+  {k:"consistency",name:"Consistency",p:62,theta:null,  w:10, n:486, note:"rating spread SD 0.71"},
+  {k:"ambience",name:"Ambience",     p:40, theta:+0.10, w:5,  n:96, info:true},
+  {k:"wait",   name:"Wait time",     p:31, theta:-0.35, w:5,  n:74},
+];
+
+const QUOTES = [
+  {aspect:"food", pol:+1, lang:"PT", src:"Google", date:"Aug 2026", stars:5,
+   orig:"O bacalhau à Brás é o melhor que comi em Lisboa, e as doses dão para dois.",
+   tr:"The bacalhau à Brás is the best I’ve had in Lisbon, and the portions feed two."},
+  {aspect:"value", pol:+1, lang:"PT", src:"Google", date:"Sep 2026", stars:5,
+   orig:"Menos de 20 € por pessoa com vinho da casa. Não há melhor relação qualidade-preço no bairro.",
+   tr:"Under €20 a head with house wine. There’s no better value in the neighbourhood."},
+  {aspect:"service", pol:+1, lang:"EN", src:"Tripadvisor", date:"Jul 2026", stars:5,
+   orig:"The owner walked us through the daily specials and brought out a glass of moscatel on the house.", tr:null},
+  {aspect:"wait", pol:-1, lang:"FR", src:"Google", date:"Jun 2026", stars:3,
+   orig:"Une heure d’attente sans réservation, et personne pour nous dire où nous en étions.",
+   tr:"An hour’s wait without a booking, and nobody to tell us where we stood."},
+  {aspect:"service", pol:-1, lang:"PT", src:"Tripadvisor", date:"May 2026", stars:3,
+   orig:"Ao fim de semana o serviço é apressado; pedimos a conta três vezes.",
+   tr:"At weekends the service is rushed; we asked for the bill three times."},
+];
+const FLAG_QUOTE = {aspect:"food", pol:-1, lang:"PT", src:"Google", date:"Sep 2026", stars:1,
+   orig:"Três de nós ficámos doentes na mesma noite depois das amêijoas.",
+   tr:"Three of us were ill the same night after the clams."};
+
+const THEMES = {
+  pos:[{t:"Bacalhau à Brás",n:74},{t:"Generous portions",n:61},{t:"House wine value",n:48},{t:"Warm, chatty owner",n:39}],
+  neg:[{t:"Long wait without a booking",n:52},{t:"Cramped room",n:27},{t:"Rushed at weekends",n:19}],
+  base:486 // text Reviews analysed
+};
+const SOURCES = [
+  {name:"Google", kind:"Crowd", access:"personal", count:1284, text:412, rating:"4.6 / 5", newest:"2 days ago", status:"ok"},
+  {name:"Tripadvisor", kind:"Crowd", access:"personal", count:702, text:311, rating:"4.5 / 5", newest:"9 days ago", status:"ok"},
+  {name:"TheFork", kind:"Crowd", access:"personal", count:null, text:null, rating:"—", newest:"—", status:"Listing matched, Reviews not fetched (best-effort Source)"},
+];
+const DISTINCTIONS = [{src:"Guia Repsol", what:"Recommended (plain listing)", year:2025}, {src:"Michelin", what:"Not listed", year:null}];
+const CRITICS = [{pub:"Time Out Lisboa", title:"As melhores tascas de Lisboa", year:2025}];
+const TREND = [ // quarterly composite percentile + text Review volume
+  {q:"Q3 24",p:58,v:140},{q:"Q4 24",p:61,v:152},{q:"Q1 25",p:64,v:118},{q:"Q2 25",p:70,v:171},{q:"Q3 25",p:74,v:205},
+  {q:"Q4 25",p:79,v:188},{q:"Q1 26",p:86,v:160},{q:"Q2 26",p:88,v:197},{q:"Q3 26",p:88,v:214}];
+
+/* ============================== PAGE STATES ============================== */
+const STATES = {
+  verdict:{label:"Verdict (Must Go)", tier:"must", conf:"Medium", composite:88,
+    caps:["Sources disagree: service is P78 on Google, P55 on Tripadvisor"],
+    boot:{good:27,must:71,life:2},
+    explain:`<b>Must Go</b> among Lisbon’s 142 tascas: food (P93) and value (P84) carry it, while waits without a booking (P31) are the weak spot. One verified unordered-couvert charge (Mar 2026) is noted but isn’t recurring. Medium Confidence, because Google and Tripadvisor disagree on service.`,
+    flags:[{minor:true,title:"1 money Red flag · not recurring",body:"Unordered couvert charged, one first-hand report (Mar 2026). Noted; doesn’t affect the Tier."}],
+    was:{tier:"good",until:"Mar 2026"}, lcNote:"Life Changing needs food ≥ P98 (now P93)."},
+  provisional:{label:"Provisional (Good)", tier:"good", conf:"Low", provisional:true, composite:null,
+    caps:["Provisional: other Lisbon tascas haven’t been gathered yet","Single Crowd Source so far (Google)"],
+    boot:{ok:22,good:61,must:17},
+    explain:`<b>Good</b>, provisionally: judged against default cut-offs, not yet against other tascas. Food (θ +1.21) and value (θ +0.88) are clearly positive; waits (θ −0.35) are slightly negative. Low Confidence, because the Verdict is provisional and rests on Google only.`,
+    flags:[], was:null, lcNote:"Life Changing can’t be given until Peers exist."},
+  redflag:{label:"Red flag → Avoid", tier:"avoid", conf:"High", composite:88, forced:true,
+    caps:[], boot:{avoid:100},
+    explain:`<b>Avoid</b>: four first-hand food-poisoning reports, three of them since July 2026, override an otherwise Must Go standing among tascas (composite P88). High Confidence: the reports are recurring and recent.`,
+    flags:[{minor:false,title:"Health Red flag · recurring and recent",body:"Food poisoning: 4 verified first-hand reports, 3 in the last 90 days (Jul–Sep 2026), across Google and Tripadvisor. Forces Avoid regardless of other scores."}],
+    was:{tier:"must",until:"12 Sep 2026"}, lcNote:null},
+  thin:{label:"Not enough evidence", nee:true,
+    bars:[{ok:false,t:"Text Reviews",have:"9",need:"15"},{ok:false,t:"Reviews that mention the food",have:"6",need:"8"},{ok:true,t:"Newest Review",have:"5 weeks ago",need:"within 18 months"}]},
+  ingesting:{label:"First lookup, running", job:true},
+  refreshing:{label:"Refresh running", tier:"must", conf:"Medium", composite:88, refreshing:true,
+    caps:["Sources disagree: service is P78 on Google, P55 on Tripadvisor"], boot:{good:27,must:71,life:2},
+    explain:null, flags:null, was:{tier:"good",until:"Mar 2026"}, lcNote:"Life Changing needs food ≥ P98 (now P93)."},
+};
+STATES.refreshing.explain = STATES.verdict.explain; STATES.refreshing.flags = STATES.verdict.flags;
+
+/* ============================== HELPERS ============================== */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function tierBadge(t, size="", dashed=false){
+  const i = TIERS.indexOf(t);
+  const pips = TIERS.map((_,j)=>`<i class="${j<=i?"on":""}"></i>`).join("");
+  return `<span class="tier t-${t} ${size} ${dashed?"dashed":""}"><span class="pips" aria-hidden="true">${pips}</span>${TIER_NAME[t]}</span>`;
+}
+function confChip(c){
+  const n = {Low:1,Medium:2,High:3}[c];
+  return `<span class="chip conf-${c}"><span class="dots" aria-hidden="true">${[1,2,3].map(j=>`<i class="${j<=n?"on":""}"></i>`).join("")}</span>${c} Confidence</span>`;
+}
+const metaChips = s => `<div class="chips"><span class="chip">${R.format}</span><span class="chip">${R.price}</span>${s.conf?confChip(s.conf):""}${s.provisional?`<span class="chip prov">Provisional</span>`:""}</div>`;
+const wasLine = s => s.was ? `<span class="small muted">Was ${TIER_NAME[s.was.tier]} until ${s.was.until}</span>` : "";
+
+function flagBox(f){
+  return `<div class="flag ${f.minor?"minor":""}" role="note"><span class="ico" aria-hidden="true">!</span><b>${esc(f.title)}</b><span class="small">${esc(f.body)}</span></div>`;
+}
+
+function stripRow(a, s){
+  if (s.provisional){ // theta scale -2..+2, no percentiles
+    if (a.theta===null) return `<div class="strip info"><div class="lab">${a.name}<small>${a.k==="stars"?"4.57 ★ on Google":"needs Peers"}</small></div><div class="track"><div class="rail"></div></div><div class="val">—</div></div>`;
+    const x = (a.theta+2)/4*100;
+    return `<div class="strip ${a.info?"info":""}"><div class="lab">${a.name}<small>${a.info?"not counted at a tasca":`n_eff ${a.n}`}</small></div>
+      <div class="track hit" tabindex="0" data-tip="${a.name}: θ ${a.theta>0?"+":""}${a.theta.toFixed(2)}\nPeers not gathered: default scale">
+      <div class="rail"></div><div class="med" style="left:50%"></div><div class="dot" style="left:${x}%"></div></div>
+      <div class="val">${a.theta>0?"+":""}${a.theta.toFixed(2)}</div></div>`;
+  }
+  const floor = a.floors ? a.floors[s.tier==="avoid"?"must":s.tier] : null;
+  const low = !a.info && a.p < 35;
+  const tip = `${a.name}: P${a.p} among ${R.peers} tascas\nn_eff ${a.n} · weight ${a.info?"0 (informative only)":a.w+"%"}${a.note?"\n"+a.note:""}${floor?`\n${TIER_NAME[s.tier==="avoid"?"must":s.tier]} floor: P${floor}`:""}`;
+  return `<div class="strip ${a.info?"info":""} ${low?"low":""}"><div class="lab">${a.name}<small>${a.info?"not counted at a tasca":`weight ${a.w}%`}</small></div>
+    <div class="track hit" tabindex="0" data-tip="${esc(tip)}"><div class="rail"></div><div class="fill" style="width:${a.p}%"></div>
+    <div class="med" style="left:50%"></div>${floor?`<div class="floor" style="left:${floor}%"></div>`:""}<div class="dot" style="left:${a.p}%"></div></div>
+    <div class="val">P${a.p}</div></div>`;
+}
+function stripAxis(s){
+  const t = s.provisional ? ["−2","0","+2"] : ["P0","P50","P100"];
+  const pos = [0,50,100];
+  return `<div class="axis"><span></span><div class="ticks">${t.map((x,i)=>`<span style="left:${pos[i]}%">${x}</span>`).join("")}</div><span></span></div>`;
+}
+function stripLegend(s){
+  return s.provisional
+    ? `<p class="small muted">θ on the −2…+2 Review scale; the tick marks 0. Positions become percentiles once other tascas are gathered.</p>`
+    : `<p class="small muted">Dot = where it ranks among ${R.peers} Lisbon tascas. Grey tick = the median tasca. <span style="color:var(--warn)">Dotted line</span> = the floor this Tier needs. Hover or focus a row for n_eff and weight.</p>`;
+}
+function quoteHTML(q, i){
+  const id = `q${i}-${Math.random().toString(36).slice(2,7)}`;
+  return `<figure class="quote ${q.pol<0?"neg":""}" style="margin:0">
+    <blockquote id="${id}" data-orig="${esc(q.orig)}" data-tr="${esc(q.tr||"")}" data-showing="orig" lang="${q.lang.toLowerCase()}">“${esc(q.orig)}”</blockquote>
+    <figcaption class="meta"><span class="lang">${q.lang}</span><span class="stars" aria-label="${q.stars} stars">${"★".repeat(q.stars)}<span style="opacity:.25">${"★".repeat(5-q.stars)}</span></span>
+    <span>${q.src} · ${q.date}</span><span class="tag">${q.aspect}</span>
+    ${q.tr?`<button class="tr" data-target="${id}">Translate</button>`:""}
+    <a class="small" href="#" title="Opens the Restaurant’s page on ${q.src} (never the individual Review)">on ${q.src} ↗</a></figcaption></figure>`;
+}
+function themesHTML(){
+  const max = Math.max(...THEMES.pos.map(t=>t.n),...THEMES.neg.map(t=>t.n));
+  const row = (t,neg) => `<div class="theme ${neg?"neg":""}"><span>${t.t}</span><span class="n">${t.n} · ${Math.round(t.n/THEMES.base*100)}%</span><div class="bar" style="width:${t.n/max*100}%"></div></div>`;
+  return {pos:THEMES.pos.map(t=>row(t,false)).join(""), neg:THEMES.neg.map(t=>row(t,true)).join("")};
+}
+function sourcesTable(){
+  return `<div class="tbl-wrap"><table class="src"><thead><tr><th>Source</th><th>Access</th><th class="num">Reviews</th><th class="num">With text</th><th class="num">Rating</th><th>Newest</th></tr></thead><tbody>
+  ${SOURCES.map(s=>`<tr><td><a href="#">${s.name} ↗</a><div class="small muted">${s.kind} Source</div></td>
+  <td><span class="acc ${s.access}">${s.access==="personal"?"personal-only":"public-OK"}</span></td>
+  ${s.status==="ok"?`<td class="num">${s.count.toLocaleString("en")}</td><td class="num">${s.text}</td><td class="num">${s.rating}</td><td>${s.newest}</td>`
+   :`<td colspan="4" class="small muted">${s.status}</td>`}</tr>`).join("")}
+  </tbody></table></div>`;
+}
+function editorialHTML(){
+  return `<div class="ev-list" style="display:grid;gap:8px">
+    ${DISTINCTIONS.map(d=>`<div><b>${d.src}</b> · ${d.what}${d.year?` (${d.year}) <a href="#">↗</a>`:""}</div>`).join("")}
+    ${CRITICS.map(c=>`<div><b>${c.pub}</b> · <a href="#">“${c.title}” ↗</a> (${c.year})</div>`).join("")}
+    <p class="small muted">Shown for context; Distinctions and critic pieces never move the Tier.</p></div>`;
+}
+function trendChart(){
+  const W=560,H=190,pl=34,pr=12,pt=14,pb=26, ih=H-pt-pb, iw=W-pl-pr;
+  const x = i => pl + i*(iw/(TREND.length-1)), y = p => pt + (1-p/100)*ih;
+  const pts = TREND.map((d,i)=>[x(i),y(d.p)]);
+  const line = pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join("");
+  const area = line + `L${pts.at(-1)[0]},${y(0)}L${pts[0][0]},${y(0)}Z`;
+  const cuts = [45,85].map(c=>`<line class="cut" x1="${pl}" x2="${W-pr}" y1="${y(c)}" y2="${y(c)}"/><text x="${pl+6}" y="${y(c)-4}" text-anchor="start" class="bandlab" style="fill:var(--t-${c===45?"good":"must"})">${c===45?"Good":"Must Go"} ≥ P${c}</text>`).join("");
+  const grid = [0,50,100].map(g=>`<line class="grid" x1="${pl}" x2="${W-pr}" y1="${y(g)}" y2="${y(g)}"/><text x="${pl-6}" y="${y(g)+3.5}" text-anchor="end">P${g}</text>`).join("");
+  const xl = TREND.map((d,i)=> i%2===0||i===TREND.length-1 ? `<text x="${x(i)}" y="${H-8}" text-anchor="middle">${d.q}</text>`:"").join("");
+  const dots = TREND.map((d,i)=>`<circle class="pt ${i===TREND.length-1?"end":""}" cx="${x(i)}" cy="${y(d.p)}" r="${i===TREND.length-1?5:3.5}"/><circle class="hitpt" cx="${x(i)}" cy="${y(d.p)}" r="14"><title>${d.q}: composite P${d.p} · ${d.v} text Reviews</title></circle>`).join("");
+  // volume strip (own chart, own scale)
+  const VH=46, vmax=Math.max(...TREND.map(d=>d.v)), bw=iw/TREND.length*0.55;
+  const vol = TREND.map((d,i)=>{const h=d.v/vmax*(VH-14);return `<rect class="vol" x="${x(i)-bw/2}" y="${VH-h}" width="${bw}" height="${h}" rx="2"><title>${d.q}: ${d.v} text Reviews</title></rect>`}).join("");
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Composite percentile among Peers by quarter, rising from P58 to P88">${grid}${cuts}<path class="area" d="${area}"/><path class="line" d="${line}"/>${dots}${xl}</svg>
+  <div class="small muted" style="margin:6px 0 2px">Text Reviews per quarter</div>
+  <svg viewBox="0 0 ${W} ${VH}" role="img" aria-label="Text Reviews per quarter, 118 to 214">${vol}<text x="${pl-6}" y="10" text-anchor="end">${vmax}</text></svg></div>`;
+}
+function bootBar(b){
+  return `<div class="boot" role="img" aria-label="Bootstrap resamples">${Object.entries(b).map(([t,v])=>`<span style="flex:${v};background:var(--t-${t})" title="${TIER_NAME[t]} ${v}%">${v>=12?`${TIER_NAME[t]} ${v}%`:""}</span>`).join("")}</div>`;
+}
+function jobHTML(){
+  return `<div class="steps">
+   <div class="step done"><span class="ic">✓</span><div><div class="t">Listings matched</div><div class="d">Google, Tripadvisor. TheFork found, awaiting your confirmation.</div></div></div>
+   <div class="step run"><span class="ic"></span><div><div class="t">Fetching Reviews</div><div class="d">Google 312 of ~480 text Reviews · Tripadvisor queued</div><div class="prog"><i style="width:40%"></i></div></div></div>
+   <div class="step wait"><span class="ic"></span><div><div class="t">Reading Reviews</div><div class="d">Aspects, themes, quotes and Red flags. Usually 10–40 min.</div></div></div>
+   <div class="step wait"><span class="ic"></span><div><div class="t">Placing among Peers</div><div class="d">Seconds, once reading is done.</div></div></div></div>`;
+}
+function jobFacts(){
+  return `<div style="display:grid;gap:8px"><div class="eyebrow">Known already</div>
+    <div class="small">Google 4.6 ★ (1,284) · Tripadvisor 4.5 (702)</div>
+    <div class="small">Guia Repsol: Recommended (2025)</div>
+    <p class="small muted">Raw star averages from each Source, not a Verdict. You can leave this page; the Verdict appears here when it’s ready.</p></div>`;
+}
+function neeHTML(s){
+  return `<div>${s.bars.map(b=>`<div class="check"><span class="${b.ok?"ok":"no"}">${b.ok?"✓":"✗"}</span><span>${b.t}</span><span class="mono small">${b.have} <span class="muted">/ ${b.need}</span></span></div>`).join("")}</div>`;
+}
+const refreshBanner = () => `<div class="banner" role="status"><span class="spin" aria-hidden="true"></span><span><b>Refreshing</b> · 38 new Reviews since 2 Sep, being read now. The Verdict below stays until the refresh finishes.</span></div>`;
+
+/* ============================== VARIANT A — Report ============================== */
+function VariantA(s){
+  const head = `<div class="name"><h1>${R.name}</h1><p>${R.area} · ${R.family} · <a href="#">Google ↗</a> <a href="#">Tripadvisor ↗</a></p></div>`;
+  if (s.job) return `<div class="A"><section class="hero">${head}<div class="chips"><span class="chip">${R.format} (proposed)</span><span class="chip">${R.price}</span></div>
+    <div class="banner" role="status"><span class="spin" aria-hidden="true"></span><span><b>Building the Verdict</b> · first lookup, about 20 minutes left</span></div>${jobHTML()}</section>
+    <section class="sec">${jobFacts()}</section>
+    <section class="sec"><h2>Where it stands</h2>${[1,2,3,4].map(()=>`<div class="skel" style="width:${60+Math.random()*35}%"></div>`).join("")}</section></div>`;
+  if (s.nee) return `<div class="A"><section class="hero">${head}<div><span class="nee">Not enough evidence</span></div><div class="chips"><span class="chip">${R.format}</span><span class="chip">${R.price}</span></div>
+    <p class="explain">There’s too little to judge this tasca fairly yet: 9 Reviews with text, and only 6 mention the food.</p>${neeHTML(s)}
+    <p class="small muted">Checked again with every scheduled refresh.</p></section>
+    <section class="sec"><h2>What there is</h2><div class="small">Google 4.4 ★ (23 ratings, 9 with text) · Tripadvisor: no Listing found</div></section></div>`;
+  const th = themesHTML();
+  const qs = (s.tier==="avoid" ? [FLAG_QUOTE,...QUOTES.slice(0,3)] : QUOTES);
+  return `<div class="A">
+   ${s.refreshing?refreshBanner():""}
+   <section class="hero">${head}
+     <div style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center">${tierBadge(s.tier,"lg",s.provisional)}${wasLine(s)}</div>
+     ${metaChips(s)}
+     <p class="explain">${s.explain}</p>
+     ${(s.flags||[]).map(flagBox).join("")}
+   </section>
+   <section class="sec"><div class="hd"><h2>Where it stands${s.provisional?"":` among ${R.peers} tascas`}</h2>${s.composite?`<span class="small muted">Composite <span class="mono">P${s.composite}</span></span>`:""}</div>
+     <div>${ASPECTS.map(a=>stripRow(a,s)).join("")}${stripAxis(s)}</div>${stripLegend(s)}
+     ${s.lcNote?`<p class="small muted">${s.lcNote}</p>`:""}</section>
+   <section class="sec"><h2>What people say</h2><div class="cols"><div><div class="eyebrow">Praised</div>${th.pos}</div><div><div class="eyebrow">Criticised</div>${th.neg}</div></div>
+     <p class="small muted">Share of ${THEMES.base} text Reviews that mention each theme.</p></section>
+   <section class="sec"><h2>In their words</h2><div class="quotes">${qs.map(quoteHTML).join("")}</div></section>
+   <section class="sec"><h2>Confidence</h2><div>${confChip(s.conf)}</div>${s.caps.length?`<ul class="small" style="margin:0;padding-left:18px">${s.caps.map(c=>`<li>${c}</li>`).join("")}</ul>`:`<p class="small muted">No caps applied.</p>`}</section>
+   <section class="sec"><h2>Sources</h2>${sourcesTable()}${editorialHTML()}</section>
+   ${s.provisional?"":`<section class="sec"><div class="hd"><h2>Over time</h2><span class="small muted">Good → Must Go in Mar 2026</span></div>${trendChart()}</section>`}
+  </div>`;
+}
+
+/* ============================== VARIANT B — Case file ============================== */
+function claim(rc, txt, sub, role, body, open=false){
+  return `<details ${open?"open":""}><summary style="--rc:${rc}"><span class="rail"></span><span class="txt">${txt}<small>${sub}</small></span><span class="role">${role}</span></summary><div class="body">${body}</div></details>`;
+}
+function VariantB(s){
+  const where = `<div class="where">${R.name} · ${R.area} · ${R.format} · ${R.price}</div>`;
+  if (s.job) return `<div class="B"><div class="head">${where}<h1>Reading the Reviews…</h1><p class="sub">First lookup. The case appears here when it’s ready; about 20 minutes left.</p></div>
+    <div class="claims"><div class="body" style="padding:18px">${jobHTML()}</div></div><div class="foot"><div class="panel">${jobFacts()}</div></div></div>`;
+  if (s.nee) return `<div class="B"><div class="head">${where}<h1 style="color:var(--muted)">Not enough evidence, yet</h1><p class="sub">Every Tier needs a fair sample of Reviews. This tasca misses two of the three bars.</p></div>
+    <div class="claims"><div class="body" style="padding:6px 18px 12px">${neeHTML(s)}</div></div>
+    <div class="foot"><div class="panel"><h3>What there is</h3><div class="small">Google 4.4 ★ (23 ratings, 9 with text)</div><div class="small muted">Tripadvisor: no Listing found</div></div></div></div>`;
+  const tc = `var(--t-${s.tier})`;
+  const byAspect = k => QUOTES.filter(q=>q.aspect===k).map(quoteHTML).join("") || `<p class="small muted">No representative quote.</p>`;
+  const A = Object.fromEntries(ASPECTS.map(a=>[a.k,a]));
+  const one = a => `<div>${stripRow(a,s)}</div>`;
+  let claims = "";
+  if (s.tier==="avoid"){
+    claims += claim("var(--flag)","Four first-hand food-poisoning reports since May, three of them in the last 90 days","Recurring and recent, across Google and Tripadvisor. Forces Avoid.","Decides it",
+      `${flagBox(s.flags[0])}${quoteHTML(FLAG_QUOTE,9)}`, true);
+    claims += claim("var(--t-must)","Otherwise it would be Must Go","Composite P88 among 142 tascas; food P93.","Set aside",`${ASPECTS.map(a=>stripRow(a,s)).join("")}${stripAxis(s)}`);
+  } else if (s.provisional){
+    claims += claim("var(--t-good)",`Food is clearly liked: θ +1.21`,`n_eff ${A.food.n} · no Peers yet, so no percentile`,"Deciding",one(A.food)+byAspect("food"),true);
+    claims += claim("var(--t-good)",`Value is a strength: θ +0.88`,`n_eff ${A.value.n}`,"Deciding",one(A.value)+byAspect("value"));
+    claims += claim("var(--warn)","Low Confidence: provisional, and Google only","Default cut-offs until the Lisbon tascas are gathered","Confidence",`<ul class="small" style="margin:0;padding-left:18px">${s.caps.map(c=>`<li>${c}</li>`).join("")}</ul>${bootBar(s.boot)}`);
+  } else {
+    claims += claim("var(--t-good)","Food ranks P93 among 142 tascas","Bacalhau à Brás named in 74 Reviews · n_eff 212","Deciding",one(A.food)+byAspect("food"),true);
+    claims += claim("var(--t-good)","Value ranks P84: under €20 a head is the recurring line","House wine value in 48 Reviews","Deciding",one(A.value)+byAspect("value"));
+    claims += claim("var(--t-avoid)","Waits without a booking are the weak spot: P31","52 Reviews mention a long wait · above the P25 floor","Weakest",one(A.wait)+byAspect("wait"));
+    claims += claim("var(--warn)","Medium Confidence: Google and Tripadvisor disagree on service","Service P78 on Google, P55 on Tripadvisor","Confidence",`${one(A.service)}${byAspect("service")}<div class="eyebrow">Tier across 1,000 resamples</div>${bootBar(s.boot)}`);
+    claims += claim("var(--warn)","One unordered couvert charge, not recurring","Mar 2026 · noted, doesn’t move the Tier","Red flag",flagBox(s.flags[0]));
+    claims += claim("var(--t-life)","Not Life Changing: food would need P98","Now P93","Ceiling",`<p class="small">Life Changing also needs “exceptional” language in more Reviews than 90% of Peers. It’s at P71.</p>`);
+    claims += claim("var(--line)","Everything else","Service P71 · stars P88 · consistency P62 · ambience not counted","Other inputs",`${ASPECTS.filter(a=>!["food","value","wait"].includes(a.k)).map(a=>stripRow(a,s)).join("")}${stripAxis(s)}${stripLegend(s)}`);
+  }
+  const th = themesHTML();
+  return `<div class="B">${s.refreshing?refreshBanner():""}
+   <div class="head">${where}
+     <h1 style="--tc:${tc}"><span class="tw">${TIER_NAME[s.tier]}</span>${s.provisional?" (provisional)":s.tier==="avoid"?"":" among Lisbon tascas"}</h1>
+     <div class="chips">${confChip(s.conf)}${s.provisional?`<span class="chip prov">Provisional</span>`:""}${wasLine(s)}</div>
+   </div>
+   <div class="claims">${claims}</div>
+   <div class="foot">
+     <div class="panel"><h3>Themes</h3>${th.pos}${th.neg}</div>
+     <div class="panel"><h3>Sources</h3>${SOURCES.map(x=>`<div class="small"><a href="#">${x.name} ↗</a> <span class="acc ${x.access}">personal-only</span> ${x.status==="ok"?`<span class="mono">${x.count.toLocaleString("en")}</span> Reviews · ${x.rating}`:`<span class="muted">not fetched</span>`}</div>`).join("")}${editorialHTML()}</div>
+     ${s.provisional?"":`<div class="panel" style="grid-column:1/-1"><h3>Over time</h3>${trendChart()}</div>`}
+   </div></div>`;
+}
+
+/* ============================== VARIANT C — Standing ============================== */
+function peersSwarm(s){
+  // deterministic mock raw composite scores for 142 Peers
+  let seed=7; const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+  const vals = Array.from({length:R.peers},()=>{let u=0;for(let i=0;i<6;i++)u+=rnd();return (u/6-0.5)*2.4}).sort((a,b)=>a-b);
+  const q = p => vals[Math.min(vals.length-1,Math.floor(p/100*vals.length))];
+  const me = q(s.composite ?? 50), was = q(74);
+  const W=560,H=150,pl=10,pr=10, lo=vals[0]-0.1, hi=vals.at(-1)+0.1;
+  const x = v => pl+(v-lo)/(hi-lo)*(W-pl-pr);
+  // simple beeswarm: stack into columns
+  const bins={}; const dots = vals.map(v=>{const b=Math.round(x(v)/7);bins[b]=(bins[b]||0)+1;const k=bins[b];const yy=78+((k%2?1:-1)*Math.floor(k/2))*7;return `<circle class="peer" cx="${b*7}" cy="${yy}" r="3"/>`}).join("");
+  const cutX = CUTS.map(c=>({x:x(q(c.p)),t:c.t,p:c.p}));
+  const bounds=[pl,...cutX.map(c=>c.x),W-pr], names=["avoid",...CUTS.map(c=>c.t)];
+  const labels = names.map((t,i)=>{const mid=(bounds[i]+bounds[i+1])/2;const short={avoid:"Avoid",ok:"OK",good:"Good",must:"Must Go",life:"LC"}[t];return `<text class="tl" x="${mid}" y="16" text-anchor="middle" style="fill:var(--t-${t})">${short}</text>`}).join("");
+  const cuts = cutX.map(c=>`<line class="cut" x1="${c.x}" x2="${c.x}" y1="24" y2="${H-24}"/><text x="${c.x}" y="${H-10}" text-anchor="middle">P${c.p}</text>`).join("");
+  const meT = s.tier==="avoid"?"must":s.tier;
+  return `<div class="swarm"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${R.name} among ${R.peers} Lisbon tascas by composite score; it sits at P${s.composite}">
+   ${labels}${cuts}${dots}
+   ${s.was&&s.tier!=="avoid"?`<circle class="was" cx="${x(was)}" cy="78" r="8"><title>Mar 2026: P74, Good</title></circle>`:""}
+   <circle class="me" cx="${x(me)}" cy="78" r="9" style="fill:var(--t-${meT})"><title>${R.name}: composite P${s.composite}</title></circle>
+   <text x="${x(me)}" y="${56}" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-weight:700;font-size:11.5px">This tasca · P${s.composite}</text>
+  </svg><p class="small muted">Each dot is one of ${R.peers} Lisbon tascas, placed by weighted composite. Tier cut-offs are percentiles of this spread.${s.was&&s.tier!=="avoid"?" Dashed ring: where it stood in Mar 2026.":""}</p></div>`;
+}
+function VariantC(s){
+  const top = extra => `<div class="top"><div><h1>${R.name}</h1><div class="meta">${R.area} · ${R.format} · ${R.price}</div></div>${extra}</div>`;
+  if (s.job) return `<div class="C">${top(`<span class="chip">Building the Verdict · ~20 min</span>`)}<div class="grid"><div class="card"><h2>Progress</h2>${jobHTML()}</div><div class="card">${jobFacts()}</div></div></div>`;
+  if (s.nee) return `<div class="C">${top(`<span class="nee" style="font-size:18px">Not enough evidence</span>`)}<div class="grid"><div class="card"><h2>Bars for a Verdict</h2>${neeHTML(s)}</div><div class="card"><h2>What there is</h2><div class="small">Google 4.4 ★ (23 ratings, 9 with text)</div><div class="small muted">Tripadvisor: no Listing found</div></div></div></div>`;
+  const tabs = [["why","Why"],["themes","Themes"],["quotes","Quotes"],["sources","Sources"],["history","History"]].filter(t=>!(s.provisional&&t[0]==="history"));
+  const th = themesHTML();
+  const qs = (s.tier==="avoid" ? [FLAG_QUOTE,...QUOTES.slice(0,3)] : QUOTES);
+  const panes = {
+    why:`<p class="explain">${s.explain}</p>${(s.flags||[]).map(flagBox).join("")}${s.lcNote?`<p class="small muted">${s.lcNote}</p>`:""}`,
+    themes:`<div class="eyebrow">Praised</div>${th.pos}<div class="eyebrow" style="margin-top:8px">Criticised</div>${th.neg}`,
+    quotes:qs.map((q,i)=>`<div class="mini-quote">${quoteHTML(q,i)}</div>`).join(""),
+    sources:sourcesTable()+editorialHTML(),
+    history:`${trendChart()}<p class="small">Good until Mar 2026 → Must Go since.</p>`
+  };
+  return `<div class="C">${s.refreshing?refreshBanner():""}
+   ${top(`<div style="display:grid;gap:8px;justify-items:end">${tierBadge(s.tier,"lg",s.provisional)}<div class="chips">${confChip(s.conf)}${s.provisional?`<span class="chip prov">Provisional</span>`:""}</div></div>`)}
+   <div class="grid">
+    <div style="display:grid;gap:16px">
+     ${s.provisional
+       ? `<div class="card"><h2>No Peers yet</h2><p class="small muted">Other Lisbon tascas haven’t been gathered, so there’s no spread to place it in. It’s judged on default cut-offs for now.</p></div>`
+       : `<div class="card"><h2>Standing among ${R.peers} tascas${s.forced?" (before the Red flag)":""}</h2>${peersSwarm(s)}</div>`}
+     <div class="card"><h2>By input</h2><div>${ASPECTS.map(a=>stripRow(a,s)).join("")}${stripAxis(s)}</div>${stripLegend(s)}</div>
+     <div class="card"><h2>How sure</h2><div class="small muted">Tier the Restaurant gets across 1,000 resamples of its Reviews</div>${bootBar(s.boot)}${s.caps.length?`<ul class="small" style="margin:0;padding-left:18px">${s.caps.map(c=>`<li>${c}</li>`).join("")}</ul>`:""}</div>
+    </div>
+    <div class="card" style="position:sticky;top:12px">
+     <div class="tabs" role="tablist">${tabs.map((t,i)=>`<button role="tab" id="tab-${t[0]}" aria-selected="${i===0}" data-pane="${t[0]}">${t[1]}</button>`).join("")}</div>
+     ${tabs.map((t,i)=>`<div class="tabpane" role="tabpanel" data-pane="${t[0]}" ${i?"hidden":""}>${panes[t[0]]}</div>`).join("")}
+    </div>
+   </div></div>`;
+}
+
+/* ============================== SWITCHER ============================== */
+const VARIANTS = [["A","Report",VariantA],["B","Case file",VariantB],["C","Standing",VariantC]];
+const params = new URLSearchParams(location.search);
+let vi = Math.max(0, VARIANTS.findIndex(v=>v[0]===(params.get("variant")||"A").toUpperCase()));
+let st = STATES[params.get("state")] ? params.get("state") : "verdict";
+const sel = document.getElementById("stateSel");
+sel.innerHTML = Object.entries(STATES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join("");
+
+function render(){
+  const [key,name,fn] = VARIANTS[vi];
+  document.getElementById("vlabel").textContent = `${key} (${name})`;
+  sel.value = st;
+  document.getElementById("app").innerHTML = fn(STATES[st]);
+  try{ const u = new URL(location.href); u.searchParams.set("variant",key); u.searchParams.set("state",st); history.replaceState(null,"",u); }catch(e){}
+}
+const go = d => { vi = (vi + d + VARIANTS.length) % VARIANTS.length; render(); };
+document.getElementById("prev").onclick = () => go(-1);
+document.getElementById("next").onclick = () => go(1);
+sel.onchange = () => { st = sel.value; render(); };
+addEventListener("keydown", e => {
+  const t = e.target; if (t.closest && t.closest("input,textarea,select,[contenteditable]")) return;
+  if (e.key==="ArrowLeft") go(-1); if (e.key==="ArrowRight") go(1);
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest(".tr");
+  if (b){ const q = document.getElementById(b.dataset.target); const showTr = q.dataset.showing==="orig";
+    q.textContent = "“" + (showTr ? q.dataset.tr : q.dataset.orig) + "”"; q.dataset.showing = showTr ? "tr" : "orig";
+    q.lang = showTr ? "en" : ""; b.textContent = showTr ? "Show original" : "Translate"; return; }
+  const tab = e.target.closest("[role=tab]");
+  if (tab){ const root = tab.closest(".card");
+    root.querySelectorAll("[role=tab]").forEach(x=>x.setAttribute("aria-selected", x===tab));
+    root.querySelectorAll("[role=tabpanel]").forEach(p=>p.hidden = p.dataset.pane!==tab.dataset.pane); }
+});
+render();
+</script>
