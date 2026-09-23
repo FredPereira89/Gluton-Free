@@ -27,15 +27,22 @@ type DfsEnvelope = {
 };
 
 async function call(path: string, init?: { body?: unknown }): Promise<DfsEnvelope> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: init?.body ? "POST" : "GET",
-    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
-    body: init?.body ? JSON.stringify(init.body) : undefined,
-  });
-  if (!res.ok) throw new Error(`DataForSEO ${path}: HTTP ${res.status}`);
-  const env = (await res.json()) as DfsEnvelope;
-  if (env.status_code !== 20000) throw new Error(`DataForSEO ${path}: ${env.status_code} ${env.status_message}`);
-  return env;
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(`${BASE}${path}`, {
+      method: init?.body ? "POST" : "GET",
+      headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+      body: init?.body ? JSON.stringify(init.body) : undefined,
+    });
+    const env = (await res.json().catch(() => null)) as DfsEnvelope | null;
+    // Right after account verification some servers still answer 40104 for a while: retry a few times.
+    if (res.status === 403 && env?.status_code === 40104 && attempt < 6) {
+      await new Promise((r) => setTimeout(r, 10_000));
+      continue;
+    }
+    if (!res.ok || !env) throw new Error(`DataForSEO ${path}: HTTP ${res.status}${env ? ` ${env.status_code} ${env.status_message}` : ""}`);
+    if (env.status_code !== 20000) throw new Error(`DataForSEO ${path}: ${env.status_code} ${env.status_message}`);
+    return env;
+  }
 }
 
 export type ReviewTaskParams =
@@ -46,7 +53,8 @@ export type ReviewTaskParams =
 export async function postReviewTask(p: ReviewTaskParams): Promise<{ taskId: string; cost: number }> {
   const body =
     p.source === "google"
-      ? { place_id: p.placeId, depth: p.depth, sort_by: "newest", language_code: "en" }
+      ? // A location is required even with place_id; 2620 is Portugal.
+        { place_id: p.placeId, location_code: 2620, depth: p.depth, sort_by: "newest", language_code: "en" }
       : { url_path: p.urlPath, depth: p.depth, sort_by: "most_recent", translate_reviews: false };
   const env = await call(`/${p.source}/reviews/task_post`, { body: [body] });
   const task = env.tasks[0];
@@ -64,8 +72,10 @@ export async function getReviewTask(source: DfsSource, taskId: string): Promise<
   const res = await fetch(`${BASE}/${source}/reviews/task_get/${taskId}`, {
     headers: { Authorization: authHeader() },
   });
-  if (!res.ok) throw new Error(`DataForSEO task_get: HTTP ${res.status}`);
-  const env = (await res.json()) as DfsEnvelope;
+  const env = (await res.json().catch(() => null)) as DfsEnvelope | null;
+  // Right after account verification some servers still answer 40104 for a while: poll again.
+  if (res.status === 403 && env?.status_code === 40104) return null;
+  if (!res.ok || !env) throw new Error(`DataForSEO task_get: HTTP ${res.status}`);
   const task = env.tasks?.[0];
   if (!task) throw new Error(`DataForSEO task_get: no task in response (${env.status_code})`);
   // 40601 "Task Handed", 40602 "Task in Queue": not ready yet.
