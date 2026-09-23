@@ -1,0 +1,15 @@
+# Secrets: never commit real credentials (see .env.example for the names)
+.env
+.env*.local
+
+# Tooling
+node_modules/
+.next/
+.vercel/
+.trigger/
+
+# Local agent tooling state
+.remember/
+.claude/settings.local.json
+.impeccable/config.local.json
+.codex/
