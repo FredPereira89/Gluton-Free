@@ -43,7 +43,45 @@ const ReviewOut = z.object({
 });
 
 const Output = z.object({ reviews: z.array(ReviewOut) });
+// The strict schema goes to the model; replies are read leniently, one entry at a time, because the
+// model can still return an out-of-vocabulary value and one bad entry must not sink the chunk.
 const format = zodOutputFormat(Output);
+const isAspect = (v: string): v is Aspect => (ASPECTS as readonly string[]).includes(v);
+const isFlagType = (v: string): v is FlagType => (FLAG_TYPES as readonly string[]).includes(v);
+const isTheme = (v: string): v is ThemeCode => (THEME_CODES as readonly string[]).includes(v);
+const lenientScore = z.number().nullable().catch(null);
+const LenientOut = z.object({
+  i: z.number(),
+  lang: z.string().catch(""),
+  food: lenientScore,
+  service: lenientScore,
+  ambience: lenientScore,
+  value: lenientScore,
+  wait: lenientScore,
+  consistency: lenientScore,
+  exceptional: z.enum(["none", "food", "service", "overall"]).catch("none"),
+  flags: z.array(z.object({ type: z.string(), first_hand: z.boolean(), severity: z.enum(["low", "medium", "high"]).catch("low"), evidence: z.string() })).catch([]),
+  themes: z.array(z.string()).catch([]),
+  quote: z.object({ text: z.string(), aspect: z.string(), polarity: z.enum(["positive", "negative"]) }).nullable().catch(null),
+  names: z.array(z.string()).catch([]),
+});
+type LenientEntry = z.infer<typeof LenientOut>;
+
+/** Parses a reply's JSON text into the entries that are usable; malformed entries are left out. */
+function parseReply(text: string): LenientEntry[] {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  const reviews = (raw as { reviews?: unknown })?.reviews;
+  if (!Array.isArray(reviews)) return [];
+  return reviews.flatMap((r) => {
+    const p = LenientOut.safeParse(r);
+    return p.success ? [p.data] : [];
+  });
+}
 
 export type ExtractInput = { id: number; text: string; stars: number | null };
 
@@ -128,10 +166,10 @@ const clampScore = (v: number | null): number | null => (v === null ? null : Mat
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
 
 /** Validates one model entry against its Review. Drops a quote that is not verbatim. */
-function toExtracted(out: z.infer<typeof ReviewOut>, input: ExtractInput): Extracted {
+function toExtracted(out: LenientEntry, input: ExtractInput): Extracted {
   const aspects = Object.fromEntries(ASPECTS.map((a) => [a, clampScore(out[a])])) as Record<Aspect, number | null>;
   let quote: Extracted["quote"] = null;
-  if (out.quote) {
+  if (out.quote && isAspect(out.quote.aspect)) {
     const q = out.quote.text.trim();
     const verbatim = q.length > 0 && q.length <= 300 && squash(input.text).includes(squash(q));
     if (verbatim) quote = { text: q, aspect: out.quote.aspect, polarity: out.quote.polarity === "positive" ? 1 : -1 };
@@ -141,16 +179,16 @@ function toExtracted(out: z.infer<typeof ReviewOut>, input: ExtractInput): Extra
     lang: out.lang.toLowerCase().slice(0, 8),
     aspects,
     exceptional: out.exceptional,
-    flags: out.flags.map((f) => ({ type: f.type, firstHand: f.first_hand, severity: f.severity, evidence: f.evidence.slice(0, 300) })),
-    themes: [...new Set(out.themes)].slice(0, 3),
+    flags: out.flags.flatMap((f) => (isFlagType(f.type) ? [{ type: f.type, firstHand: f.first_hand, severity: f.severity, evidence: f.evidence.slice(0, 300) }] : [])),
+    themes: [...new Set(out.themes.filter(isTheme))].slice(0, 3),
     quote,
     names: out.names.filter((n) => n.trim().length >= 2),
   };
 }
 
-function collect(parsed: z.infer<typeof Output>, items: ExtractInput[], into: Map<number, Extracted>) {
+function collect(entries: LenientEntry[], items: ExtractInput[], into: Map<number, Extracted>) {
   const byId = new Map(items.map((r) => [r.id, r]));
-  for (const out of parsed.reviews) {
+  for (const out of entries) {
     const input = byId.get(out.i);
     if (input) into.set(input.id, toExtracted(out, input));
   }
@@ -162,15 +200,21 @@ function chunks<T>(xs: T[], n: number): T[][] {
   return out;
 }
 
-/** Sync path: a few requests in parallel. Reviews the model skipped are simply absent from the result. */
+/** Sync path: a few requests in parallel. Reviews the model skipped or a failed request are absent from the result. */
 export async function extractSync(items: ExtractInput[], usage: LlmUsage, concurrency = 4): Promise<Map<number, Extracted>> {
   const result = new Map<number, Extracted>();
   const queue = chunks(items, CHUNK);
   async function worker() {
     for (let chunk = queue.shift(); chunk; chunk = queue.shift()) {
-      const res = await anthropic().messages.parse({ ...requestParams(chunk), output_config: { format } });
-      addUsage(usage, res.usage);
-      if (res.parsed_output) collect(res.parsed_output, chunk, result);
+      try {
+        const res = await anthropic().messages.create({ ...requestParams(chunk), output_config: { format: { type: format.type, schema: format.schema } } });
+        addUsage(usage, res.usage);
+        const text = res.content.find((c) => c.type === "text");
+        if (text && text.type === "text") collect(parseReply(text.text), chunk, result);
+      } catch (e) {
+        // Left for the retry pass; a persistent failure shows up as unanalysed Reviews.
+        console.error(`extract chunk failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`);
+      }
     }
   }
   await Promise.all(Array.from({ length: concurrency }, worker));
@@ -203,11 +247,7 @@ export async function collectBatch(batchId: string, items: ExtractInput[], usage
     addUsage(usage, r.result.message.usage);
     const text = r.result.message.content.find((c) => c.type === "text");
     if (!text || text.type !== "text") continue;
-    try {
-      collect(format.parse(text.text), chunk, result);
-    } catch {
-      // A malformed chunk is left out; the caller re-runs missing Reviews through the sync path.
-    }
+    collect(parseReply(text.text), chunk, result); // malformed entries are left out and retried by sync
   }
   return result;
 }

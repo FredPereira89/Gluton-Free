@@ -54,23 +54,32 @@ async function runVendorTasks(
   return results;
 }
 
-/** Fetches every Review of every Listing: a depth-10 probe for the count, then the full depth. */
-export async function ingestRestaurant(restaurantId: number, jobId: number, sleep: Sleep) {
+/**
+ * Fetches every Review of every Listing: a depth-10 probe for the count, then the full depth.
+ * With `sample`, fetches only the newest `sample` Reviews per Listing and skips the probe.
+ */
+export async function ingestRestaurant(restaurantId: number, jobId: number, sleep: Sleep, sample?: number) {
   const sql = db();
   const rows = await sql`select id, source_code, place_ref from listing where restaurant_id = ${restaurantId} order by id`;
   const listings: ListingRow[] = rows.map((r) => ({ id: Number(r.id), source: r.source_code as DfsSource, placeRef: r.place_ref as string }));
   await sql`update listing set fetch_status = 'fetching', fetch_error = null where restaurant_id = ${restaurantId}`;
   try {
-    await setStep(jobId, "probing Listings");
-    const probes = await runVendorTasks(listings, () => 10, jobId, sleep);
-    const expected = new Map<number, number>();
-    for (const l of listings) {
-      const n = (l.source === "google" ? normaliseGoogle : normaliseTripadvisor)(probes.get(l.id));
-      expected.set(l.id, n.facts.reviewCount ?? 0);
+    let depthOf: (l: ListingRow) => number = () => sample!;
+    if (sample) {
+      await setStep(jobId, "fetching Reviews", { sample });
+    } else {
+      await setStep(jobId, "probing Listings");
+      const probes = await runVendorTasks(listings, () => 10, jobId, sleep);
+      const expected = new Map<number, number>();
+      for (const l of listings) {
+        const n = (l.source === "google" ? normaliseGoogle : normaliseTripadvisor)(probes.get(l.id));
+        expected.set(l.id, n.facts.reviewCount ?? 0);
+      }
+      await setStep(jobId, "fetching Reviews", { expected: Object.fromEntries(listings.map((l) => [l.source, expected.get(l.id)])) });
+      depthOf = (l) => depthFor(expected.get(l.id) ?? 0);
     }
-    await setStep(jobId, "fetching Reviews", { expected: Object.fromEntries(listings.map((l) => [l.source, expected.get(l.id)])) });
 
-    const full = await runVendorTasks(listings, (l) => depthFor(expected.get(l.id) ?? 0), jobId, sleep);
+    const full = await runVendorTasks(listings, depthOf, jobId, sleep);
     const summary: Record<string, { fetched: number; inserted: number; droppedThirdParty: number }> = {};
     for (const l of listings) {
       const n = (l.source === "google" ? normaliseGoogle : normaliseTripadvisor)(full.get(l.id));
@@ -91,11 +100,15 @@ async function save(results: Map<number, Extracted>, items: ExtractInput[]) {
   await saveAnalyses(results, new Map(items.map((i) => [i.id, i.text])));
 }
 
-/** Extracts Aspects for every text Review not yet analysed: newest by sync, the rest by batch, then a sync retry. */
-export async function extractRestaurant(restaurantId: number, jobId: number, sleep: Sleep) {
-  const pending = await pendingExtraction(restaurantId);
-  const first = pending.slice(0, SYNC_FIRST);
-  const rest = pending.slice(SYNC_FIRST);
+/**
+ * Extracts Aspects for every text Review not yet analysed: newest by sync, the rest by batch, then a sync retry.
+ * With `limit`, extracts only the newest `limit` pending Reviews, by sync (a quick end-to-end check).
+ */
+export async function extractRestaurant(restaurantId: number, jobId: number, sleep: Sleep, limit?: number) {
+  const all = await pendingExtraction(restaurantId);
+  const pending = limit ? all.slice(0, limit) : all;
+  const first = pending.slice(0, limit ?? SYNC_FIRST);
+  const rest = pending.slice(first.length);
 
   await setStep(jobId, "extracting newest Reviews", { extraction: { pending: pending.length } });
   const syncUsage = emptyUsage("extract", EXTRACT_MODEL, false);
@@ -115,7 +128,8 @@ export async function extractRestaurant(restaurantId: number, jobId: number, sle
     await addLlmUsage(jobId, batchUsage);
   }
 
-  const missing = await pendingExtraction(restaurantId);
+  const pendingIds = new Set(pending.map((p) => p.id));
+  const missing = (await pendingExtraction(restaurantId)).filter((p) => pendingIds.has(p.id));
   if (missing.length) {
     await setStep(jobId, "re-extracting missed Reviews");
     const retryUsage = emptyUsage("extract-retry", EXTRACT_MODEL, false);
@@ -123,8 +137,8 @@ export async function extractRestaurant(restaurantId: number, jobId: number, sle
     await addLlmUsage(jobId, retryUsage);
   }
   const left = (await pendingExtraction(restaurantId)).length;
-  await setStep(jobId, "extraction done", { extraction: { pending: pending.length, unanalysed: left } });
-  return { pending: pending.length, unanalysed: left };
+  await setStep(jobId, "extraction done", { extraction: { pending: all.length, attempted: pending.length, unanalysed: left } });
+  return { pending: all.length, attempted: pending.length, unanalysed: left };
 }
 
 /** Verifies pending Red flags and issues a Verdict. */
@@ -144,12 +158,16 @@ export async function judgeRestaurant(restaurantId: number, jobId: number) {
 export type LookupStage = "ingest" | "extract" | "judge";
 
 /** The whole lookup, as one Job. `from` lets a re-run skip stages that already completed. */
-export async function runLookup(restaurantId: number, sleep: Sleep, opts: { from?: LookupStage; triggerRunId?: string } = {}) {
+export async function runLookup(
+  restaurantId: number,
+  sleep: Sleep,
+  opts: { from?: LookupStage; triggerRunId?: string; sample?: number; extractLimit?: number } = {},
+) {
   const jobId = await createJob("lookup", restaurantId, opts.triggerRunId);
   const from = opts.from ?? "ingest";
   try {
-    const ingest = from === "ingest" ? await ingestRestaurant(restaurantId, jobId, sleep) : null;
-    const extraction = from !== "judge" ? await extractRestaurant(restaurantId, jobId, sleep) : null;
+    const ingest = from === "ingest" ? await ingestRestaurant(restaurantId, jobId, sleep, opts.sample) : null;
+    const extraction = from !== "judge" ? await extractRestaurant(restaurantId, jobId, sleep, opts.extractLimit) : null;
     const judged = await judgeRestaurant(restaurantId, jobId);
     await finishJob(jobId);
     return { jobId, ingest, extraction, ...judged };
