@@ -1,0 +1,97 @@
+import { createHash } from "node:crypto";
+import type { Aspect, FlagType } from "@/domain/aspects";
+import { db } from "@/lib/db";
+import type { LlmUsage } from "@/lib/job";
+import { BlocksSchema } from "./blocks";
+import { explainAndQuote, preselect, type QuoteCandidate } from "./explain";
+import { rollup, type RollupFlag, type RollupReview } from "./rollup";
+
+const FORMAT_NAME: Record<string, string> = { tasca: "tasca" };
+
+export async function loadRollupInput(restaurantId: number, now = new Date()) {
+  const sql = db();
+  const [restaurant] = await sql`select id, name, format from restaurant where id = ${restaurantId}`;
+  if (!restaurant) throw new Error(`restaurant ${restaurantId} not found`);
+  const rows = await sql`
+    select r.id, l.source_code, r.published_at, r.stars, r.text is not null as has_text, r.sub_ratings,
+           a.food, a.service, a.ambience, a.value, a.wait, a.consistency, a.exceptional, a.themes,
+           a.review_id is not null as analysed
+    from review r
+    join listing l on l.id = r.listing_id
+    left join review_analysis a on a.review_id = r.id
+    where l.restaurant_id = ${restaurantId}`;
+  const reviews: RollupReview[] = rows.map((r) => ({
+    id: Number(r.id),
+    source: r.source_code as string,
+    publishedAt: r.published_at as Date,
+    stars: r.stars as number | null,
+    hasText: r.has_text as boolean,
+    subRatings: (r.sub_ratings ?? null) as Partial<Record<Aspect, number>> | null,
+    aspects: r.analysed
+      ? { food: r.food, service: r.service, ambience: r.ambience, value: r.value, wait: r.wait, consistency: r.consistency }
+      : null,
+    exceptional: (r.exceptional ?? null) as RollupReview["exceptional"],
+    themes: (r.themes ?? []) as string[],
+  }));
+  const flagRows = await sql`
+    select f.review_id, f.type, f.flag_group, f.first_hand, f.verification, r.published_at
+    from review_flag f
+    join review r on r.id = f.review_id
+    join listing l on l.id = r.listing_id
+    where l.restaurant_id = ${restaurantId}`;
+  const flags: RollupFlag[] = flagRows.map((f) => ({
+    reviewId: Number(f.review_id),
+    type: f.type as FlagType,
+    group: f.flag_group as "health" | "money",
+    firstHand: f.first_hand as boolean,
+    verification: f.verification as RollupFlag["verification"],
+    publishedAt: f.published_at as Date,
+  }));
+  return { restaurant, input: { now, format: restaurant.format as string, reviews, flags } };
+}
+
+async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> {
+  const rows = await db()`
+    select a.review_id, a.quote, a.quote_aspect, a.quote_polarity, a.quote_en, r.language, r.stars, l.source_code, r.published_at
+    from review_analysis a
+    join review r on r.id = a.review_id
+    join listing l on l.id = r.listing_id
+    where l.restaurant_id = ${restaurantId} and a.quote is not null
+      and r.published_at > now() - interval '24 months'`;
+  return rows.map((q) => ({
+    reviewId: Number(q.review_id),
+    aspect: q.quote_aspect as Aspect,
+    polarity: q.quote_polarity as 1 | -1,
+    text: q.quote as string,
+    textEn: q.quote_en as string | null,
+    lang: q.language as string | null,
+    stars: q.stars as number | null,
+    source: q.source_code as string,
+    publishedAt: q.published_at as Date,
+  }));
+}
+
+/** Computes the rollup, writes the explanation, and appends a Verdict row. Returns its id. */
+export async function issueVerdict(restaurantId: number, jobId: number | null, usage: LlmUsage): Promise<number> {
+  const sql = db();
+  const { restaurant, input } = await loadRollupInput(restaurantId);
+  const r = rollup(input);
+  const inputsHash = createHash("sha256").update(JSON.stringify(r)).digest("hex");
+
+  const candidates = preselect(await quoteCandidates(restaurantId));
+  const { explanation, quotes } = await explainAndQuote(
+    { name: restaurant.name as string, formatName: FORMAT_NAME[input.format] ?? input.format, rollup: r, candidates },
+    usage,
+  );
+  for (const q of quotes) {
+    if (q.textEn) await sql`update review_analysis set quote_en = ${q.textEn} where review_id = ${q.reviewId} and quote_en is null`;
+  }
+
+  const blocks = BlocksSchema.parse({ rollup: r, quotes });
+  const [row] = await sql`
+    insert into verdict (restaurant_id, job_id, state, tier, confidence, provisional, blocks, explanation, inputs_hash)
+    values (${restaurantId}, ${jobId}, ${r.state}, ${r.tier}, ${r.state === "verdict" ? r.confidence.level : null},
+            true, ${sql.json(blocks as never)}, ${explanation}, ${inputsHash})
+    returning id`;
+  return Number(row!.id);
+}

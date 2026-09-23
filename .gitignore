@@ -13,3 +13,8 @@ node_modules/
 .claude/settings.local.json
 .impeccable/config.local.json
 .codex/
+
+# Build and browser-check output
+.playwright-mcp/
+tsconfig.tsbuildinfo
+next-env.d.ts
