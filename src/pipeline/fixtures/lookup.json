@@ -1,0 +1,32 @@
+{
+  "restaurant": "Fictional Copper Spoon",
+  "googleReviews": [
+    "The roasted vegetables were full of flavour and arrived hot. Service was warm.",
+    "A rich bean stew and crisp bread made this a lovely dinner. The staff were kind.",
+    "The grilled mushrooms tasted fresh and the server explained every dish clearly.",
+    "We enjoyed the citrus tart and the savoury rice. Service was attentive.",
+    "The soup had a deep flavour and the bread was freshly baked. Friendly service.",
+    "A delicious lentil plate with bright herbs. The team made us feel welcome.",
+    "The pasta was cooked perfectly and the sauce tasted excellent. Quick service.",
+    "I liked the smoky aubergine and the crisp potatoes. Staff were helpful."
+  ],
+  "tripadvisorReviews": [
+    "The chickpea dish was generous and well seasoned. We had cheerful service.",
+    "Fresh salad and a lovely fruit dessert made a satisfying meal. The staff were patient.",
+    "The baked squash was sweet and savoury. Our waiter was attentive.",
+    "Excellent tomato rice and fresh greens. The service was smooth.",
+    "The mushroom pie had a flaky crust and plenty of flavour. Welcoming staff.",
+    "I enjoyed the fragrant vegetable broth and the warm bread. Service was prompt.",
+    "The roasted carrots and beans were delicious. The staff answered our questions.",
+    "A tasty herb pasta and a bright lemon dessert. Everyone was friendly."
+  ],
+  "apify": { "items": [{ "id": "invented-editorial-item", "title": "Invented dining note" }] },
+  "anthropic": {
+    "analysis": {
+      "lang": "en", "food": 1, "service": 1, "ambience": null, "value": null,
+      "wait": null, "consistency": null, "exceptional": "none", "flags": [],
+      "themes": [], "quote": null, "names": []
+    },
+    "explanation": "A provisional Verdict based on invented Reviews. Confidence is Low."
+  }
+}
