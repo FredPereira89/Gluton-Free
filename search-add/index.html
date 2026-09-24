@@ -1,0 +1,631 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Add-a-Restaurant Flows</title>
+<!--
+  PROTOTYPE — throwaway. Gluton-Free map ticket "Search and add-Restaurant UX" (#14).
+  Plan: three structurally different add-a-Restaurant flows (A One box, B Wizard, C Inbox), switchable via
+  ?variant=A|B|C, each shown at the same twelve moments via ?screen=<key>, with the API contract each moment
+  needs beside the phone. All Restaurants except O Velho Eurico are FICTIONAL; numbers are mock.
+  Double-click to open; no build, no persistence.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F4F6F8; --surface:#FFFFFF; --sunk:#EAEEF2; --ink:#15202B; --muted:#5B6673; --faint:#8A95A1; --line:#DCE2E8;
+  --accent:#0E6170; --accent-ink:#FFFFFF; --accent-soft:#DCEEF0;
+  --t-avoid:#B42318; --t-ok:#66707C; --t-good:#2F7D57; --t-must:#2446A8; --t-life:#9A5B00;
+  --t-avoid-bg:#FBE9E7; --t-ok-bg:#ECEFF2; --t-good-bg:#E4F2EA; --t-must-bg:#E6ECFA; --t-life-bg:#FAF0DC;
+  --flag:#B42318; --flag-bg:#FDF0EE; --warn:#8A5A00; --warn-bg:#FBF3E0;
+  --band:#E3E8ED; --shadow:0 1px 2px rgba(21,32,43,.06),0 4px 16px rgba(21,32,43,.06);
+  --scrim:rgba(21,32,43,.38); --map:#E8EDE9; --map-road:#FFFFFF; --map-water:#CFE0EA;
+  --sans:"Schibsted Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0F151B; --surface:#172029; --sunk:#111920; --ink:#E6ECF1; --muted:#9AA6B2; --faint:#6D7986; --line:#2A3642;
+    --accent:#5CC3D2; --accent-ink:#0B1A1E; --accent-soft:#16343A;
+    --t-avoid:#F0786B; --t-ok:#A3ABB5; --t-good:#5CC08D; --t-must:#86A2FF; --t-life:#E3AA48;
+    --t-avoid-bg:#3A1A17; --t-ok-bg:#232C35; --t-good-bg:#16301F; --t-must-bg:#1B2544; --t-life-bg:#35270F;
+    --flag:#F0786B; --flag-bg:#2E1715; --warn:#E3AA48; --warn-bg:#2E2410; --band:#202B35;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+    --scrim:rgba(0,0,0,.55); --map:#1C2620; --map-road:#2B3640; --map-water:#16303D;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0F151B; --surface:#172029; --sunk:#111920; --ink:#E6ECF1; --muted:#9AA6B2; --faint:#6D7986; --line:#2A3642;
+  --accent:#5CC3D2; --accent-ink:#0B1A1E; --accent-soft:#16343A;
+  --t-avoid:#F0786B; --t-ok:#A3ABB5; --t-good:#5CC08D; --t-must:#86A2FF; --t-life:#E3AA48;
+  --t-avoid-bg:#3A1A17; --t-ok-bg:#232C35; --t-good-bg:#16301F; --t-must-bg:#1B2544; --t-life-bg:#35270F;
+  --flag:#F0786B; --flag-bg:#2E1715; --warn:#E3AA48; --warn-bg:#2E2410; --band:#202B35;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  --scrim:rgba(0,0,0,.55); --map:#1C2620; --map-road:#2B3640; --map-water:#16303D;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:0 96px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.15}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .faint{color:var(--faint)}
+.small{font-size:13px} .xs{font-size:12px}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+.proto-banner{max-width:1080px;margin:12px auto 16px;font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.proto-banner b{background:var(--ink);color:var(--ground);font-size:11px;letter-spacing:.08em;padding:2px 7px;border-radius:3px}
+
+/* ---------- stage: phone + contract panel ---------- */
+.stage{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:860px){.stage{grid-template-columns:minmax(0,1fr);justify-items:center}.panel{width:100%;max-width:560px}}
+.phone{width:min(390px,100%);height:780px;border:10px solid #0B0F14;border-radius:40px;background:var(--ground);position:relative;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+@media (max-width:440px){.phone{border:0;border-radius:0;height:auto;min-height:640px;box-shadow:none;overflow:visible}.phone .scr{position:static;overflow:visible}}
+.phone .sb{height:30px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12px;font-weight:700;font-family:var(--mono)}
+.phone .scr{position:absolute;inset:30px 0 0 0;overflow-y:auto;display:flex;flex-direction:column}
+.scr .body{padding:12px 14px 20px;display:grid;gap:12px;align-content:start;flex:1}
+
+/* ---------- atoms ---------- */
+.tier{--c:var(--t-ok);--bg:var(--t-ok-bg);display:inline-flex;align-items:center;gap:6px;color:var(--c);background:var(--bg);border:1.5px solid var(--c);border-radius:6px;padding:2px 8px;font-weight:700;font-size:13.5px;white-space:nowrap}
+.tier .pips{display:inline-flex;gap:2px}.tier .pips i{width:4px;height:9px;border-radius:1px;background:var(--c);opacity:.22}.tier .pips i.on{opacity:1}
+.tier.lg{font-size:24px;padding:6px 14px;border-width:2px;border-radius:8px}.tier.lg .pips i{width:7px;height:16px}
+.tier.dashed{border-style:dashed}
+.t-avoid{--c:var(--t-avoid);--bg:var(--t-avoid-bg)}.t-ok{--c:var(--t-ok);--bg:var(--t-ok-bg)}.t-good{--c:var(--t-good);--bg:var(--t-good-bg)}.t-must{--c:var(--t-must);--bg:var(--t-must-bg)}.t-life{--c:var(--t-life);--bg:var(--t-life-bg)}
+.nee{display:inline-flex;border:2px dashed var(--faint);color:var(--muted);border-radius:8px;padding:5px 12px;font-weight:700;font-size:19px}
+.nee.sm{font-size:12.5px;padding:1px 7px;border-width:1.5px;border-radius:5px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--sunk);white-space:nowrap}
+.chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.bad{background:var(--t-avoid-bg);color:var(--t-avoid)} .chip.good{background:var(--t-good-bg);color:var(--t-good)} .chip.acc{background:var(--accent-soft);color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.src{display:inline-grid;place-items:center;min-width:24px;height:20px;padding:0 4px;border-radius:4px;background:var(--sunk);font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--muted)}
+.btn{border:0;border-radius:10px;padding:11px 14px;font-weight:700;background:var(--accent);color:var(--accent-ink);text-align:center}
+.btn.sec{background:var(--sunk);color:var(--ink)} .btn.ghost{background:none;color:var(--accent);padding:6px 4px}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:8px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btns{display:flex;gap:8px;flex-wrap:wrap}.btns .btn{flex:1}
+.card{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:grid;gap:8px}
+.hint{font-size:12.5px;color:var(--muted)}
+.note{border-radius:8px;padding:9px 11px;font-size:13px;display:grid;gap:4px}
+.note.warn{background:var(--warn-bg);color:var(--ink);border-left:3px solid var(--warn)}
+.note.bad{background:var(--flag-bg);border-left:3px solid var(--flag)}
+.note.info{background:var(--accent-soft);border-left:3px solid var(--accent)}
+.input{display:flex;align-items:center;gap:8px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font-size:15px}
+.input.focus{border-color:var(--accent)}
+.input .v{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.input .caret{width:1.5px;height:18px;background:var(--accent);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.input .caret,.spin{animation:none!important}}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;padding-top:4px}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:10px 12px;background:var(--surface);border-radius:10px;box-shadow:var(--shadow)}
+.row .nm{font-weight:700}
+.row .ad{font-size:12.5px;color:var(--muted);grid-column:1}
+.row .mt{font-size:12.5px;color:var(--muted);grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row.off{opacity:.55;box-shadow:none;background:var(--sunk)}
+.row.sel{outline:2px solid var(--accent)}
+.list{display:grid;gap:8px}
+.steps{display:grid;gap:0}
+.step{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step .ic{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;border:2px solid var(--line);color:var(--faint);margin-top:1px}
+.step.done .ic{background:var(--t-good);border-color:var(--t-good);color:var(--surface)}
+.step.now .ic{border-color:var(--accent);border-top-color:transparent;animation:spin 1s linear infinite}
+.step.fail .ic{background:var(--flag);border-color:var(--flag);color:var(--surface)}
+.step.wait .ic{background:var(--warn);border-color:var(--warn);color:var(--surface)}
+.step .t{font-weight:600;font-size:14px}.step .d{font-size:12.5px;color:var(--muted)}
+.step.todo .t{color:var(--muted);font-weight:500}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--accent);border-top-color:transparent;animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bar{height:5px;border-radius:3px;background:var(--band);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.facts{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:13.5px}
+.facts .n{font-family:var(--mono);text-align:right}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}.kv dt{color:var(--muted)}.kv dd{margin:0}
+.radio{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px}
+.radio .o{width:16px;height:16px;border-radius:50%;border:2px solid var(--faint);margin-top:2px}
+.radio.on{border-color:var(--accent)}.radio.on .o{border:5px solid var(--accent)}
+.evid{display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px}
+.evid span{padding:1px 6px;border-radius:4px;background:var(--sunk);color:var(--muted)}
+.evid span.y{background:var(--t-good-bg);color:var(--t-good)} .evid span.n{background:var(--t-avoid-bg);color:var(--t-avoid)}
+.est{font-family:var(--mono);font-size:12.5px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+.toast{position:absolute;left:12px;right:12px;bottom:74px;background:var(--ink);color:var(--ground);border-radius:12px;padding:11px 14px;font-size:13.5px;display:grid;gap:2px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast b{font-weight:700}
+.push{position:absolute;left:8px;right:8px;top:8px;z-index:6;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(8px);border-radius:18px;padding:11px 13px;display:grid;grid-template-columns:34px 1fr;gap:3px 10px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:13.5px}
+.push .app{grid-row:span 3;width:34px;height:34px;border-radius:8px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:13px}
+.push .hd{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+
+/* ---------- A: one box ---------- */
+.A .top{padding:10px 14px 0;display:grid;gap:8px;position:sticky;top:0;background:var(--ground);z-index:2}
+.A .brand{display:flex;justify-content:space-between;align-items:center;font-weight:800;letter-spacing:-.01em}
+.A .scrim{position:absolute;inset:0;background:var(--scrim);z-index:4}
+.A .sheet{position:absolute;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-radius:20px 20px 0 0;padding:8px 16px 18px;display:grid;gap:12px;max-height:88%;overflow-y:auto;box-shadow:0 -8px 30px rgba(0,0,0,.2)}
+.A .sheet .grab{width:38px;height:4px;border-radius:2px;background:var(--line);justify-self:center}
+.A .lrow{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.A .lrow:last-of-type{border-bottom:0}
+.A .lrow .s{grid-row:span 2;margin-top:2px}
+.A .rp{display:grid;gap:12px}
+.A .rp .hd h1{font-size:24px;font-weight:800;letter-spacing:-.015em}
+.A .rp .hd p{color:var(--muted);font-size:13.5px;margin-top:2px}
+
+/* ---------- B: wizard ---------- */
+.B .wz{padding:8px 14px 10px;display:grid;gap:8px;border-bottom:1px solid var(--line);background:var(--surface)}
+.B .wz .nav{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.B .wz .nav b{font-size:15px}
+.B .dots{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.B .dots span{font-size:10.5px;font-weight:600;color:var(--faint);border-top:3px solid var(--band);padding-top:3px;text-align:center}
+.B .dots span.done{color:var(--muted);border-top-color:var(--t-good)} .B .dots span.on{color:var(--ink);border-top-color:var(--accent)}
+.B .foot{padding:12px 14px 18px;border-top:1px solid var(--line);background:var(--surface);display:grid;gap:8px}
+.B .tabs{display:grid;grid-template-columns:repeat(3,1fr);background:var(--sunk);border-radius:10px;padding:3px}
+.B .tabs span{text-align:center;padding:6px 0;font-size:13px;font-weight:600;color:var(--muted);border-radius:8px}
+.B .tabs span.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.B .map{border-radius:12px;overflow:hidden;background:var(--map)}
+.B .map svg{display:block;width:100%;height:auto}
+.B .pin{fill:var(--accent)} .B .pin.off{fill:var(--faint)} .B .pin-t{fill:var(--accent-ink);font:700 10px var(--mono)}
+.B .num{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:700 11px var(--mono)}
+.B .num.off{background:var(--faint)}
+.B .scard{display:grid;gap:8px;border:1.5px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
+.B .scard.ok{border-color:var(--t-good)}
+.B .scard .h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.B .tog{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.B .sw{width:38px;height:22px;border-radius:11px;background:var(--line);position:relative}
+.B .sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--surface)}
+.B .sw.on{background:var(--accent)} .B .sw.on::after{left:19px}
+.B .mail{display:grid;gap:10px}
+.B .mail .from{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:center}
+.B .mail .av{width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:13px}
+
+/* ---------- C: inbox ---------- */
+.C .hdr{padding:10px 14px 4px;display:flex;justify-content:space-between;align-items:baseline}
+.C .hdr h1{font-size:24px;font-weight:800;letter-spacing:-.015em}
+.C .tabbar{margin-top:auto;position:sticky;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);background:var(--surface);padding:6px 0 12px;z-index:3}
+.C .tabbar span{display:grid;justify-items:center;gap:2px;font-size:11px;font-weight:600;color:var(--faint);position:relative}
+.C .tabbar span.on{color:var(--accent)}
+.C .tabbar .g{width:22px;height:22px;border-radius:6px;border:2px solid currentColor}
+.C .tabbar .badge{position:absolute;top:-4px;left:calc(50% + 6px);background:var(--flag);color:#fff;border-radius:999px;font-size:10px;padding:0 5px;font-weight:700}
+.C .grp{display:grid;gap:8px}
+.C .item{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:11px 13px;display:grid;gap:7px;border-left:4px solid transparent}
+.C .item.need{border-left-color:var(--warn)} .C .item.fail{border-left-color:var(--flag)} .C .item.ready{border-left-color:var(--t-good)} .C .item.run{border-left-color:var(--accent)}
+.C .item.unread{background:linear-gradient(0deg,var(--surface),var(--surface)) padding-box}
+.C .item .h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.C .item .h b{font-size:15px}
+.C .crow{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;padding:10px 12px;background:var(--surface);border-radius:10px;box-shadow:var(--shadow)}
+.C .crow .ad{font-size:12.5px;color:var(--muted)}
+.C .crow .mt{grid-column:1/-1;font-size:12.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.C .crow.off{opacity:.55;box-shadow:none;background:var(--sunk)}
+.C .started{color:var(--t-good);font-weight:700;font-size:13px}
+
+/* ---------- contract panel ---------- */
+.panel{display:grid;gap:16px;padding-top:6px}
+.panel .vname{display:grid;gap:4px}
+.panel .vname h2{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.panel .vname p{color:var(--muted);max-width:62ch}
+.panel .screen-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:14px}
+.panel .screen-h h3{font-size:17px}
+.panel .blk{display:grid;gap:6px}
+.panel .blk > p{max-width:64ch}
+.panel pre{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12px;line-height:1.55;overflow-x:auto;white-space:pre}
+.panel pre .c{color:var(--faint)} .panel pre .k{color:var(--accent);font-weight:500}
+.panel .q{background:var(--warn-bg);border-radius:8px;padding:10px 12px;display:grid;gap:4px;max-width:64ch}
+.panel .q b{color:var(--warn);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.panel ol.scrlist{margin:0;padding-left:22px;display:grid;gap:2px;font-size:13.5px;columns:2;column-gap:28px}
+.panel ol.scrlist li{break-inside:avoid}
+.panel ol.scrlist a{color:var(--muted);text-decoration:none}
+.panel ol.scrlist a.on{color:var(--ink);font-weight:700}
+@media (max-width:520px){.panel ol.scrlist{columns:1}}
+
+/* ---------- floating switcher (not part of the design) ---------- */
+.switcher{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;display:flex;align-items:center;gap:6px;background:#0B0F14;color:#F2F5F8;border-radius:999px;padding:6px 8px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:13px;max-width:calc(100vw - 24px);flex-wrap:wrap;justify-content:center}
+.switcher button{background:#243040;border:0;color:#F2F5F8;width:30px;height:30px;border-radius:50%;font-size:15px}
+.switcher button:hover{background:#34445A}
+.switcher .lbl{font-weight:700;min-width:120px;text-align:center}
+.switcher select{background:#243040;color:#F2F5F8;border:0;border-radius:999px;padding:6px 10px;font:inherit;font-size:12.5px;max-width:190px}
+.switcher .sep{width:1px;height:20px;background:#3A4758;margin-inline:4px}
+</style>
+
+<div class="proto-banner"><b>PROTOTYPE</b><span>Throwaway, for the map ticket “Search and add-Restaurant UX”. Every Restaurant except O Velho Eurico is fictional; all numbers are mock. ←/→ switch flow; the Screen menu walks the twelve moments.</span></div>
+<div class="stage">
+  <div class="phone" aria-label="Phone preview"><div class="sb"><span>21:14</span><span>5G ▮▮▮</span></div><div class="scr" id="scr"></div></div>
+  <section class="panel" id="panel" aria-live="polite"></section>
+</div>
+
+<div class="switcher" role="toolbar" aria-label="Prototype controls">
+  <button id="prev" aria-label="Previous flow">←</button>
+  <span class="lbl" id="vlabel"></span>
+  <button id="next" aria-label="Next flow">→</button>
+  <span class="sep"></span>
+  <button id="sprev" aria-label="Previous screen">‹</button>
+  <select id="screenSel" aria-label="Screen"></select>
+  <button id="snext" aria-label="Next screen">›</button>
+</div>
+
+<script>
+/* ============================== MOCK DATA ============================== */
+const TIERS = ["avoid","ok","good","must","life"], TL = {avoid:"Avoid",ok:"OK",good:"Good",must:"Must Go",life:"Life Changing"};
+const tier = (t, cls="") => `<span class="tier t-${t} ${cls}"><span class="pips" aria-hidden="true">${TIERS.map((x,i)=>`<i class="${i<=TIERS.indexOf(t)?"on":""}"></i>`).join("")}</span>${TL[t]}</span>`;
+const star = (s,n) => `<span class="mono">★${s.toFixed(1)}</span> · <span class="mono">${n.toLocaleString("en")}</span> Reviews`;
+
+const CANDS = [
+  {k:"alfama", name:"Tasca da Maquete", addr:"R. dos Remédios 41, Alfama", dist:"1.2 km", s:4.6, n:812, cat:"Portuguese restaurant", price:"€€", x:250, y:84},
+  {k:"graca",  name:"Tasca da Maquete", addr:"Largo da Graça 9, Graça", dist:"1.9 km", s:4.3, n:241, cat:"Portuguese restaurant", price:"€", x:212, y:40},
+  {k:"amad",   name:"Tasca da Maquete II", addr:"Av. Santos Mattos 3, Amadora", dist:"9.4 km", s:4.4, n:130, cat:"Restaurant", price:"€", x:22, y:30, w:"out"},
+  {k:"bar",    name:"Maquete Bar", addr:"R. da Rosa 88, Bairro Alto", dist:"0.6 km", s:4.1, n:57, cat:"Cocktail bar", price:"€€", x:140, y:92, w:"bar"},
+  {k:"closed", name:"Tasca da Maquete", addr:"R. Ferreira Borges 12, Campo de Ourique", dist:"2.4 km", s:4.2, n:388, cat:"Portuguese restaurant", price:"€€", x:70, y:74, w:"closed"},
+];
+const WARN = {
+  out:   `<span class="chip warn">Outside Lisbon · provisional only</span>`,
+  bar:   `<span class="chip warn">Bar · maybe not a Restaurant</span>`,
+  closed:`<span class="chip bad">Permanently closed</span>`,
+};
+const TA2 = [
+  {name:"Cervejaria do Esboço", addr:"Av. Almirante Reis 1, Anjos", n:388, ev:[["y","same street"],["","60 m away"],["n","no phone listed"],["y","name 100%"]]},
+  {name:"Esboço Cervejaria & Marisqueira", addr:"Av. Almirante Reis 1-A, Anjos", n:1204, ev:[["y","same street"],["y","20 m away"],["y","same phone"],["","name 71%"]]},
+];
+
+/* ============================== SCREENS ============================== */
+// Each moment carries the shared API contract; flows differ in what the owner sees and decides.
+const SCREENS = [
+ {k:"search", t:"Search by name", q:"Five Google results for “tasca da maquete”: two real branches, one outside Lisbon, a bar, a closed one. Should the outside-Lisbon and bar results be shown with a warning (as here), or hidden?",
+  api:`<span class="k">GET</span> /api/v1/search?q=tasca+da+maquete&near=38.7139,-9.1334
+<span class="c">// 1. our own Restaurants (free, instant)  2. Google Maps search (≈$0.001)</span>
+→ 200 {
+  known: [],                         <span class="c">// Restaurants already in Gluton-Free</span>
+  candidates: [{
+    googlePlaceId, name, address, distanceM,
+    stars, reviewCount, category, priceLevel,
+    status: "open" | "closed_forever" | "closed_temporarily",
+    warnings: ["outside_city" | "not_a_restaurant"]
+  }]
+}`},
+ {k:"paste", t:"Paste a link or place ID", q:"Paste covers Google Maps (incl. maps.app.goo.gl short links), Tripadvisor and TheFork URLs, and raw Google place IDs. Worth adding the phone's share sheet (Android only; iPhone Safari can't receive shares from Google Maps)?",
+  api:`<span class="k">GET</span> /api/v1/search?q=https://maps.app.goo.gl/Qx7…
+<span class="c">// the same box and endpoint: the server recognises a URL or
+// place ID, follows the short link, and returns one candidate</span>
+→ 200 { known: [], candidates: [ {…"Cervejaria do Esboço"} ],
+        recognised: "google_maps_link" }
+<span class="c">// a Tripadvisor/TheFork URL fixes that Source's Listing and
+// Google is then matched from it</span>`},
+ {k:"known", t:"Already in Gluton-Free", q:"A known Restaurant is never looked up twice (the same Google place ID or any Listing ID). Should “Refresh now” exist outside the monthly refresh, or is monthly enough?",
+  api:`<span class="k">GET</span> /api/v1/search?q=velho+eurico
+→ 200 { known: [{ slug:"o-velho-eurico", tier:"good",
+          provisional:true, fetchedAt:"2026-09-24" }],
+        candidates: [],  hiddenAsKnown: 1 }
+<span class="k">POST</span> /api/v1/restaurants/o-velho-eurico/refresh → 202 { jobId }`},
+ {k:"confirm", t:"Confirm the Listings", q:"Every match here is confident. Should a confident lookup still need one tap to confirm (A, B), or start straight away with an undo (C)?",
+  api:`<span class="k">POST</span> /api/v1/lookups/preview { googlePlaceId }
+<span class="c">// Tripadvisor search + TheFork attempt + count probe (≈$0.002)</span>
+→ 200 {
+  listings: { google:{…}, tripadvisor:{ proposed, confidence:"high",
+              evidence:["same_phone","42m","name_100"] },
+              thefork:{ status:"not_found" } },
+  format:   { proposed:"tasca", basis:"google_category+price" },
+  estimate: { textReviewsInWindow:190, usd:0.24, minutes:3 },
+  warnings: []
+}
+<span class="k">POST</span> /api/v1/lookups { googlePlaceId, listings:{tripadvisor, thefork} }
+→ 202 { restaurantSlug:"tasca-da-maquete-alfama", jobId }`},
+ {k:"tamatch", t:"Unsure Tripadvisor match", q:"Two Tripadvisor pages fit. Should the lookup wait for your pick (A, B), or start on Google alone and add Tripadvisor when you answer (C)?",
+  api:`<span class="k">POST</span> /api/v1/lookups/preview { googlePlaceId }
+→ 200 { listings: { tripadvisor: { confidence:"unsure",
+          candidates:[ {urlPath, name, distanceM, phoneMatch, nameSim}, … ] } } }
+<span class="k">POST</span> /api/v1/lookups { …, listings:{ tripadvisor: urlPath | null } }
+<span class="c">// C only: tripadvisor:"ask_later" → a needs_input item,
+// answered by PUT /restaurants/:slug/listings/tripadvisor</span>`},
+ {k:"thin", t:"Probably too few Reviews", q:"The preview can predict Not enough evidence from Google's own counts before paying. Warn and let you go ahead (as here), or refuse?",
+  api:`<span class="k">POST</span> /api/v1/lookups/preview { googlePlaceId }
+→ 200 { estimate:{ textReviewsInWindow:11, usd:0.02, minutes:1 },
+        warnings:[{ code:"likely_not_enough_evidence",
+                    have:{ textReviews:11 }, need:{ textReviews:15 } }] }`},
+ {k:"running", t:"First lookup running", q:"The priority queue gets the Reviews in about 1 minute (≈3 min in all) for about $0.05 more; the standard queue takes about 10–15 min. Which for a first lookup?",
+  api:`<span class="k">GET</span> /api/v1/jobs/:id            <span class="c">// polled every 5 s while on screen</span>
+→ 200 { status:"running", step:"reading_reviews",
+        steps:[ {key:"listings_matched", state:"done"},
+                {key:"fetching_reviews", state:"done",
+                 perSource:{ google:{fetched:214}, tripadvisor:{fetched:96} }},
+                {key:"reading_reviews", state:"running", done:120, of:190},
+                {key:"placing_among_peers", state:"todo"} ],
+        facts:{ google:{stars:4.6, count:812}, tripadvisor:{stars:4.5, count:390},
+                distinctions:[] },
+        etaSeconds:110 }`},
+ {k:"done", t:"Finished: how you hear", q:"Push needs the app added to your iPhone Home Screen (a PWA) but is instant. Email needs a sender (e.g. Resend's free tier). In-app only needs nothing. Which?",
+  api:`<span class="c">// on job end the server notifies every channel you turned on</span>
+<span class="k">POST</span> /api/v1/push-subscriptions { endpoint, keys }   <span class="c">// Web Push</span>
+<span class="k">GET</span>  /api/v1/inbox → { needsYou:[…], running:[…], ready:[…], failed:[…] }
+<span class="k">POST</span> /api/v1/inbox/:id/seen`},
+ {k:"format", t:"The Reviews disagree on Format", q:"Google calls it a restaurant; the Reviews say marisqueira / cervejaria, and Reviews beat metadata. Should the Verdict be issued with the Reviews’ Format and then ask (A, C), or wait for you (B)?",
+  api:`<span class="c">// A, C: the Verdict is issued with the Reviews' Format</span>
+verdict.format = { value:"marisqueira", provenance:"llm",
+                   disagreesWith:{ value:"restaurante_tradicional", basis:"google_category" } }
+<span class="k">PATCH</span> /api/v1/restaurants/:slug { format }  → 202 { jobId }
+<span class="c">// re-judges in seconds (code + a new explanation), new Verdict row
+// B: job.status = "needs_input" → POST /api/v1/jobs/:id/input { format }</span>`},
+ {k:"partial", t:"One Source failed", q:"When one Crowd Source fails after retries, issue the Verdict on the rest with a banner and Confidence capped (as here), or hold it until every Source is in?",
+  api:`<span class="k">GET</span> /api/v1/restaurants/:slug/verdict
+→ 200 { …, sources:{ google:{status:"fetched"},
+          tripadvisor:{status:"failed", error:"vendor_timeout", attempts:3} },
+        caps:["one_source_only"] }
+<span class="k">POST</span> /api/v1/restaurants/:slug/listings/tripadvisor/retry → 202 { jobId }`},
+ {k:"failed", t:"Lookup failed", q:"Retry resumes from the step that failed and never pays twice for what was already fetched. Is a Retry button enough, or should failures also notify you?",
+  api:`<span class="k">GET</span> /api/v1/jobs/:id
+→ 200 { status:"failed", failedStep:"fetching_reviews",
+        error:{ code:"vendor_balance_low", balanceUsd:0.03, needUsd:0.12,
+                message:"DataForSEO balance is too low for this lookup" } }
+<span class="k">POST</span> /api/v1/jobs/:id/retry → 202 { jobId }   <span class="c">// resumes the failed step</span>`},
+ {k:"nee", t:"Ended: Not enough evidence", q:"Keep a Not enough evidence Restaurant and check it again at each monthly refresh (as here), or drop it after N months?",
+  api:`<span class="k">GET</span> /api/v1/restaurants/cafe-rascunho/verdict
+→ 200 { state:"not_enough_evidence",
+        bars:[ {key:"text_reviews", have:11, need:15},
+               {key:"food_mentions", have:6, need:8},
+               {key:"newest_review_months", have:2, max:18} ],
+        facts:{ google:{stars:4.7, count:19} },
+        nextCheck:"2026-10-01" }`},
+];
+
+/* ============================== VARIANT A · ONE BOX ============================== */
+const Atop = (val, focus=true) => `<div class="top"><div class="brand"><span>Gluton-Free</span><span class="xs muted">Lisbon</span></div>
+  <div class="input ${focus?"focus":""}"><span class="muted">⌕</span><span class="v">${val}</span>${focus?'<span class="caret"></span>':""}</div></div>`;
+const Arow = (c) => `<div class="row ${c.w==="closed"?"off":""}"><span class="nm">${c.name}</span><span class="xs muted mono">${c.dist}</span>
+  <span class="ad">${c.addr}</span><span class="mt">${star(c.s,c.n)} · ${c.cat}${c.w?" "+WARN[c.w]:""}</span></div>`;
+const Ahome = () => `<div class="sec-h"><span class="eyebrow">Your Restaurants</span></div>
+  <div class="list"><div class="row"><span class="nm">O Velho Eurico</span>${tier("good","dashed")}<span class="ad">Tasca · Mouraria</span></div>
+  <div class="row"><span class="nm">Tasca do Protótipo</span>${tier("must")}<span class="ad">Tasca · Graça</span></div></div>`;
+const Lrow = (src, name, sub, right) => `<div class="lrow"><span class="src s">${src}</span><b style="font-size:14px">${name}</b><span>${right}</span><span class="xs muted" style="grid-column:2/4">${sub}</span></div>`;
+function Asheet(inner){ return `<div class="scrim"></div><div class="sheet"><span class="grab"></span>${inner}</div>`; }
+function Apage(head, inner){ return `<div class="top" style="padding-bottom:6px"><div class="brand"><span class="small" style="font-weight:600;color:var(--accent)">‹ Search</span><span class="xs muted">Lisbon</span></div></div><div class="body rp">${head}${inner}</div>`; }
+const Ahead = (name, sub) => `<div class="hd"><h1>${name}</h1><p>${sub}</p></div>`;
+const Asteps = (arr) => `<div class="steps">${arr.map(([st,t,d,r])=>`<div class="step ${st}"><span class="ic">${st==="done"?"✓":st==="fail"?"!":st==="wait"?"?":""}</span><div><div class="t">${t}</div>${d?`<div class="d">${d}</div>`:""}</div><span class="xs muted mono">${r||""}</span></div>`).join("")}</div>`;
+const RAW = `<div class="card"><div class="sec-h"><span class="eyebrow">What the Sources say</span><span class="chip">not a Verdict</span></div>
+  <div class="facts"><span class="src">G</span><span>Google</span><span class="n">★4.6 · 812</span><span class="src">TA</span><span>Tripadvisor</span><span class="n">★4.5 · 390</span><span class="src">★</span><span>Distinctions</span><span class="n muted">none found</span></div></div>`;
+
+const VA = {
+ search: () => `${Atop("tasca da maquete")}<div class="body">
+   <p class="hint">Nothing of yours matches.</p>
+   <div class="sec-h"><span class="eyebrow">On Google Maps</span><span class="xs muted">5 places</span></div>
+   <div class="note info"><span><b>2 places share this name.</b> Check the street.</span></div>
+   <div class="list">${CANDS.map(Arow).join("")}</div>
+   <p class="hint">Or paste a Google Maps, Tripadvisor or TheFork link, or a place ID, into the same box.</p></div>`,
+ paste: () => `${Atop("https://maps.app.goo.gl/Qx7uP3")}<div class="body">
+   <div class="chips"><span class="chip acc">Google Maps link</span><span class="xs muted">opened the short link</span></div>
+   <div class="list"><div class="row sel"><span class="nm">Cervejaria do Esboço</span><span class="xs muted mono">2.1 km</span><span class="ad">Av. Almirante Reis 1, Anjos</span><span class="mt">${star(4.5,1940)} · Seafood restaurant</span></div></div>
+   <p class="hint">Tap it to look it up.</p></div>`,
+ known: () => `${Atop("velho eurico")}<div class="body">
+   <div class="sec-h"><span class="eyebrow">Your Restaurants</span></div>
+   <div class="list"><div class="row"><span class="nm">O Velho Eurico</span>${tier("good","dashed")}<span class="ad">Tasca · Mouraria</span>
+     <span class="mt">Fetched 24 Sep · next refresh 1 Oct <button class="btn ghost" style="padding:0;font-size:12.5px">Refresh now</button></span></div></div>
+   <p class="hint">1 Google result hidden: it's O Velho Eurico.</p></div>`,
+ confirm: () => `${Atop("tasca da maquete",false)}<div class="body">${Ahome()}</div>${Asheet(`
+   <div><h2 style="font-size:20px">Look up Tasca da Maquete?</h2><p class="small muted">R. dos Remédios 41, Alfama</p></div>
+   <div>${Lrow("G","Google","the place you picked",`<span class="xs mono">★4.6 · 812</span>`)}
+     ${Lrow("TA","Tasca da Maquete","same phone · 42 m away · same name",`<span class="btn ghost" style="padding:0;font-size:13px">Change</span>`)}
+     ${Lrow("TF","TheFork","not found · won't hold up the Verdict",`<span class="btn ghost" style="padding:0;font-size:13px">Add link</span>`)}</div>
+   <div class="kv"><dt>Format</dt><dd><b>Tasca</b> <span class="muted">(proposed)</span> · checked against the Reviews; you can change it on the Verdict</dd></div>
+   <div class="est"><span>≈190 text Reviews</span><span>≈$0.24</span><span>≈3 min</span></div>
+   <div class="btns"><button class="btn sec">Cancel</button><button class="btn">Look up</button></div>`)}`,
+ tamatch: () => `${Atop("https://maps.app.goo.gl/Qx7uP3",false)}<div class="body">${Ahome()}</div>${Asheet(`
+   <div><h2 style="font-size:20px">Look up Cervejaria do Esboço?</h2><p class="small muted">Av. Almirante Reis 1, Anjos</p></div>
+   <div>${Lrow("G","Google","the link you pasted",`<span class="xs mono">★4.5 · 1,940</span>`)}</div>
+   <div style="display:grid;gap:8px"><b class="small">Which Tripadvisor page is it?</b>
+     ${TA2.map((c,i)=>`<div class="radio"><span class="o"></span><div><b style="font-size:14px">${c.name}</b><div class="xs muted">${c.addr} · <span class="mono">${c.n.toLocaleString("en")}</span> Reviews</div><div class="evid">${c.ev.map(([cl,t])=>`<span class="${cl}">${t}</span>`).join("")}</div></div></div>`).join("")}
+     <div class="radio"><span class="o"></span><div class="small">Neither. It's not on Tripadvisor</div></div></div>
+   ${Lrow("TF","Cervejaria do Esboço","TheFork · found · won't hold up the Verdict",`<span class="chip good">matched</span>`)}
+   <div class="btns"><button class="btn sec">Cancel</button><button class="btn" disabled>Pick a Tripadvisor page</button></div>`)}`,
+ thin: () => `${Atop("café rascunho",false)}<div class="body">${Ahome()}</div>${Asheet(`
+   <div><h2 style="font-size:20px">Look up Café Rascunho?</h2><p class="small muted">R. do Benformoso 150, Mouraria</p></div>
+   <div class="note warn"><b>Probably Not enough evidence</b><span>Google shows 19 Reviews, about 11 with text. A Verdict needs 15 text Reviews from the last 24 months. Not found on Tripadvisor or TheFork.</span></div>
+   <div class="est"><span>≈11 text Reviews</span><span>≈$0.02</span><span>≈1 min</span></div>
+   <div class="btns"><button class="btn sec">Cancel</button><button class="btn">Look up anyway</button></div>`)}`,
+ running: () => Apage(Ahead("Tasca da Maquete","Tasca (proposed) · Alfama · €€"), `
+   <div class="note info" style="grid-template-columns:auto 1fr;align-items:center;gap:10px"><span class="spin"></span><span><b>Looking up</b> · about 2 min left. You can leave this page; we'll tell you when it's ready.</span></div>
+   <div class="card">${Asteps([["done","Listings matched","Google · Tripadvisor · TheFork not found"],["done","Fetching Reviews","Google 214 · Tripadvisor 96, last 24 months"],["now","Reading Reviews","","120 / 190"],["todo","Placing among 64 tascas"]])}</div>${RAW}`),
+ done: () => `<div class="push"><span class="app">GF</span><span class="hd"><span>GLUTON-FREE</span><span>now</span></span><b>Tasca da Maquete is Good</b><span class="small">Medium Confidence · better than 71% of tascas. Tap to read why.</span></div>
+   ${Atop("",false)}<div class="body"><div class="sec-h"><span class="eyebrow">Your Restaurants</span></div>
+   <div class="list"><div class="row sel"><span class="nm">Tasca da Maquete <span class="chip acc" style="margin-left:4px">new</span></span>${tier("good")}<span class="ad">Tasca · Alfama</span></div>
+   <div class="row"><span class="nm">O Velho Eurico</span>${tier("good","dashed")}<span class="ad">Tasca · Mouraria</span></div>
+   <div class="row"><span class="nm">Tasca do Protótipo</span>${tier("must")}<span class="ad">Tasca · Graça</span></div></div></div>`,
+ format: () => Apage(Ahead("Cervejaria do Esboço","Anjos · €€ · Google · Tripadvisor · TheFork"), `
+   <div class="note warn"><b>Format: Marisqueira / cervejaria, read from the Reviews</b><span>Google lists it as a restaurant. It's judged among 38 marisqueiras.</span>
+     <div class="btns" style="margin-top:4px"><button class="btn sm">Keep</button><button class="btn sm sec">Change…</button></div></div>
+   <div>${tier("good","lg")}</div><div class="chips"><span class="chip">Marisqueira / cervejaria</span><span class="chip">€€</span><span class="chip warn">Medium Confidence</span></div>
+   <p>Fresh shellfish and a fair price for Anjos; service is quick but brusque at peak hours…</p>`),
+ partial: () => Apage(Ahead("Tasca da Maquete","Tasca (proposed) · Alfama · €€"), `
+   <div>${tier("good","lg")}</div><div class="chips"><span class="chip">Tasca</span><span class="chip bad">Low Confidence</span></div>
+   <div class="note bad"><b>Judged on Google only</b><span>Tripadvisor didn't answer after 3 tries (vendor timeout, 21:02). Confidence is capped until it's in.</span>
+     <div class="btns" style="margin-top:4px"><button class="btn sm">Retry Tripadvisor</button></div></div>
+   <p>Generous plates of the classics at tasca prices; the grilled fish stands out…</p>`),
+ failed: () => Apage(Ahead("Tasca da Maquete","Tasca (proposed) · Alfama · €€"), `
+   <div class="note bad"><b>The lookup stopped while fetching Reviews</b><span>The DataForSEO balance is $0.03 and this lookup needs about $0.12. Top up at app.dataforseo.com, then retry. The Listings stay matched and nothing is paid for twice.</span>
+     <div class="btns" style="margin-top:4px"><button class="btn sm">Retry</button></div></div>
+   <div class="card">${Asteps([["done","Listings matched","Google · Tripadvisor"],["fail","Fetching Reviews","stopped: balance too low"],["todo","Reading Reviews"],["todo","Placing among 64 tascas"]])}</div>${RAW}`),
+ nee: () => Apage(Ahead("Café Rascunho","Café / pastelaria (proposed) · Mouraria · €"), `
+   <div><span class="nee">Not enough evidence</span></div>
+   <div class="card">${Asteps([["fail","Text Reviews","","11 / 15"],["fail","Reviews that mention food","","6 / 8"],["done","Newest Review","2 months ago","≤ 18 mo"]])}</div>
+   <div class="card"><div class="facts"><span class="src">G</span><span>Google</span><span class="n">★4.7 · 19</span></div><p class="hint">Checked again at the monthly refresh on 1 Oct.</p></div>`),
+};
+
+/* ============================== VARIANT B · WIZARD ============================== */
+const WSTEPS = ["Find","Pick","Listings","Format","Start"];
+const Bwz = (i, title) => `<div class="wz"><div class="nav"><span style="color:var(--accent)">${i>0?"‹ Back":"✕"}</span><b>${title}</b><span class="xs muted">${i<5?`${i+1} of 5`:""}</span></div>
+  <div class="dots">${WSTEPS.map((s,j)=>`<span class="${j<i?"done":j===i?"on":""}">${s}</span>`).join("")}</div></div>`;
+const Bfoot = (btns) => `<div class="foot">${btns}</div>`;
+const Bmap = () => `<div class="map"><svg viewBox="0 0 300 120" role="img" aria-label="Map of the results">
+  <rect width="300" height="120" fill="var(--map)"/><path d="M0 112 C80 100 160 118 300 104 L300 120 L0 120Z" fill="var(--map-water)"/>
+  <path d="M0 60 L300 52 M120 0 L150 120 M40 0 L90 120 M230 0 L260 110" stroke="var(--map-road)" stroke-width="4" fill="none"/>
+  ${CANDS.map((c,i)=>`<g transform="translate(${c.x},${c.y})"><circle r="9" class="pin ${c.w?"off":""}"/><text class="pin-t" text-anchor="middle" y="3.5">${i+1}</text></g>`).join("")}
+  <circle cx="160" cy="70" r="5" fill="var(--t-must)" stroke="var(--surface)" stroke-width="2"/></svg></div>`;
+const Bstep = (arr) => Asteps(arr);
+
+const VB = {
+ search: () => `${Bwz(1,"Pick the place")}<div class="body">
+   <div class="input"><span class="muted">⌕</span><span class="v">tasca da maquete</span></div>
+   ${Bmap()}
+   <div class="list">${CANDS.filter(c=>c.w!=="closed").map((c,i)=>`<div class="row ${i===0?"sel":""}"><span class="nm"><span class="num ${c.w?"off":""}">${i+1}</span> ${c.name}</span><span class="xs muted mono">${c.dist}</span><span class="ad">${c.addr}</span><span class="mt">${star(c.s,c.n)}${c.w?" "+WARN[c.w]:""}</span></div>`).join("")}</div>
+   <p class="hint">1 permanently closed result hidden.</p></div>${Bfoot(`<button class="btn">Next: Listings</button>`)}`,
+ paste: () => `${Bwz(0,"Find a Restaurant")}<div class="body">
+   <div class="tabs"><span>Name</span><span class="on">Link</span><span>Place ID</span></div>
+   <div class="input focus"><span class="v">https://maps.app.goo.gl/Qx7uP3</span><span class="caret"></span></div>
+   <div class="note info"><b>Google Maps link recognised</b><span>Cervejaria do Esboço · Av. Almirante Reis 1, Anjos</span></div>
+   <p class="hint">Also accepts Tripadvisor and TheFork links. A place ID looks like ChIJ…</p></div>${Bfoot(`<button class="btn">Next: Listings</button>`)}`,
+ known: () => `${Bwz(1,"Pick the place")}<div class="body">
+   <div class="input"><span class="muted">⌕</span><span class="v">velho eurico</span></div>
+   <div class="card" style="gap:10px"><span class="eyebrow">Already in Gluton-Free</span>
+     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:17px">O Velho Eurico</b>${tier("good","dashed")}</div>
+     <p class="small muted">Tasca · Mouraria · fetched 24 Sep · next refresh 1 Oct</p>
+     <div class="btns"><button class="btn">Open Verdict</button><button class="btn sec">Refresh now</button></div></div>
+   <p class="hint">The wizard stops here: there's nothing new to add.</p></div>`,
+ confirm: () => `${Bwz(2,"Confirm the Listings")}<div class="body">
+   <p class="small muted">Tasca da Maquete · R. dos Remédios 41, Alfama</p>
+   <div class="scard ok"><div class="h"><span><span class="src">G</span> <b>Google</b></span><span class="chip good">the place you picked</span></div><span class="xs mono muted">★4.6 · 812 Reviews</span></div>
+   <div class="scard ok"><div class="h"><span><span class="src">TA</span> <b>Tripadvisor</b></span><span class="chip good">same place ✓</span></div>
+     <span class="small">Tasca da Maquete · R. dos Remédios 41</span><div class="evid"><span class="y">same phone</span><span class="y">42 m away</span><span class="y">name 100%</span></div><span class="xs mono muted">★4.5 · 390 Reviews</span></div>
+   <div class="scard"><div class="h"><span><span class="src">TF</span> <b>TheFork</b></span><span class="chip">not found</span></div><span class="small muted">Paste a TheFork link if you know one.</span></div></div>
+   ${Bfoot(`<button class="btn">Next: Format</button>`)}`,
+ tamatch: () => `${Bwz(2,"Confirm the Listings")}<div class="body">
+   <p class="small muted">Cervejaria do Esboço · Av. Almirante Reis 1, Anjos</p>
+   <div class="scard"><div class="h"><span><span class="src">TA</span> <b>Tripadvisor</b></span><span class="chip warn">2 possible</span></div>
+     ${TA2.map((c,i)=>`<div class="radio ${i===1?"on":""}"><span class="o"></span><div><b style="font-size:14px">${c.name}</b><div class="xs muted">${c.addr} · <span class="mono">${c.n.toLocaleString("en")}</span> Reviews</div><div class="evid">${c.ev.map(([cl,t])=>`<span class="${cl}">${t}</span>`).join("")}</div></div></div>`).join("")}
+     <div class="radio"><span class="o"></span><div class="small">Neither. It's not on Tripadvisor</div></div></div>
+   <div class="scard ok"><div class="h"><span><span class="src">TF</span> <b>TheFork</b></span><span class="chip good">same place ✓</span></div></div></div>
+   ${Bfoot(`<button class="btn">Next: Format</button>`)}`,
+ thin: () => `${Bwz(4,"Start the lookup")}<div class="body">
+   <div class="card"><b style="font-size:17px">Café Rascunho</b><dl class="kv"><dt>Listings</dt><dd>Google only (Tripadvisor, TheFork: not found)</dd><dt>Format</dt><dd>Café / pastelaria</dd><dt>Cost</dt><dd class="mono">≈$0.02 · ≈1 min</dd></dl></div>
+   <div class="note warn"><b>Probably Not enough evidence</b><span>Google shows 19 Reviews, about 11 with text; a Verdict needs 15 from the last 24 months.</span></div>
+   <div><b class="small">When it's done, tell me by</b><div class="tog"><span>Push notification</span><span class="sw on"></span></div><div class="tog"><span>Email</span><span class="sw on"></span></div></div></div>
+   ${Bfoot(`<button class="btn">Start anyway</button><button class="btn ghost">Cancel</button>`)}`,
+ running: () => `${Bwz(5,"Looking up")}<div class="body">
+   <div><b style="font-size:20px">Tasca da Maquete</b><p class="small muted">Tasca · Alfama · about 2 min left</p></div>
+   <div class="card">${Bstep([["done","Listings matched","Google · Tripadvisor"],["done","Fetching Reviews","Google 214 · Tripadvisor 96"],["now","Reading Reviews","","120 / 190"],["todo","Placing among 64 tascas"]])}</div>
+   ${RAW}<p class="hint">You'll get a push and an email when it's ready. Closing this screen doesn't stop it.</p></div>
+   ${Bfoot(`<button class="btn sec">Close</button>`)}`,
+ done: () => `<div class="wz"><div class="nav"><span style="color:var(--accent)">‹ Inbox</span><b>Mail</b><span></span></div></div><div class="body mail">
+   <div class="from"><span class="av">GF</span><div><b>Gluton-Free</b><div class="xs muted">to you · 21:17</div></div></div>
+   <h2 style="font-size:19px">Tasca da Maquete is Good</h2>
+   <div>${tier("good","lg")}</div>
+   <p>Medium Confidence · better than 71% of tascas in Lisbon.</p>
+   <p class="muted small">Generous plates of the classics at tasca prices; the grilled fish stands out. Service is warm but slow when it's full.</p>
+   <button class="btn">Read the Verdict</button></div>`,
+ format: () => `${Bwz(5,"Looking up")}<div class="body">
+   <div><b style="font-size:20px">Cervejaria do Esboço</b><p class="small muted">Paused: needs you</p></div>
+   <div class="card">${Bstep([["done","Listings matched","Google · Tripadvisor · TheFork"],["done","Fetching Reviews","Google 320 · Tripadvisor 140 · TheFork 60"],["done","Reading Reviews","","200 / 200"],["wait","Placing among Peers","waiting for your answer"]])}</div>
+   <div class="note warn"><b>Which Format?</b><span>You chose <b>Restaurante tradicional</b>. The Reviews read like a <b>Marisqueira / cervejaria</b>: shellfish by weight, beer, the counter.</span>
+     <div class="btns" style="margin-top:4px"><button class="btn sm">Marisqueira</button><button class="btn sm sec">Keep Restaurante</button></div></div></div>`,
+ partial: () => `${Bwz(5,"Done, with one gap")}<div class="body">
+   <div><b style="font-size:20px">Tasca da Maquete</b></div><div>${tier("good","lg")}</div>
+   <div class="card">${Bstep([["done","Listings matched","Google · Tripadvisor"],["fail","Fetching Reviews","Tripadvisor: no answer after 3 tries"],["done","Reading Reviews","Google only","130"],["done","Placing among 64 tascas"]])}</div>
+   <div class="note bad"><span>Judged on Google only; Confidence is capped at Low until Tripadvisor is in.</span></div></div>
+   ${Bfoot(`<button class="btn">Open Verdict</button><button class="btn sec">Retry Tripadvisor</button>`)}`,
+ failed: () => `${Bwz(5,"Lookup stopped")}<div class="body">
+   <div><b style="font-size:20px">Tasca da Maquete</b></div>
+   <div class="card">${Bstep([["done","Listings matched","Google · Tripadvisor"],["fail","Fetching Reviews","DataForSEO balance too low"],["todo","Reading Reviews"],["todo","Placing among 64 tascas"]])}</div>
+   <div class="note bad"><span>The balance is $0.03 and this lookup needs about $0.12. Top up at app.dataforseo.com, then retry. Nothing is paid for twice.</span></div></div>
+   ${Bfoot(`<button class="btn">Retry</button><button class="btn ghost">Cancel lookup</button>`)}`,
+ nee: () => `${Bwz(5,"Lookup finished")}<div class="body">
+   <div><b style="font-size:20px">Café Rascunho</b></div><div><span class="nee">Not enough evidence</span></div>
+   <div class="card">${Bstep([["fail","Text Reviews","","11 / 15"],["fail","Reviews that mention food","","6 / 8"],["done","Newest Review","2 months ago","≤ 18 mo"]])}</div>
+   <p class="hint">Checked again at the monthly refresh on 1 Oct.</p></div>${Bfoot(`<button class="btn sec">Done</button>`)}`,
+};
+
+/* ============================== VARIANT C · INBOX ============================== */
+const Ctabs = (on, badge) => `<div class="tabbar">${[["Restaurants"],["Look up"],["Inbox"]].map(([t],i)=>`<span class="${i===on?"on":""}"><i class="g"></i>${t}${i===2&&badge?`<b class="badge">${badge}</b>`:""}</span>`).join("")}</div>`;
+const Chdr = (t, r="") => `<div class="hdr"><h1>${t}</h1><span class="xs muted">${r}</span></div>`;
+const Crow = (c, right) => `<div class="crow ${c.w==="closed"?"off":""}"><b>${c.name}</b>${right}<span class="ad">${c.addr}</span><span></span><span class="mt">${star(c.s,c.n)}${c.w?" "+WARN[c.w]:""}</span></div>`;
+const Citem = (cls, name, right, inner) => `<div class="item ${cls}"><div class="h"><b>${name}</b>${right}</div>${inner}</div>`;
+const Cgrp = (label, items) => `<div class="grp"><span class="eyebrow">${label}</span>${items}</div>`;
+const Crun = (name, step, pct, sub) => Citem("run", name, `<span class="xs muted mono">${sub}</span>`, `<span class="small">${step}</span><div class="bar"><i style="width:${pct}%"></i></div>`);
+
+const VC = {
+ search: () => `${Chdr("Look up","Lisbon")}<div class="body">
+   <div class="input focus"><span class="muted">⌕</span><span class="v">tasca da maquete</span><span class="caret"></span></div>
+   <div class="list">${CANDS.map(c=>Crow(c, c.w==="closed"?"":`<button class="btn sm">Look up</button>`)).join("")}</div>
+   <p class="hint">One tap starts it. Anything unsure lands in your Inbox without holding the lookup up.</p></div>${Ctabs(1,1)}`,
+ paste: () => `${Chdr("Look up","Lisbon")}<div class="body">
+   <div class="input"><span class="muted">⌕</span><span class="v">https://maps.app.goo.gl/Qx7uP3</span></div>
+   <div class="list"><div class="crow"><b>Cervejaria do Esboço</b><span class="started">Started ✓</span><span class="ad">Av. Almirante Reis 1, Anjos</span></div></div></div>
+   <div class="toast"><b>Looking up Cervejaria do Esboço</b><span>A pasted link starts straight away. Tripadvisor needs you → Inbox</span></div>${Ctabs(1,2)}`,
+ known: () => `${Chdr("Look up","Lisbon")}<div class="body">
+   <div class="input focus"><span class="muted">⌕</span><span class="v">velho eurico</span><span class="caret"></span></div>
+   <div class="list"><div class="crow"><b>O Velho Eurico</b>${tier("good","dashed")}<span class="ad">Yours · Tasca · Mouraria · fetched 24 Sep</span><span></span>
+     <span class="mt"><button class="btn sm">Open</button><button class="btn sm sec">Refresh now</button></span></div></div></div>${Ctabs(1,0)}`,
+ confirm: () => `${Chdr("Look up","Lisbon")}<div class="body">
+   <div class="input"><span class="muted">⌕</span><span class="v">tasca da maquete</span></div>
+   <div class="list">${Crow(CANDS[0],`<span class="started">Started ✓</span>`)}${CANDS.slice(1,3).map(c=>Crow(c,`<button class="btn sm sec">Look up</button>`)).join("")}</div></div>
+   <div class="toast"><b>Looking up Tasca da Maquete (Alfama)</b><span>Matched Google + Tripadvisor automatically (same phone, 42 m). <u>Undo</u></span></div>${Ctabs(1,1)}`,
+ tamatch: () => `${Chdr("Inbox","2 need you")}<div class="body">
+   ${Cgrp("Needs you", Citem("need","Cervejaria do Esboço",`<span class="chip warn">Tripadvisor?</span>`,`
+     <span class="small">Being judged on Google + TheFork meanwhile. Tripadvisor joins when you pick.</span>
+     ${TA2.map((c,i)=>`<div class="radio"><span class="o"></span><div><b style="font-size:13.5px">${c.name}</b><div class="evid">${c.ev.map(([cl,t])=>`<span class="${cl}">${t}</span>`).join("")}</div></div></div>`).join("")}
+     <button class="btn ghost" style="justify-self:start">Neither</button>`))}
+   ${Cgrp("Running", Crun("Cervejaria do Esboço","Reading Reviews · Google, TheFork",55,"≈2 min"))}</div>${Ctabs(2,2)}`,
+ thin: () => `${Chdr("Look up","Lisbon")}<div class="body">
+   <div class="input focus"><span class="muted">⌕</span><span class="v">café rascunho</span><span class="caret"></span></div>
+   <div class="list"><div class="crow"><b>Café Rascunho</b><button class="btn sm sec">Look up anyway</button><span class="ad">R. do Benformoso 150, Mouraria</span><span></span>
+     <span class="mt">${star(4.7,19)} <span class="chip warn">Probably Not enough evidence: ≈11 of 15 text Reviews</span></span></div></div></div>${Ctabs(1,0)}`,
+ running: () => `${Chdr("Inbox","3 lookups")}<div class="body">
+   ${Cgrp("Needs you", Citem("need","Cervejaria do Esboço",`<span class="chip warn">Tripadvisor?</span>`,`<span class="small">2 possible pages · tap to choose</span>`))}
+   ${Cgrp("Running", Crun("Tasca da Maquete","Reading Reviews · 120 / 190",63,"≈2 min") + Crun("Cervejaria do Esboço","Fetching Reviews · Google 320 · TheFork 60",30,"≈4 min"))}
+   ${Cgrp("Ready", Citem("ready","O Velho Eurico",tier("good","dashed"),`<span class="xs muted">refreshed 24 Sep · seen</span>`))}</div>${Ctabs(2,1)}`,
+ done: () => `<div class="push"><span class="app">GF</span><span class="hd"><span>GLUTON-FREE</span><span>now</span></span><b>Tasca da Maquete is Good</b><span class="small">1 more lookup running.</span></div>
+   ${Chdr("Inbox","")}<div class="body" style="padding-top:64px">
+   ${Cgrp("Ready · new", Citem("ready unread","Tasca da Maquete",tier("good"),`<span class="small">Medium Confidence · better than 71% of tascas</span><span class="xs muted">matched automatically: Google + Tripadvisor <u>check</u></span>`))}
+   ${Cgrp("Running", Crun("Cervejaria do Esboço","Reading Reviews · 80 / 200",40,"≈2 min"))}</div>${Ctabs(2,1)}`,
+ format: () => `${Chdr("Inbox","1 needs you")}<div class="body">
+   ${Cgrp("Needs you", Citem("need","Cervejaria do Esboço",`<span class="chip warn">Format?</span>`,`
+     <span class="small">Judged as a <b>Marisqueira / cervejaria</b> (from the Reviews). Google lists it as a restaurant.</span>
+     <div style="display:flex;gap:8px;align-items:center">${tier("good")}<span class="xs muted">among 38 marisqueiras</span></div>
+     <div class="btns"><button class="btn sm">Keep</button><button class="btn sm sec">Change…</button></div>`))}
+   ${Cgrp("Ready", Citem("ready","Tasca da Maquete",tier("good"),`<span class="xs muted">seen</span>`))}</div>${Ctabs(2,1)}`,
+ partial: () => `${Chdr("Inbox","1 needs you")}<div class="body">
+   ${Cgrp("Needs you", Citem("fail","Tasca da Maquete",tier("good"),`
+     <span class="small"><b>Judged on Google only.</b> Tripadvisor didn't answer after 3 tries; Confidence is capped at Low.</span>
+     <div class="btns"><button class="btn sm">Retry Tripadvisor</button><button class="btn sm sec">Open Verdict</button></div>`))}</div>${Ctabs(2,1)}`,
+ failed: () => `${Chdr("Inbox","1 failed")}<div class="body">
+   ${Cgrp("Failed", Citem("fail","Tasca da Maquete",`<span class="chip bad">stopped</span>`,`
+     <span class="small">Stopped while fetching Reviews: the DataForSEO balance is $0.03 and this needs about $0.12. Top up, then retry; nothing is paid for twice.</span>
+     <div class="btns"><button class="btn sm">Retry</button><button class="btn sm sec">Remove</button></div>`))}
+   ${Cgrp("Waiting behind it", Crun("Cervejaria do Esboço","Queued: the same balance",0,"—"))}</div>${Ctabs(2,1)}`,
+ nee: () => `${Chdr("Inbox","")}<div class="body">
+   ${Cgrp("Ready · new", Citem("ready unread","Café Rascunho",`<span class="nee sm">Not enough evidence</span>`,`
+     <span class="small">11 of 15 text Reviews · 6 of 8 food mentions. Checked again on 1 Oct.</span>`))}</div>${Ctabs(2,1)}`,
+};
+
+/* ============================== FLOWS ============================== */
+const VARIANTS = [
+ ["A","One box",VA,"One search box on the home screen takes a name, a link or a place ID. Picking a result opens one sheet that shows the matched Listings and the cost, and asks only about what's unsure. The Restaurant's own page shows the progress; the Format is confirmed on the Verdict afterwards; a push says when it's ready."],
+ ["B","Wizard",VB,"Five explicit steps (Find, Pick on a map, Listings, Format, Start), every decision taken before anything is spent. Then a progress screen that pauses if the Reviews contradict your Format. Push and email when it's done."],
+ ["C","Inbox",VC,"One tap on a result starts the lookup: confident matches are accepted with an undo. Anything unsure (a Tripadvisor match, the Format, a failure) becomes an Inbox card that never blocks the lookup, so you can fire off several at once, e.g. at the table."],
+];
+
+/* ============================== SWITCHER ============================== */
+const params = new URLSearchParams(location.search);
+let vi = Math.max(0, VARIANTS.findIndex(v=>v[0]===(params.get("variant")||"A").toUpperCase()));
+let si = Math.max(0, SCREENS.findIndex(s=>s.k===params.get("screen")));
+const sel = document.getElementById("screenSel");
+sel.innerHTML = SCREENS.map((s,i)=>`<option value="${i}">${i+1}. ${s.t}</option>`).join("");
+
+function render(){
+  const [key,name,V,blurb] = VARIANTS[vi], S = SCREENS[si];
+  document.getElementById("vlabel").textContent = `${key} (${name})`;
+  sel.value = si;
+  const scr = document.getElementById("scr");
+  scr.className = "scr " + key; scr.innerHTML = V[S.k](); scr.scrollTop = 0;
+  document.getElementById("panel").innerHTML = `
+    <div class="vname"><span class="eyebrow">Flow ${key}</span><h2>${name}</h2><p>${blurb}</p></div>
+    <div class="screen-h"><span class="eyebrow">Screen ${si+1} of ${SCREENS.length}</span><h3>${S.t}</h3></div>
+    <div class="q"><b>Question for you</b><span>${S.q}</span></div>
+    <div class="blk"><span class="eyebrow">What the API must support (same for every flow)</span><pre>${S.api}</pre></div>
+    <div class="blk"><span class="eyebrow">All screens</span><ol class="scrlist">${SCREENS.map((s,i)=>`<li><a href="#" data-si="${i}" class="${i===si?"on":""}">${s.t}</a></li>`).join("")}</ol></div>`;
+  try{ const u = new URL(location.href); u.searchParams.set("variant",key); u.searchParams.set("screen",S.k); history.replaceState(null,"",u); }catch(e){}
+}
+const go = d => { vi = (vi + d + VARIANTS.length) % VARIANTS.length; render(); };
+const gs = d => { si = (si + d + SCREENS.length) % SCREENS.length; render(); };
+document.getElementById("prev").onclick = () => go(-1);
+document.getElementById("next").onclick = () => go(1);
+document.getElementById("sprev").onclick = () => gs(-1);
+document.getElementById("snext").onclick = () => gs(1);
+sel.onchange = () => { si = +sel.value; render(); };
+document.getElementById("panel").addEventListener("click", e => { const a = e.target.closest("[data-si]"); if (a){ e.preventDefault(); si = +a.dataset.si; render(); } });
+addEventListener("keydown", e => {
+  const t = e.target; if (t.closest && t.closest("input,textarea,select,[contenteditable]")) return;
+  if (e.key==="ArrowLeft") go(-1); if (e.key==="ArrowRight") go(1);
+  if (e.key==="ArrowUp") { e.preventDefault(); gs(-1); } if (e.key==="ArrowDown") { e.preventDefault(); gs(1); }
+});
+render();
+</script>
