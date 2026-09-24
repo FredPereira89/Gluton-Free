@@ -1,19 +1,34 @@
-// Basic-auth gate: pages quote personal-only Sources, so the MVP is not public.
+// Owner-auth gate: every page/route requires OWNER_USER_ID except sign-in and /api/v1/health.
+// See docs/adr/0006-owner-authorization-in-the-api-layer.md.
 import { NextResponse, type NextRequest } from "next/server";
+import { AuthError, requireOwner } from "@/lib/auth";
+import { problemResponse } from "@/lib/problem";
 
-export function proxy(request: NextRequest) {
-  const password = process.env.SITE_PASSWORD;
-  if (!password) return new NextResponse("SITE_PASSWORD is not set", { status: 503 });
-  const header = request.headers.get("authorization") ?? "";
-  if (header.startsWith("Basic ")) {
-    const decoded = atob(header.slice(6));
-    const given = decoded.slice(decoded.indexOf(":") + 1);
-    if (given === password) return NextResponse.next();
+export async function proxy(request: NextRequest) {
+  const response = NextResponse.next({ request });
+  try {
+    await requireOwner(request, {
+      onSetCookies: (cookies) => {
+        for (const { name, value, options } of cookies) response.cookies.set(name, value, options);
+      },
+    });
+    return response;
+  } catch (error) {
+    const isApi = request.nextUrl.pathname.startsWith("/api/");
+    if (!(error instanceof AuthError)) {
+      console.error(`proxy auth check failed: ${error instanceof Error ? error.message : String(error)}`);
+      const notConfigured = new AuthError(503, "not_configured", "Service unavailable");
+      return isApi ? problemResponse(notConfigured) : new NextResponse(notConfigured.message, { status: 503 });
+    }
+    if (isApi) return problemResponse(error);
+    const signIn = request.nextUrl.clone();
+    signIn.pathname = "/sign-in";
+    signIn.search = "";
+    if (request.nextUrl.pathname !== "/") signIn.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(signIn);
   }
-  return new NextResponse("Authentication required", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Gluton-Free", charset="UTF-8"' },
-  });
 }
 
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sign-in|api/auth/sign-in|api/v1/health).*)"],
+};

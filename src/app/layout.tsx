@@ -22,6 +22,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <header className="topbar">
           <Link href="/">Gluton-Free</Link>
           <span>Provisional · Lisboa</span>
+          <Link href="/settings">Settings</Link>
         </header>
         <main className="wrap">{children}</main>
       </body>
