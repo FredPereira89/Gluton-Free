@@ -32,6 +32,10 @@ _Avoid_: Place, profile, entry
 One reviewer's account of a Restaurant as published on one Source, with its rating (if any), date, and text.
 _Avoid_: Rating, comment, post
 
+**Review window**:
+The Reviews from each Source that count toward a Restaurant's Verdict: its most recent text Reviews, capped in number and age, together with every star rating from the same period. Every Restaurant, Peer or not, is judged on the same kind of window; older Reviews are kept but do not count.
+_Avoid_: History, sample, depth
+
 **Verdict**:
 The single qualitative judgement Gluton-Free issues for a Restaurant, expressed as a Tier with a confidence and a short explanation. Verdicts are universal (the same for every user) and relative: a Restaurant is judged against others of its own kind, not against all Restaurants.
 _Avoid_: Score, rating, grade
