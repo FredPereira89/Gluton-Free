@@ -45,7 +45,8 @@ async function main() {
     from review r
     join listing l on l.id = r.listing_id
     join review_analysis a on a.review_id = r.id and a.extractor_version = ${EXTRACTOR_VERSION}
-    where r.text is not null`) as unknown as AnalysisRow[];
+    where r.text is not null
+    order by r.id`) as unknown as AnalysisRow[];
 
   const flagRows = await sql`
     select f.review_id, f.type, f.first_hand, f.severity, f.evidence
