@@ -5,8 +5,12 @@ Gluton-Free aggregates restaurant reviews from many sources and distils them int
 ## Language
 
 **Restaurant**:
-A single physical dining venue, identified independently of any one Source's Listing of it. A food-hall stall is a Restaurant; a bar without a kitchen-led offer and a delivery-only kitchen are not.
+A single dining business at one address at a time, as its Listings describe it. If it moves or changes hands it stays the same Restaurant with a Change point; a different business opening in the same premises is a different Restaurant. A food-hall stall is a Restaurant; a bar without a kitchen-led offer and a delivery-only kitchen are not.
 _Avoid_: Place, venue, listing
+
+**Change point**:
+A dated event after which a Restaurant's earlier Reviews no longer describe it as it now is: a closure and reopening, a change of owner, head chef or concept (including Format), or a move. Only Reviews since the newest Change point count toward the Verdict. A Change point exists only once the owner has confirmed or declared it.
+_Avoid_: Era, break, reset, relaunch
 
 **Source**:
 A platform or publication that carries reviews of Restaurants (e.g. Google, TheFork, Tripadvisor, a critic's column). Every Source is either a Crowd Source or an Editorial Source.
@@ -41,7 +45,7 @@ One reviewer's account of a Restaurant as published on one Source, with its rati
 _Avoid_: Rating, comment, post
 
 **Review window**:
-The Reviews from each Source that count toward a Restaurant's Verdict: its most recent text Reviews, capped in number and age, together with every star rating from the same period. Every Restaurant, Peer or not, is judged on the same kind of window; older Reviews are kept but do not count.
+The Reviews from each Source that count toward a Restaurant's Verdict: its most recent text Reviews, capped in number and age, together with every star rating from the same period. Every Restaurant, Peer or not, is judged on the same kind of window; a Change point cuts it short. Older Reviews are kept but do not count.
 _Avoid_: History, sample, depth
 
 **Verdict**:
