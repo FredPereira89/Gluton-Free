@@ -3,12 +3,12 @@
 // the sync path so a Verdict can appear quickly; the rest go through the Batches API at half price.
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ASPECTS, FLAG_TYPES, type Aspect, type FlagType } from "@/domain/aspects";
+import { ASPECTS, CHANGE_MARKERS, FLAG_TYPES, type Aspect, type ChangeMarker, type FlagType } from "@/domain/aspects";
 import { THEMES, THEME_CODES, THEME_VOCAB_VERSION, type ThemeCode } from "@/domain/themes";
 import type { LlmUsage } from "@/lib/job";
 import { addUsage, anthropic, EXTRACT_MODEL } from "./llm";
 
-export const EXTRACTOR_VERSION = `${EXTRACT_MODEL}|extract-v1|${THEME_VOCAB_VERSION}`;
+export const EXTRACTOR_VERSION = `${EXTRACT_MODEL}|extract-v2|${THEME_VOCAB_VERSION}`;
 export const CHUNK = 20;
 
 const score = z.number().int().nullable();
@@ -23,6 +23,7 @@ const ReviewOut = z.object({
   wait: score,
   consistency: score,
   exceptional: z.enum(["none", "food", "service", "overall"]),
+  change: z.enum(CHANGE_MARKERS),
   flags: z.array(
     z.object({
       type: z.enum(FLAG_TYPES),
@@ -60,6 +61,7 @@ const LenientOut = z.object({
   wait: lenientScore,
   consistency: lenientScore,
   exceptional: z.enum(["none", "food", "service", "overall"]).catch("none"),
+  change: z.enum(CHANGE_MARKERS).catch("none"),
   flags: z.array(z.object({ type: z.string(), first_hand: z.boolean(), severity: z.enum(["low", "medium", "high"]).catch("low"), evidence: z.string() })).catch([]),
   themes: z.array(z.string()).catch([]),
   quote: z.object({ text: z.string(), aspect: z.string(), polarity: z.enum(["positive", "negative"]) }).nullable().catch(null),
@@ -90,6 +92,7 @@ export type Extracted = {
   lang: string;
   aspects: Record<Aspect, number | null>;
   exceptional: "none" | "food" | "service" | "overall";
+  change: ChangeMarker;
   flags: { type: FlagType; firstHand: boolean; severity: "low" | "medium" | "high"; evidence: string }[];
   themes: ThemeCode[];
   quote: { text: string; aspect: Aspect; polarity: 1 | -1 } | null;
@@ -124,6 +127,10 @@ null when the Review does not speak to that Aspect. Most Reviews leave several A
 ## Exceptional
 
 "food", "service" or "overall" only when the reviewer says it is among the best they have ever had (not merely "the best in Lisbon this week"), with the enthusiasm to match. Otherwise "none".
+
+## Change
+
+new_owner, new_chef, renovated, new_concept, or moved only when the Review's own text says this Restaurant itself changed hands, changed its head chef, was renovated, changed concept or menu direction, or moved address. A reviewer merely noting it "used to be better" without naming what changed is not enough. Otherwise none.
 
 ## Themes
 
@@ -179,6 +186,7 @@ function toExtracted(out: LenientEntry, input: ExtractInput): Extracted {
     lang: out.lang.toLowerCase().slice(0, 8),
     aspects,
     exceptional: out.exceptional,
+    change: out.change,
     flags: out.flags.flatMap((f) => (isFlagType(f.type) ? [{ type: f.type, firstHand: f.first_hand, severity: f.severity, evidence: f.evidence.slice(0, 300) }] : [])),
     themes: [...new Set(out.themes.filter(isTheme))].slice(0, 3),
     quote,

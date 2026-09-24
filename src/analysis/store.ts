@@ -34,6 +34,7 @@ export async function saveAnalyses(results: Map<number, Extracted>, texts: Map<n
       wait: e.aspects.wait,
       consistency: e.aspects.consistency,
       exceptional: e.exceptional,
+      change: e.change,
       themes: sql.array(e.themes),
       quote: e.quote ? redactNames(e.quote.text, e.names) : null,
       quote_aspect: e.quote?.aspect ?? null,
@@ -63,7 +64,7 @@ export async function saveAnalyses(results: Map<number, Extracted>, texts: Map<n
         on conflict (review_id) do update set
           extractor_version = excluded.extractor_version, food = excluded.food, service = excluded.service,
           ambience = excluded.ambience, value = excluded.value, wait = excluded.wait,
-          consistency = excluded.consistency, exceptional = excluded.exceptional, themes = excluded.themes,
+          consistency = excluded.consistency, exceptional = excluded.exceptional, change = excluded.change, themes = excluded.themes,
           quote = excluded.quote, quote_aspect = excluded.quote_aspect, quote_polarity = excluded.quote_polarity,
           quote_en = null, analysed_at = now()`;
       await tx`delete from review_flag where review_id in ${tx(ids)}`;

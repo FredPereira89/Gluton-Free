@@ -24,7 +24,7 @@
   "anthropic": {
     "analysis": {
       "lang": "en", "food": 1, "service": 1, "ambience": null, "value": null,
-      "wait": null, "consistency": null, "exceptional": "none", "flags": [],
+      "wait": null, "consistency": null, "exceptional": "none", "change": "new_owner", "flags": [],
       "themes": [], "quote": null, "names": []
     },
     "explanation": "A provisional Verdict based on invented Reviews. Confidence is Low."

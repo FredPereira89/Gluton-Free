@@ -1,8 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { LlmUsage } from "@/lib/job";
 
-export const EXTRACT_MODEL = "claude-haiku-4-5";
-export const JUDGE_MODEL = "claude-sonnet-5";
+// Overridable so a model retirement (e.g. Haiku 4.5, guaranteed only until 2026-10-15) is a config change.
+export const EXTRACT_MODEL = process.env.EXTRACT_MODEL || "claude-haiku-4-5";
+export const JUDGE_MODEL = process.env.JUDGE_MODEL || "claude-sonnet-5";
 
 // USD per million tokens: input, output. Cache writes cost 1.25x input, reads 0.1x; batches half.
 const PRICE: Record<string, [number, number]> = {

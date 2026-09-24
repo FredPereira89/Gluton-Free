@@ -81,13 +81,14 @@ describe("Lookup pipeline", () => {
     const { runLookup } = await import("./lookup");
     const result = await runLookup(restaurantId, async () => {});
     const reviews = await database`select source_review_id, text from review order by source_review_id`;
-    const analyses = await database`select a.review_id from review_analysis a join review r on r.id = a.review_id join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurantId}`;
+    const analyses = await database`select a.review_id, a.change from review_analysis a join review r on r.id = a.review_id join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurantId}`;
     const [verdict] = await database`select state, tier, provisional, job_id from verdict where restaurant_id = ${restaurantId}`;
     const [job] = await database`select status, vendor_cost_usd, llm_usage from job where id = ${result.jobId}`;
 
     expect(reviews).toHaveLength(16);
     expect(reviews.every((review) => String(review.source_review_id).startsWith("invented-") && typeof review.text === "string")).toBe(true);
     expect(analyses).toHaveLength(16);
+    expect(analyses.every((analysis) => analysis.change === "new_owner")).toBe(true);
     expect(verdict).toMatchObject({ state: "verdict", provisional: true, job_id: String(result.jobId) });
     expect(verdict!.tier).not.toBeNull();
     expect(job!.status).toBe("succeeded");

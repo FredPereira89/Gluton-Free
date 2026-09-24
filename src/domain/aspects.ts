@@ -49,3 +49,7 @@ export const FLAG_GROUP: Record<FlagType, "health" | "money"> = {
   other_safety: "health",
   scam_overcharge: "money",
 };
+
+/** Per-Review Change marker (ADR 0007): what the Review's own text says changed, if anything. */
+export const CHANGE_MARKERS = ["none", "new_owner", "new_chef", "renovated", "new_concept", "moved"] as const;
+export type ChangeMarker = (typeof CHANGE_MARKERS)[number];
