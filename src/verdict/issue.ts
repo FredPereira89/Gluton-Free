@@ -8,7 +8,8 @@ import { rollup, type RollupFlag, type RollupReview } from "./rollup";
 
 const FORMAT_NAME: Record<string, string> = { tasca: "tasca" };
 
-export async function loadRollupInput(restaurantId: number, now = new Date()) {
+// changePointAt is null until #58 (Declare and delete Change points) adds storage for it.
+export async function loadRollupInput(restaurantId: number, now = new Date(), changePointAt: Date | null = null) {
   const sql = db();
   const [restaurant] = await sql`select id, name, format from restaurant where id = ${restaurantId}`;
   if (!restaurant) throw new Error(`restaurant ${restaurantId} not found`);
@@ -47,7 +48,7 @@ export async function loadRollupInput(restaurantId: number, now = new Date()) {
     verification: f.verification as RollupFlag["verification"],
     publishedAt: f.published_at as Date,
   }));
-  return { restaurant, input: { now, format: restaurant.format as string, reviews, flags } };
+  return { restaurant, input: { now, format: restaurant.format as string, reviews, flags, changePointAt } };
 }
 
 async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> {

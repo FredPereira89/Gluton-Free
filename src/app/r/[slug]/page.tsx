@@ -78,6 +78,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   }
 
   const r = v.blocks.rollup;
+  const perSource = r.counts.perSource;
 
   if (r.state === "not_enough_evidence") {
     const nee = r.notEnoughEvidence;
@@ -119,7 +120,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             ))}
           </div>
         </section>
-        <Sources page={page} />
+        <Sources page={page} perSource={perSource} />
         <BundleExtras page={page} />
         <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} />
       </div>
@@ -262,14 +263,16 @@ export default async function VerdictPageRoute({ params }: Props) {
         </p>
       </section>
 
-      <Sources page={page} />
+      <Sources page={page} perSource={perSource} />
       <BundleExtras page={page} />
       <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} />
     </div>
   );
 }
 
-function Sources({ page }: { page: RestaurantBundle }) {
+type SourceWindow = { text: number; windowStart: string | null };
+
+function Sources({ page, perSource }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow> }) {
   return (
     <section className="sec">
       <h2>Sources</h2>
@@ -283,11 +286,14 @@ function Sources({ page }: { page: RestaurantBundle }) {
               <th className="num">With text</th>
               <th className="num">Rating</th>
               <th>Newest</th>
+              <th className="num">Window</th>
+              <th>Window since</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {page.sources.map((s) => {
+              const w = perSource?.[s.code];
               return (
                 <tr key={s.code}>
                   <td>
@@ -305,6 +311,8 @@ function Sources({ page }: { page: RestaurantBundle }) {
                   <td className="num">{s.textCount?.toLocaleString("en") ?? "—"}</td>
                   <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>
                   <td>{dateLabel(s.newestAt)}</td>
+                  <td className="num">{w ? w.text.toLocaleString("en") : "—"}</td>
+                  <td>{w?.windowStart ? dateLabel(w.windowStart) : "—"}</td>
                   <td>{s.fetchStatus.replaceAll("_", " ")}</td>
                 </tr>
               );

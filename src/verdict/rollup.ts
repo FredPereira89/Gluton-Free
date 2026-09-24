@@ -22,6 +22,8 @@ export const PARAMS = {
   maxNewestAgeMonths: 18,
   themeWindowMonths: 24,
   spreadWindowMonths: 24,
+  reviewWindowCap: 100,
+  reviewWindowMaxAgeMonths: 24,
 } as const;
 
 export type RollupReview = {
@@ -46,7 +48,14 @@ export type RollupFlag = {
   publishedAt: Date;
 };
 
-export type RollupInput = { now: Date; format: string; reviews: RollupReview[]; flags: RollupFlag[] };
+export type RollupInput = {
+  now: Date;
+  format: string;
+  reviews: RollupReview[];
+  flags: RollupFlag[];
+  /** The newest confirmed Change point, if any (ADR 0007). Cuts every Source's window short. */
+  changePointAt?: Date | null;
+};
 
 export type InputStat = {
   input: Input;
@@ -85,7 +94,7 @@ export type Rollup = {
     textReviews: number;
     ratingOnly: number;
     analysed: number;
-    perSource: Record<string, { reviews: number; text: number; newest: string | null }>;
+    perSource: Record<string, { reviews: number; text: number; newest: string | null; windowStart: string | null }>;
   };
   themes: { code: ThemeCode; aspect: Aspect; polarity: 1 | -1; count: number; share: number }[];
   themeBase: { analysed: number; windowMonths: number };
@@ -212,8 +221,41 @@ function quarterOf(d: Date): string {
   return `${d.getUTCFullYear()}-Q${Math.floor(d.getUTCMonth() / 3) + 1}`;
 }
 
+/**
+ * Per-Source Review window (ADR 0004, ADR 0007): each Source's text Reviews, newest first, up to
+ * `reviewWindowCap` and no older than `reviewWindowMaxAgeMonths` or the newest confirmed Change
+ * point, whichever cuts shorter. The window then runs from the oldest included text Review to now;
+ * every rating dated inside it, rating-only Reviews included, is kept. A Source with no qualifying
+ * text Review has no window and contributes nothing. Reviews outside the window are simply left out
+ * of the result — nothing is deleted, they just stop counting.
+ */
+export function applyReviewWindow(reviews: RollupReview[], now: Date, changePointAt: Date | null): RollupReview[] {
+  const maxAge = new Date(now.getTime() - PARAMS.reviewWindowMaxAgeMonths * MONTH_MS);
+  const cutoff = changePointAt && changePointAt > maxAge ? changePointAt : maxAge;
+
+  const bySource = new Map<string, RollupReview[]>();
+  for (const r of reviews) {
+    const list = bySource.get(r.source);
+    if (list) list.push(r);
+    else bySource.set(r.source, [r]);
+  }
+
+  const out: RollupReview[] = [];
+  for (const rs of bySource.values()) {
+    const text = rs
+      .filter((r) => r.hasText && r.publishedAt >= cutoff)
+      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+      .slice(0, PARAMS.reviewWindowCap);
+    if (!text.length) continue;
+    const start = text[text.length - 1]!.publishedAt;
+    for (const r of rs) if (r.publishedAt >= start) out.push(r);
+  }
+  return out;
+}
+
 export function rollup(input: RollupInput): Rollup {
-  const { now, format, reviews } = input;
+  const { now, format } = input;
+  const reviews = applyReviewWindow(input.reviews, now, input.changePointAt ?? null);
   const stats = inputStats(reviews, now, format);
   const composite = compositeOf(stats);
   const text = reviews.filter((r) => r.hasText);
@@ -314,7 +356,14 @@ export function rollup(input: RollupInput): Rollup {
   for (const s of sources) {
     const rs = reviews.filter((r) => r.source === s);
     const nw = rs.reduce<Date | null>((m, r) => (!m || r.publishedAt > m ? r.publishedAt : m), null);
-    perSource[s] = { reviews: rs.length, text: rs.filter((r) => r.hasText).length, newest: nw?.toISOString() ?? null };
+    const textDates = rs.filter((r) => r.hasText).map((r) => r.publishedAt);
+    const windowStart = textDates.length ? textDates.reduce((m, d) => (d < m ? d : m)) : null;
+    perSource[s] = {
+      reviews: rs.length,
+      text: rs.filter((r) => r.hasText).length,
+      newest: nw?.toISOString() ?? null,
+      windowStart: windowStart?.toISOString() ?? null,
+    };
   }
 
   const state = missed.length && !forced ? "not_enough_evidence" : "verdict";

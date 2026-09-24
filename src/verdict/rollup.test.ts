@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Aspect } from "@/domain/aspects";
-import { rollup, shrunk, type RollupFlag, type RollupReview } from "./rollup";
+import { applyReviewWindow, rollup, shrunk, type RollupFlag, type RollupReview } from "./rollup";
 
 const NOW = new Date("2026-09-01T00:00:00Z");
 const monthsAgo = (m: number) => new Date(NOW.getTime() - m * 30.4375 * 24 * 3600 * 1000);
@@ -72,11 +72,22 @@ describe("rollup", () => {
   });
 
   it("feeds rating-only Reviews into Overall only", () => {
+    // A text Review anchors the Source's window so the rating-only Reviews have something to share.
+    const anchor = review({ aspects: { food: 1 } });
     const ratingOnly = many(10, () => review({ aspects: null, stars: 1, subRatings: { food: 1 } }));
-    const r = rollup({ now: NOW, format: "tasca", reviews: ratingOnly, flags: [] });
-    expect(r.inputs.find((x) => x.input === "food")!.n).toBe(0);
-    expect(r.inputs.find((x) => x.input === "overall")!.n).toBe(10);
+    const r = rollup({ now: NOW, format: "tasca", reviews: [anchor, ...ratingOnly], flags: [] });
+    expect(r.inputs.find((x) => x.input === "food")!.n).toBe(1);
+    expect(r.inputs.find((x) => x.input === "overall")!.n).toBe(11);
     expect(r.counts.ratingOnly).toBe(10);
+  });
+
+  it("reports each Source's window (count and start date) and excludes Reviews outside it", () => {
+    const inWindow = review({ source: "google", publishedAt: monthsAgo(2), aspects: { food: 2 } });
+    const outsideWindow = review({ source: "google", publishedAt: monthsAgo(30), stars: 1, aspects: { food: -2 } });
+    const r = rollup({ now: NOW, format: "tasca", reviews: [inWindow, outsideWindow], flags: [] });
+    expect(r.counts.perSource.google!.text).toBe(1);
+    expect(r.counts.perSource.google!.windowStart).toBe(monthsAgo(2).toISOString());
+    expect(r.inputs.find((x) => x.input === "food")!.n).toBe(1);
   });
 
   it("halves a Review's weight every 18 months", () => {
@@ -135,5 +146,51 @@ describe("rollup", () => {
     const a = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
     const b = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
     expect(a).toEqual(b);
+  });
+});
+
+describe("applyReviewWindow", () => {
+  const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3600 * 1000);
+
+  it("caps a Source at its 100 newest text Reviews", () => {
+    const reviews = many(150, (i) => review({ publishedAt: hoursAgo(i), aspects: { food: 1 } }));
+    const windowed = applyReviewWindow(reviews, NOW, null);
+    expect(windowed).toHaveLength(100);
+    expect(windowed.map((r) => r.id).sort((a, b) => a - b)).toEqual(reviews.slice(0, 100).map((r) => r.id).sort((a, b) => a - b));
+  });
+
+  it("drops text Reviews older than 24 months", () => {
+    const kept = review({ publishedAt: monthsAgo(23), aspects: { food: 1 } });
+    const dropped = review({ publishedAt: monthsAgo(25), aspects: { food: 1 } });
+    const windowed = applyReviewWindow([kept, dropped], NOW, null);
+    expect(windowed.map((r) => r.id)).toEqual([kept.id]);
+  });
+
+  it("cuts the window at a Change point newer than the 24-month limit", () => {
+    const kept = review({ publishedAt: monthsAgo(3), aspects: { food: 1 } });
+    const dropped = review({ publishedAt: monthsAgo(9), aspects: { food: 1 } });
+    const windowed = applyReviewWindow([kept, dropped], NOW, monthsAgo(6));
+    expect(windowed.map((r) => r.id)).toEqual([kept.id]);
+  });
+
+  it("shares the text window with rating-only Reviews, dropping ones dated before it", () => {
+    const anchor = review({ publishedAt: monthsAgo(2), aspects: { food: 1 } });
+    const starInWindow = review({ publishedAt: monthsAgo(1), aspects: null, stars: 4 });
+    const starBeforeWindow = review({ publishedAt: monthsAgo(5), aspects: null, stars: 2 });
+    const windowed = applyReviewWindow([anchor, starInWindow, starBeforeWindow], NOW, null);
+    expect(windowed.map((r) => r.id).sort((a, b) => a - b)).toEqual([anchor.id, starInWindow.id].sort((a, b) => a - b));
+  });
+
+  it("windows each Source independently", () => {
+    const google = many(150, (i) => review({ source: "google", publishedAt: hoursAgo(i), aspects: { food: 1 } }));
+    const tripadvisor = many(5, (i) => review({ source: "tripadvisor", publishedAt: hoursAgo(i), aspects: { food: 1 } }));
+    const windowed = applyReviewWindow([...google, ...tripadvisor], NOW, null);
+    expect(windowed.filter((r) => r.source === "google")).toHaveLength(100);
+    expect(windowed.filter((r) => r.source === "tripadvisor")).toHaveLength(5);
+  });
+
+  it("drops a Source with no text Reviews in range entirely, even its rating-only Reviews", () => {
+    const reviews = many(5, () => review({ aspects: null, stars: 3 }));
+    expect(applyReviewWindow(reviews, NOW, null)).toEqual([]);
   });
 });

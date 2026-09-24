@@ -46,7 +46,10 @@ export const RollupSchema = z.strictObject({
     textReviews: z.number(),
     ratingOnly: z.number(),
     analysed: z.number(),
-    perSource: z.record(z.string(), z.strictObject({ reviews: z.number(), text: z.number(), newest: z.string().nullable() })),
+    perSource: z.record(
+      z.string(),
+      z.strictObject({ reviews: z.number(), text: z.number(), newest: z.string().nullable(), windowStart: z.string().nullable() }),
+    ),
   }),
   themes: z.array(
     z.strictObject({

@@ -624,12 +624,19 @@
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "windowStart": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
                                           }
                                         },
                                         "required": [
                                           "reviews",
                                           "text",
-                                          "newest"
+                                          "newest",
+                                          "windowStart"
                                         ],
                                         "additionalProperties": false
                                       }
@@ -1363,12 +1370,19 @@
                                                   "string",
                                                   "null"
                                                 ]
+                                              },
+                                              "windowStart": {
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ]
                                               }
                                             },
                                             "required": [
                                               "reviews",
                                               "text",
-                                              "newest"
+                                              "newest",
+                                              "windowStart"
                                             ],
                                             "additionalProperties": false
                                           }
