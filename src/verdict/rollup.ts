@@ -55,6 +55,8 @@ export type RollupInput = {
   flags: RollupFlag[];
   /** The newest confirmed Change point, if any (ADR 0007). Cuts every Source's window short. */
   changePointAt?: Date | null;
+  /** Owner-confirmed description, for example "Reopened after renovation". */
+  changePointDescription?: string;
 };
 
 export type InputStat = {
@@ -85,7 +87,18 @@ export type Rollup = {
   inputs: InputStat[];
   contributions: { input: Input; value: number }[];
   floorCap: string | null;
-  notEnoughEvidence: { textReviews: number; foodMentions: number; newestAgeMonths: number | null; missed: string[] };
+  notEnoughEvidence: {
+    textReviews: number;
+    foodMentions: number;
+    newestAgeMonths: number | null;
+    missed: string[];
+    bars: {
+      textReviews: { have: number; need: number; met: boolean };
+      foodMentions: { have: number; need: number; met: boolean };
+      newestReview: { have: number | null; need: number; met: boolean };
+    };
+    reasonLine: string | null;
+  };
   redFlags: RedFlagGroup[];
   confidence: { level: "low" | "medium" | "high"; bootstrapShare: number; caps: string[] };
   consistencySpread: { sd: number | null; n: number; windowMonths: number };
@@ -254,6 +267,23 @@ export function applyReviewWindow(reviews: RollupReview[], now: Date, changePoin
   return out;
 }
 
+function evidenceBars(reviews: RollupReview[], now: Date): Rollup["notEnoughEvidence"] {
+  const text = reviews.filter((r) => r.hasText);
+  const foodMentions = text.filter((r) => r.aspects?.food !== null && r.aspects?.food !== undefined).length;
+  const newest = reviews.reduce<Date | null>((m, r) => (!m || r.publishedAt > m ? r.publishedAt : m), null);
+  const newestAgeMonths = newest ? ageMonths(now, newest) : null;
+  const bars = {
+    textReviews: { have: text.length, need: PARAMS.minTextReviews, met: text.length >= PARAMS.minTextReviews },
+    foodMentions: { have: foodMentions, need: PARAMS.minFoodMentions, met: foodMentions >= PARAMS.minFoodMentions },
+    newestReview: { have: newestAgeMonths, need: PARAMS.maxNewestAgeMonths, met: newestAgeMonths !== null && newestAgeMonths <= PARAMS.maxNewestAgeMonths },
+  };
+  const missed: string[] = [];
+  if (!bars.textReviews.met) missed.push(`fewer than ${bars.textReviews.need} Reviews with text`);
+  if (!bars.foodMentions.met) missed.push(`food mentioned in fewer than ${bars.foodMentions.need} Reviews`);
+  if (!bars.newestReview.met) missed.push(`newest Review older than ${bars.newestReview.need} months`);
+  return { textReviews: text.length, foodMentions, newestAgeMonths, missed, bars, reasonLine: null };
+}
+
 export function rollup(input: RollupInput): Rollup {
   const { now, format } = input;
   const reviews = applyReviewWindow(input.reviews, now, input.changePointAt ?? null);
@@ -263,13 +293,8 @@ export function rollup(input: RollupInput): Rollup {
   const analysed = text.filter((r) => r.aspects);
 
   // Not enough evidence.
-  const foodMentions = analysed.filter((r) => r.aspects!.food !== null).length;
-  const newest = reviews.reduce<Date | null>((m, r) => (!m || r.publishedAt > m ? r.publishedAt : m), null);
-  const newestAge = newest ? ageMonths(now, newest) : null;
-  const missed: string[] = [];
-  if (text.length < PARAMS.minTextReviews) missed.push(`fewer than ${PARAMS.minTextReviews} Reviews with text`);
-  if (foodMentions < PARAMS.minFoodMentions) missed.push(`food mentioned in fewer than ${PARAMS.minFoodMentions} Reviews`);
-  if (newestAge === null || newestAge > PARAMS.maxNewestAgeMonths) missed.push(`newest Review older than ${PARAMS.maxNewestAgeMonths} months`);
+  const notEnoughEvidence = evidenceBars(reviews, now);
+  const { missed } = notEnoughEvidence;
 
   // Red flags.
   const textIn12m = text.filter((r) => ageMonths(now, r.publishedAt) <= 12).length;
@@ -368,6 +393,14 @@ export function rollup(input: RollupInput): Rollup {
   }
 
   const state = missed.length && !forced ? "not_enough_evidence" : "verdict";
+  if (state === "not_enough_evidence" && input.changePointAt) {
+    const withoutChange = evidenceBars(applyReviewWindow(input.reviews, now, null), now);
+    if (withoutChange.missed.length === 0) {
+      const date = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(input.changePointAt);
+      const event = input.changePointDescription?.trim() || "Change point";
+      notEnoughEvidence.reasonLine = `${event} on ${date}; ${notEnoughEvidence.textReviews} Reviews since`;
+    }
+  }
   return {
     ruleVersion: RULE_VERSION,
     provisional: true,
@@ -380,7 +413,7 @@ export function rollup(input: RollupInput): Rollup {
       .map((s) => ({ input: s.input, value: s.weight * s.theta }))
       .sort((a, b) => b.value - a.value),
     floorCap: forced ? null : base.floorCap,
-    notEnoughEvidence: { textReviews: text.length, foodMentions, newestAgeMonths: newestAge, missed },
+    notEnoughEvidence,
     redFlags,
     confidence: { level: levels[level]!, bootstrapShare: share, caps },
     consistencySpread: { sd, n: inWindow.length, windowMonths: PARAMS.spreadWindowMonths },

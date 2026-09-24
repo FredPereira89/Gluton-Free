@@ -7,7 +7,7 @@ import { GET as health } from "@/app/api/v1/health/route";
 import { GET as openApi } from "@/app/openapi.json/route";
 import { GET as verdict } from "@/app/api/v1/restaurants/[slug]/verdict/route";
 import { GET as restaurantBundle } from "@/app/api/v1/restaurants/[slug]/route";
-import { rollup } from "@/verdict/rollup";
+import { rollup, type RollupReview } from "@/verdict/rollup";
 import { loadRestaurantBundle, loadVerdictPage, type VerdictPage } from "@/web/data";
 import { acceptedJobResponse, acceptedJobSchema, paginatedSchema, parsePagination, routes, type RestaurantBundle } from "./api-contract";
 import { problemSchema } from "./problem";
@@ -96,6 +96,35 @@ describe("API registry and OpenAPI", () => {
 });
 
 describe("handler responses", () => {
+  it("renders a Change-point evidence gap with a dashed label, have/need bars, and Source facts", async () => {
+    const now = new Date("2026-09-24T12:00:00.000Z");
+    const reviews: RollupReview[] = Array.from({ length: 29 }, (_, i) => ({
+      id: i + 1,
+      source: "google",
+      publishedAt: new Date(i < 20 ? "2026-07-01T12:00:00.000Z" : "2026-09-01T12:00:00.000Z"),
+      stars: 5,
+      hasText: true,
+      subRatings: null,
+      aspects: { food: 1, service: 1, ambience: null, value: null, wait: null, consistency: null },
+      exceptional: "none",
+      themes: [],
+    }));
+    const evidence = rollup({ now, format: "tasca", reviews, flags: [], changePointAt: new Date("2026-08-10T00:00:00.000Z"), changePointDescription: "Reopened after renovation" });
+    vi.mocked(loadRestaurantBundle).mockResolvedValueOnce({
+      ...bundleFixture,
+      verdict: { ...bundleFixture.verdict!, blocks: { rollup: evidence, quotes: [] } },
+      sources: [{ ...bundleFixture.sources[0]!, reviewCount: 29, textCount: 29 }],
+    });
+    const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
+    expect(markup).toContain('class="nee">Not enough evidence</span>');
+    expect(markup).toContain("Reopened after renovation on 10 Aug 2026; 9 Reviews since");
+    expect(markup).toMatch(/Reviews with text<\/span><span class="mono small">9 <span class="muted">\/ 15/);
+    expect(markup).toMatch(/Reviews that mention the food<\/span><span class="mono small">9 <span class="muted">\/ 8/);
+    expect(markup).toContain("within 18 months");
+    expect(markup).toContain("4.5");
+    expect(markup).toContain("29");
+  });
+
   it("renders the Verdict page from the bundle's Restaurant and Source data", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValueOnce({
       ...bundleFixture,

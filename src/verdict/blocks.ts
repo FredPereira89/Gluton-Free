@@ -28,6 +28,13 @@ export const RollupSchema = z.strictObject({
     foodMentions: z.number(),
     newestAgeMonths: z.number().nullable(),
     missed: z.array(z.string()),
+    // Optional so Verdicts issued before these bars were recorded remain readable.
+    bars: z.strictObject({
+      textReviews: z.strictObject({ have: z.number(), need: z.number(), met: z.boolean() }),
+      foodMentions: z.strictObject({ have: z.number(), need: z.number(), met: z.boolean() }),
+      newestReview: z.strictObject({ have: z.number().nullable(), need: z.number(), met: z.boolean() }),
+    }).optional(),
+    reasonLine: z.string().nullable().optional(),
   }),
   redFlags: z.array(
     z.strictObject({

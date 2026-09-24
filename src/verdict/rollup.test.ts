@@ -102,6 +102,44 @@ describe("rollup", () => {
     expect(r.notEnoughEvidence.missed.join()).toMatch(/15 Reviews with text/);
   });
 
+  it("records the text Review have/need bar after the Review window", () => {
+    const r = rollup({ now: NOW, format: "tasca", reviews: many(14, (i) => great(i)), flags: [] });
+    expect(r.state).toBe("not_enough_evidence");
+    expect(r.tier).toBeNull();
+    expect(r.notEnoughEvidence.bars).toMatchObject({
+      textReviews: { have: 14, need: 15, met: false },
+      foodMentions: { have: 14, need: 8, met: true },
+    });
+  });
+
+  it("records the food mention have/need bar independently of text count", () => {
+    const reviews = many(15, (i) => i < 7 ? great(i) : review({ aspects: { service: 1 } }));
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
+    expect(r.state).toBe("not_enough_evidence");
+    expect(r.notEnoughEvidence.bars.foodMentions).toEqual({ have: 7, need: 8, met: false });
+    expect(r.notEnoughEvidence.bars.textReviews.met).toBe(true);
+  });
+
+  it("records the newest Review age bar when all Reviews are stale", () => {
+    const r = rollup({ now: NOW, format: "tasca", reviews: many(15, (i) => review({ ...great(i), publishedAt: monthsAgo(19) })), flags: [] });
+    expect(r.state).toBe("not_enough_evidence");
+    expect(r.notEnoughEvidence.bars.newestReview).toMatchObject({ need: 18, met: false });
+    expect(r.notEnoughEvidence.bars.newestReview.have).toBeCloseTo(19);
+  });
+
+  it("explains when a confirmed Change point leaves too few Reviews", () => {
+    const reviews = [
+      ...many(20, (i) => review({ ...great(i), publishedAt: monthsAgo(8) })),
+      ...many(9, (i) => review({ ...great(i), publishedAt: monthsAgo(1) })),
+    ];
+    const withoutChange = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
+    const afterChange = rollup({ now: NOW, format: "tasca", reviews, flags: [], changePointAt: monthsAgo(4), changePointDescription: "Reopened after renovation" });
+    expect(withoutChange.state).toBe("verdict");
+    expect(afterChange.state).toBe("not_enough_evidence");
+    expect(afterChange.notEnoughEvidence.bars.textReviews.have).toBe(9);
+    expect(afterChange.notEnoughEvidence.reasonLine).toMatch(/^Reopened after renovation on .+; 9 Reviews since$/);
+  });
+
   it("forces Avoid on three confirmed first-hand incidents within 3 months in one group", () => {
     const reviews = many(100, (i) => great(i));
     const flag = (r: RollupReview, m: number): RollupFlag => ({

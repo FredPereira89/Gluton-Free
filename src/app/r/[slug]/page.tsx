@@ -82,14 +82,19 @@ export default async function VerdictPageRoute({ params }: Props) {
 
   if (r.state === "not_enough_evidence") {
     const nee = r.notEnoughEvidence;
+    const evidenceBars = nee.bars ?? {
+      textReviews: { have: nee.textReviews, need: PARAMS.minTextReviews, met: nee.textReviews >= PARAMS.minTextReviews },
+      foodMentions: { have: nee.foodMentions, need: PARAMS.minFoodMentions, met: nee.foodMentions >= PARAMS.minFoodMentions },
+      newestReview: { have: nee.newestAgeMonths, need: PARAMS.maxNewestAgeMonths, met: nee.newestAgeMonths !== null && nee.newestAgeMonths <= PARAMS.maxNewestAgeMonths },
+    };
     const bars = [
-      { ok: nee.textReviews >= PARAMS.minTextReviews, t: "Reviews with text", have: String(nee.textReviews), need: String(PARAMS.minTextReviews) },
-      { ok: nee.foodMentions >= PARAMS.minFoodMentions, t: "Reviews that mention the food", have: String(nee.foodMentions), need: String(PARAMS.minFoodMentions) },
+      { ok: evidenceBars.textReviews.met, t: "Reviews with text", have: String(evidenceBars.textReviews.have), need: String(evidenceBars.textReviews.need) },
+      { ok: evidenceBars.foodMentions.met, t: "Reviews that mention the food", have: String(evidenceBars.foodMentions.have), need: String(evidenceBars.foodMentions.need) },
       {
-        ok: nee.newestAgeMonths !== null && nee.newestAgeMonths <= PARAMS.maxNewestAgeMonths,
+        ok: evidenceBars.newestReview.met,
         t: "Newest Review",
-        have: nee.newestAgeMonths === null ? "none" : `${Math.round(nee.newestAgeMonths)} months ago`,
-        need: `within ${PARAMS.maxNewestAgeMonths} months`,
+        have: evidenceBars.newestReview.have === null ? "none" : `${Math.ceil(evidenceBars.newestReview.have)} months ago`,
+        need: `within ${evidenceBars.newestReview.need} months`,
       },
     ];
     return (
@@ -103,6 +108,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             {baseChips}
             <span className="chip prov">Provisional</span>
           </div>
+          {nee.reasonLine && <p className="explain">{nee.reasonLine}</p>}
           {v.explanation && (
             <p className="explain">
               <Explanation text={v.explanation} />

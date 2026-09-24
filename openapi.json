@@ -478,6 +478,86 @@
                                       "items": {
                                         "type": "string"
                                       }
+                                    },
+                                    "bars": {
+                                      "type": "object",
+                                      "properties": {
+                                        "textReviews": {
+                                          "type": "object",
+                                          "properties": {
+                                            "have": {
+                                              "type": "number"
+                                            },
+                                            "need": {
+                                              "type": "number"
+                                            },
+                                            "met": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "have",
+                                            "need",
+                                            "met"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "foodMentions": {
+                                          "type": "object",
+                                          "properties": {
+                                            "have": {
+                                              "type": "number"
+                                            },
+                                            "need": {
+                                              "type": "number"
+                                            },
+                                            "met": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "have",
+                                            "need",
+                                            "met"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "newestReview": {
+                                          "type": "object",
+                                          "properties": {
+                                            "have": {
+                                              "type": [
+                                                "number",
+                                                "null"
+                                              ]
+                                            },
+                                            "need": {
+                                              "type": "number"
+                                            },
+                                            "met": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "have",
+                                            "need",
+                                            "met"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "textReviews",
+                                        "foodMentions",
+                                        "newestReview"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "reasonLine": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -1224,6 +1304,86 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "bars": {
+                                          "type": "object",
+                                          "properties": {
+                                            "textReviews": {
+                                              "type": "object",
+                                              "properties": {
+                                                "have": {
+                                                  "type": "number"
+                                                },
+                                                "need": {
+                                                  "type": "number"
+                                                },
+                                                "met": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "have",
+                                                "need",
+                                                "met"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "foodMentions": {
+                                              "type": "object",
+                                              "properties": {
+                                                "have": {
+                                                  "type": "number"
+                                                },
+                                                "need": {
+                                                  "type": "number"
+                                                },
+                                                "met": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "have",
+                                                "need",
+                                                "met"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "newestReview": {
+                                              "type": "object",
+                                              "properties": {
+                                                "have": {
+                                                  "type": [
+                                                    "number",
+                                                    "null"
+                                                  ]
+                                                },
+                                                "need": {
+                                                  "type": "number"
+                                                },
+                                                "met": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "have",
+                                                "need",
+                                                "met"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          },
+                                          "required": [
+                                            "textReviews",
+                                            "foodMentions",
+                                            "newestReview"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "reasonLine": {
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
                                         }
                                       },
                                       "required": [
