@@ -1,12 +1,13 @@
 // The Verdict page, layout A ("Report"). Provisional: θ on the −2..+2 scale, no Peers, no
 // "Over time" section.
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { INPUT_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { PARAMS } from "@/verdict/rollup";
-import { ConfChip, Explanation, monthLabel, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
+import { ConfChip, dateLabel, Explanation, monthLabel, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
@@ -21,8 +22,6 @@ const FLAG_LABEL: Record<FlagType, string> = {
   other_safety: "safety",
 };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const dateLabel = (d: Date | string | null) =>
-  d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Lisbon" }) : "—";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -52,6 +51,8 @@ export default async function VerdictPageRoute({ params }: Props) {
             </a>
           </span>
         ))}
+        {" · "}
+        <Link href={`/r/${encodeURIComponent(R.slug)}/history`}>Verdict history</Link>
       </p>
     </div>
   );

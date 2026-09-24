@@ -147,6 +147,8 @@ body{margin:0;padding:16px 16px 64px}
 .index a.row b{font-size:17px}
 .index .nee{font-size:13px;padding:4px 8px;border-width:1.5px}
 .index .next-page{justify-self:center;padding:9px 14px;font-weight:700}
+.history .nee{font-size:13px;padding:4px 8px;border-width:1.5px}
+.history .next-page{align-self:center;padding:9px 14px;font-weight:700}
 .footnote{font-size:12px;color:var(--faint);max-width:62ch}
 
 /* ---------- forms ---------- */

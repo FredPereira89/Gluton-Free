@@ -95,9 +95,23 @@ export const restaurantListItemSchema = z.strictObject({
 });
 export const restaurantListResponseSchema = paginatedSchema(restaurantListItemSchema);
 export type RestaurantListResponse = z.infer<typeof restaurantListResponseSchema>;
-export const restaurantListQuerySchema = paginationQuerySchema.extend({
-  cursor: z.string().refine((value) => /^[1-9][0-9]*$/.test(value) && value.length <= 19 && BigInt(value) <= 9223372036854775807n).optional(),
+// Keyset pagination over a bigint identity column: the cursor is the last id on the page.
+export const MAX_BIGINT_ID = "9223372036854775807";
+export const idCursorQuerySchema = paginationQuerySchema.extend({
+  cursor: z.string().refine((value) => /^[1-9][0-9]*$/.test(value) && value.length <= 19 && BigInt(value) <= BigInt(MAX_BIGINT_ID)).optional(),
 });
+
+export const verdictHistoryItemSchema = z.strictObject({
+  id: z.number().int(),
+  issuedAt: z.iso.datetime(),
+  state: z.enum(["verdict", "not_enough_evidence"]),
+  tier: z.enum(TIERS).nullable(),
+  confidence: z.enum(["low", "medium", "high"]).nullable(),
+  provisional: z.boolean(),
+  peerSnapshotId: z.number().int().nullable(),
+});
+export const verdictHistoryResponseSchema = paginatedSchema(verdictHistoryItemSchema);
+export type VerdictHistoryResponse = z.infer<typeof verdictHistoryResponseSchema>;
 
 export const acceptedJobSchema = z.strictObject({ id: z.number().int().positive() });
 
@@ -121,7 +135,7 @@ export const routes = {
     method: "GET",
     path: "/api/v1/restaurants",
     auth: "owner",
-    request: { query: restaurantListQuerySchema },
+    request: { query: idCursorQuerySchema },
     responses: { 200: restaurantListResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   verdict: {
@@ -137,6 +151,13 @@ export const routes = {
     auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1) }) },
     responses: { 200: restaurantBundleSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  verdictHistory: {
+    method: "GET",
+    path: "/api/v1/restaurants/{slug}/verdicts",
+    auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), query: idCursorQuerySchema },
+    responses: { 200: verdictHistoryResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
 } as const;
 

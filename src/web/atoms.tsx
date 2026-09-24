@@ -91,6 +91,9 @@ export function Explanation({ text }: { text: string }): ReactNode {
   return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : <Fragment key={i}>{part}</Fragment>));
 }
 
+export const dateLabel = (d: Date | string | null) =>
+  d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Lisbon" }) : "—";
+
 export function monthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
   return new Date(Date.UTC(y!, m! - 1, 1)).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });

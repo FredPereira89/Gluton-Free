@@ -1,6 +1,9 @@
 // Read side of the Verdict page and API. Blocks are re-validated on read.
 import { db } from "@/lib/db";
-import { restaurantBundleSchema, type RestaurantBundle, type RestaurantListResponse } from "@/lib/api-contract";
+import {
+  MAX_BIGINT_ID, restaurantBundleSchema, verdictHistoryResponseSchema,
+  type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
+} from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 
 export type SourceRow = {
@@ -131,5 +134,39 @@ export async function listRestaurants({ cursor, limit }: { cursor?: string; limi
       tier: r.tier,
     })),
     nextCursor: rows.length > limit ? pageRows.at(-1)!.id : null,
+  };
+}
+
+// The append-only Verdict history, newest first. Null when the Restaurant is unknown.
+export async function loadVerdictHistory(
+  slug: string,
+  { cursor, limit }: { cursor?: string; limit: number },
+): Promise<{ restaurant: { slug: string; name: string } } & VerdictHistoryResponse | null> {
+  const rows = await db()`
+    select r.name, v.id::text as id, v.created_at, v.state, v.tier, v.confidence, v.provisional,
+           v.peer_snapshot_id::text as peer_snapshot_id
+    from restaurant r
+    left join verdict v on v.restaurant_id = r.id and v.id < ${cursor ?? MAX_BIGINT_ID}::bigint
+    where r.slug = ${slug}
+    order by v.id desc
+    limit ${limit + 1}`;
+  const [restaurant] = rows;
+  if (!restaurant) return null;
+  const verdicts = rows.filter((v) => v.id !== null);
+  const pageRows = verdicts.slice(0, limit);
+  return {
+    restaurant: { slug, name: restaurant.name },
+    ...verdictHistoryResponseSchema.parse({
+      items: pageRows.map((v) => ({
+        id: Number(v.id),
+        issuedAt: v.created_at.toISOString(),
+        state: v.state,
+        tier: v.tier,
+        confidence: v.confidence,
+        provisional: v.provisional,
+        peerSnapshotId: v.peer_snapshot_id === null ? null : Number(v.peer_snapshot_id),
+      })),
+      nextCursor: verdicts.length > limit ? pageRows.at(-1)!.id : null,
+    }),
   };
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { parsePagination, restaurantListQuerySchema } from "@/lib/api-contract";
+import { parsePagination, idCursorQuerySchema } from "@/lib/api-contract";
 import { ApiError, parseApiRequest } from "@/lib/problem";
 import { TierBadge } from "@/web/atoms";
 import { listRestaurants } from "@/web/data";
@@ -18,7 +18,7 @@ export default async function RestaurantListPage({ searchParams }: Props) {
 
   let pagination;
   try {
-    pagination = parseApiRequest(restaurantListQuerySchema, parsePagination(query));
+    pagination = parseApiRequest(idCursorQuerySchema, parsePagination(query));
   } catch (error) {
     if (error instanceof ApiError) notFound();
     throw error;

@@ -112,6 +112,7 @@ describe("handler responses", () => {
     expect(markup).toContain("Current lookup job: running");
     expect(markup).toContain("2026-Q3: 5 Reviews, 3 with text");
     expect(markup).not.toContain("+1.23");
+    expect(markup).toContain('href="/r/o-velho-eurico/history"');
   });
 
   it("serves a strict Restaurant bundle with private conditional caching", async () => {
