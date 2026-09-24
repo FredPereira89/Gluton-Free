@@ -9,7 +9,7 @@ import { db } from "./db";
 vi.mock("./db", () => ({ db: vi.fn() }));
 
 const verdicts = [
-  { id: "4", created_at: new Date("2026-09-24T12:00:00.000Z"), state: "not_enough_evidence", tier: null, confidence: "low", provisional: true, peer_snapshot_id: null },
+  { id: "4", created_at: new Date("2026-09-24T12:00:00.000Z"), state: "not_enough_evidence", tier: null, confidence: null, provisional: true, peer_snapshot_id: null },
   { id: "7", created_at: new Date("2026-10-01T09:00:00.000Z"), state: "verdict", tier: "ok", confidence: "low", provisional: true, peer_snapshot_id: null },
   { id: "9", created_at: new Date("2026-11-01T09:00:00.000Z"), state: "verdict", tier: "good", confidence: "medium", provisional: false, peer_snapshot_id: "3" },
 ];
@@ -88,7 +88,7 @@ describe("GET /api/v1/restaurants/:slug/verdicts", () => {
       items: [
         { id: 9, issuedAt: "2026-11-01T09:00:00.000Z", state: "verdict", tier: "good", confidence: "medium", provisional: false, peerSnapshotId: 3 },
         { id: 7, issuedAt: "2026-10-01T09:00:00.000Z", state: "verdict", tier: "ok", confidence: "low", provisional: true, peerSnapshotId: null },
-        { id: 4, issuedAt: "2026-09-24T12:00:00.000Z", state: "not_enough_evidence", tier: null, confidence: "low", provisional: true, peerSnapshotId: null },
+        { id: 4, issuedAt: "2026-09-24T12:00:00.000Z", state: "not_enough_evidence", tier: null, confidence: null, provisional: true, peerSnapshotId: null },
       ],
       nextCursor: null,
     });

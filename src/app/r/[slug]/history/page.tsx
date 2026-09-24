@@ -3,34 +3,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { idCursorQuerySchema, parsePagination } from "@/lib/api-contract";
-import { ApiError, parseApiRequest } from "@/lib/problem";
 import { ConfChip, dateLabel, TierBadge } from "@/web/atoms";
 import { loadVerdictHistory } from "@/web/data";
+import { pageIdPagination, type PageSearchParams } from "@/web/pagination";
 
-type Props = {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ cursor?: string | string[]; limit?: string | string[] }>;
-};
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<PageSearchParams> };
 
 export const metadata: Metadata = { title: "Verdict history · Gluton-Free" };
 
 export default async function VerdictHistoryPage({ params, searchParams }: Props) {
   await connection();
   const { slug } = await params;
-  const search = await searchParams;
-  if (Array.isArray(search.cursor) || Array.isArray(search.limit)) notFound();
-  const query = new URLSearchParams();
-  if (search.cursor !== undefined) query.set("cursor", search.cursor);
-  if (search.limit !== undefined) query.set("limit", search.limit);
-
-  let pagination;
-  try {
-    pagination = parseApiRequest(idCursorQuerySchema, parsePagination(query));
-  } catch (error) {
-    if (error instanceof ApiError) notFound();
-    throw error;
-  }
+  const pagination = pageIdPagination(await searchParams);
   const history = await loadVerdictHistory(slug, pagination);
   if (!history) notFound();
   const restaurantHref = `/r/${encodeURIComponent(history.restaurant.slug)}`;
@@ -57,7 +41,7 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
                   <th>Issued</th>
                   <th>Tier</th>
                   <th>Confidence</th>
-                  <th>Status</th>
+                  <th>Provisional</th>
                   <th>Peer snapshot</th>
                 </tr>
               </thead>
@@ -73,7 +57,7 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
                       )}
                     </td>
                     <td>{v.confidence ? <ConfChip level={v.confidence} /> : "—"}</td>
-                    <td>{v.provisional ? <span className="chip prov">Provisional</span> : "Final"}</td>
+                    <td>{v.provisional ? <span className="chip prov">Provisional</span> : "—"}</td>
                     <td>{v.peerSnapshotId === null ? "—" : `Peer snapshot #${v.peerSnapshotId}`}</td>
                   </tr>
                 ))}

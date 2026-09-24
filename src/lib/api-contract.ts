@@ -102,7 +102,9 @@ export const idCursorQuerySchema = paginationQuerySchema.extend({
   cursor: z.string().refine((value) => /^[1-9][0-9]*$/.test(value) && value.length <= 19 && BigInt(value) <= BigInt(MAX_BIGINT_ID)).optional(),
 });
 
-export function parseIdPagination(searchParams: URLSearchParams) {
+export type IdPagination = z.infer<typeof idCursorQuerySchema>;
+
+export function parseIdPagination(searchParams: URLSearchParams): IdPagination {
   return parseApiRequest(idCursorQuerySchema, parsePagination(searchParams));
 }
 

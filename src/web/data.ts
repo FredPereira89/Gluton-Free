@@ -1,8 +1,8 @@
 // Read side of the Verdict page and API. Blocks are re-validated on read.
 import { db } from "@/lib/db";
 import {
-  MAX_BIGINT_ID, restaurantBundleSchema, verdictHistoryResponseSchema,
-  type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
+  MAX_BIGINT_ID, restaurantBundleSchema,
+  type IdPagination, type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
 } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 
@@ -115,7 +115,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
   });
 }
 
-export async function listRestaurants({ cursor, limit }: { cursor?: string; limit: number }): Promise<RestaurantListResponse> {
+export async function listRestaurants({ cursor, limit }: IdPagination): Promise<RestaurantListResponse> {
   const rows = await db()`
     select r.id::text as id, r.slug, r.name, r.city, r.area, v.state, v.tier, v.provisional
     from restaurant r
@@ -142,7 +142,7 @@ export async function listRestaurants({ cursor, limit }: { cursor?: string; limi
 // The append-only Verdict history, newest first. Null when the Restaurant is unknown.
 export async function loadVerdictHistory(
   slug: string,
-  { cursor, limit }: { cursor?: string; limit: number },
+  { cursor, limit }: IdPagination,
 ): Promise<{ restaurant: { slug: string; name: string } } & VerdictHistoryResponse | null> {
   const rows = await db()`
     select r.name, v.id::text as id, v.created_at, v.state, v.tier, v.confidence, v.provisional,
@@ -158,17 +158,15 @@ export async function loadVerdictHistory(
   const pageRows = verdicts.slice(0, limit);
   return {
     restaurant: { slug, name: restaurant.name },
-    ...verdictHistoryResponseSchema.parse({
-      items: pageRows.map((v) => ({
-        id: Number(v.id),
-        issuedAt: v.created_at.toISOString(),
-        state: v.state,
-        tier: v.tier,
-        confidence: v.confidence,
-        provisional: v.provisional,
-        peerSnapshotId: v.peer_snapshot_id === null ? null : Number(v.peer_snapshot_id),
-      })),
-      nextCursor: verdicts.length > limit ? pageRows.at(-1)!.id : null,
-    }),
+    items: pageRows.map((v) => ({
+      id: Number(v.id),
+      issuedAt: v.created_at.toISOString(),
+      state: v.state,
+      tier: v.tier,
+      confidence: v.confidence,
+      provisional: v.provisional,
+      peerSnapshotId: v.peer_snapshot_id === null ? null : Number(v.peer_snapshot_id),
+    })),
+    nextCursor: verdicts.length > limit ? pageRows.at(-1)!.id : null,
   };
 }

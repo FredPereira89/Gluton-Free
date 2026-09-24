@@ -1,28 +1,14 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { parseIdPagination } from "@/lib/api-contract";
-import { ApiError } from "@/lib/problem";
 import { TierBadge } from "@/web/atoms";
 import { listRestaurants } from "@/web/data";
+import { pageIdPagination, type PageSearchParams } from "@/web/pagination";
 
-type Props = { searchParams: Promise<{ cursor?: string | string[]; limit?: string | string[] }> };
+type Props = { searchParams: Promise<PageSearchParams> };
 
 export default async function RestaurantListPage({ searchParams }: Props) {
   await connection();
-  const params = await searchParams;
-  if (Array.isArray(params.cursor) || Array.isArray(params.limit)) notFound();
-  const query = new URLSearchParams();
-  if (params.cursor !== undefined) query.set("cursor", params.cursor);
-  if (params.limit !== undefined) query.set("limit", params.limit);
-
-  let pagination;
-  try {
-    pagination = parseIdPagination(query);
-  } catch (error) {
-    if (error instanceof ApiError) notFound();
-    throw error;
-  }
+  const pagination = pageIdPagination(await searchParams);
   const page = await listRestaurants(pagination);
   const next = new URLSearchParams({ cursor: page.nextCursor ?? "", limit: String(pagination.limit) });
 
