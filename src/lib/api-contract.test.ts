@@ -97,7 +97,10 @@ describe("API registry and OpenAPI", () => {
 
 describe("handler responses", () => {
   it("renders the Verdict page from the bundle's Restaurant and Source data", async () => {
-    vi.mocked(loadRestaurantBundle).mockResolvedValueOnce(bundleFixture);
+    vi.mocked(loadRestaurantBundle).mockResolvedValueOnce({
+      ...bundleFixture,
+      activeJob: { id: 7, kind: "lookup", status: "running", step: "reading Sources", createdAt: "2026-09-24T12:00:00.000Z" },
+    });
     const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
     expect(markup).toContain("O Velho Eurico");
     expect(markup).toContain("Google");
@@ -105,6 +108,7 @@ describe("handler responses", () => {
     expect(markup).toContain("4.5");
     expect(markup).toContain("fetched");
     expect(markup).toContain("Not enough evidence");
+    expect(markup).toContain("Current lookup job: running");
   });
 
   it("serves a strict Restaurant bundle with private conditional caching", async () => {

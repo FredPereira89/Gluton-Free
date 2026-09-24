@@ -1476,13 +1476,6 @@
                           "name": {
                             "type": "string"
                           },
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "crowd",
-                              "editorial"
-                            ]
-                          },
                           "access": {
                             "type": "string",
                             "enum": [
@@ -1493,6 +1486,22 @@
                           "url": {
                             "type": "string",
                             "format": "uri"
+                          },
+                          "fetchStatus": {
+                            "type": "string",
+                            "enum": [
+                              "not_fetched",
+                              "fetching",
+                              "fetched",
+                              "failed"
+                            ]
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "crowd",
+                              "editorial"
+                            ]
                           },
                           "rating": {
                             "type": [
@@ -1535,28 +1544,19 @@
                                 "type": "null"
                               }
                             ]
-                          },
-                          "fetchStatus": {
-                            "type": "string",
-                            "enum": [
-                              "not_fetched",
-                              "fetching",
-                              "fetched",
-                              "failed"
-                            ]
                           }
                         },
                         "required": [
                           "code",
                           "name",
-                          "kind",
                           "access",
                           "url",
+                          "fetchStatus",
+                          "kind",
                           "rating",
                           "reviewCount",
                           "textCount",
-                          "newestAt",
-                          "fetchStatus"
+                          "newestAt"
                         ],
                         "additionalProperties": false
                       }

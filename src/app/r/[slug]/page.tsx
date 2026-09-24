@@ -71,6 +71,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
         <Sources page={page} />
+        <BundleExtras page={page} />
       </div>
     );
   }
@@ -118,6 +119,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           </div>
         </section>
         <Sources page={page} />
+        <BundleExtras page={page} />
         <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} />
       </div>
     );
@@ -260,6 +262,7 @@ export default async function VerdictPageRoute({ params }: Props) {
       </section>
 
       <Sources page={page} />
+      <BundleExtras page={page} />
       <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} />
     </div>
   );
@@ -329,6 +332,35 @@ function Sources({ page }: { page: RestaurantBundle }) {
             </div>
           ))}
           <p className="small muted">Shown for context; Distinctions and critic pieces never move the Tier.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function BundleExtras({ page }: { page: RestaurantBundle }) {
+  if (!page.activeJob && !page.series.length && !page.changePoints.length && !page.ownerQuestions.length) return null;
+  return (
+    <section className="sec">
+      {page.activeJob && (
+        <p>Current {page.activeJob.kind} job: {page.activeJob.status}{page.activeJob.step ? ` · ${page.activeJob.step}` : ""}.</p>
+      )}
+      {page.series.length > 0 && (
+        <div>
+          <h2>Over time</h2>
+          <ul>{page.series.map((point) => <li key={point.quarter}>{point.quarter}: {point.composite === null ? "Not enough evidence" : signed(point.composite)} · {point.volume} Reviews</li>)}</ul>
+        </div>
+      )}
+      {page.changePoints.length > 0 && (
+        <div>
+          <h2>Change points</h2>
+          <ul>{page.changePoints.map((point) => <li key={point.occurredOn}>{point.occurredOn}: {point.description}</li>)}</ul>
+        </div>
+      )}
+      {page.ownerQuestions.length > 0 && (
+        <div>
+          <h2>Owner questions</h2>
+          <ul>{page.ownerQuestions.map((question) => <li key={question.id}>{question.prompt}</li>)}</ul>
         </div>
       )}
     </section>

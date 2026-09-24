@@ -31,12 +31,8 @@ const sourceSchema = z.strictObject({
   fetchStatus: z.string(),
 });
 
-const bundleSourceSchema = z.strictObject({
-  code: z.string(),
-  name: z.string(),
+const bundleSourceSchema = sourceSchema.extend({
   kind: z.enum(["crowd", "editorial"]),
-  access: z.enum(["public_ok", "personal_only"]),
-  url: z.url(),
   rating: z.number().nullable(),
   reviewCount: z.number().int().nullable(),
   textCount: z.number().int().nullable(),
