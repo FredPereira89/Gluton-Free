@@ -117,10 +117,11 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
 
 export async function listRestaurants({ cursor, limit }: { cursor?: string; limit: number }): Promise<RestaurantListResponse> {
   const rows = await db()`
-    select r.id::text as id, r.slug, r.name, r.city, r.area, v.state, v.tier
+    select r.id::text as id, r.slug, r.name, r.city, r.area, v.state, v.tier, v.provisional
     from restaurant r
-    left join lateral (select state, tier from verdict where restaurant_id = r.id order by id desc limit 1) v on true
+    left join lateral (select state, tier, provisional from verdict where restaurant_id = r.id order by id desc limit 1) v on true
     where r.id > ${cursor ?? "0"}::bigint
+      and exists (select 1 from job j where j.restaurant_id = r.id and j.kind = 'lookup')
     order by r.id
     limit ${limit + 1}`;
   const pageRows = rows.slice(0, limit);
@@ -132,6 +133,7 @@ export async function listRestaurants({ cursor, limit }: { cursor?: string; limi
       area: r.area,
       state: r.state ?? "no_verdict",
       tier: r.tier,
+      provisional: r.provisional,
     })),
     nextCursor: rows.length > limit ? pageRows.at(-1)!.id : null,
   };

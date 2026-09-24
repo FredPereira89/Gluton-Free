@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
         <header className="topbar">
-          <Link href="/restaurants">Gluton-Free</Link>
+          <Link href="/">Gluton-Free</Link>
           <span>Provisional · Lisboa</span>
           <Link href="/settings">Settings</Link>
         </header>

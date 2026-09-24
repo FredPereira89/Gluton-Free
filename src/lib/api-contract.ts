@@ -92,6 +92,7 @@ export const restaurantListItemSchema = z.strictObject({
   area: z.string().nullable(),
   state: z.enum(["verdict", "not_enough_evidence", "no_verdict"]),
   tier: z.enum(TIERS).nullable(),
+  provisional: z.boolean().nullable(),
 });
 export const restaurantListResponseSchema = paginatedSchema(restaurantListItemSchema);
 export type RestaurantListResponse = z.infer<typeof restaurantListResponseSchema>;
@@ -100,6 +101,10 @@ export const MAX_BIGINT_ID = "9223372036854775807";
 export const idCursorQuerySchema = paginationQuerySchema.extend({
   cursor: z.string().refine((value) => /^[1-9][0-9]*$/.test(value) && value.length <= 19 && BigInt(value) <= BigInt(MAX_BIGINT_ID)).optional(),
 });
+
+export function parseIdPagination(searchParams: URLSearchParams) {
+  return parseApiRequest(idCursorQuerySchema, parsePagination(searchParams));
+}
 
 export const verdictHistoryItemSchema = z.strictObject({
   id: z.number().int(),

@@ -97,6 +97,12 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "provisional": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
@@ -105,7 +111,8 @@
                           "city",
                           "area",
                           "state",
-                          "tier"
+                          "tier",
+                          "provisional"
                         ],
                         "additionalProperties": false
                       }

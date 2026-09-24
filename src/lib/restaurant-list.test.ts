@@ -41,9 +41,10 @@ async function dispatch(init: ConstructorParameters<typeof NextRequest>[1] = {})
 }
 
 const restaurants = [
-  { id: "1", slug: "first", name: "First", city: "Lisbon", area: "Alfama", state: "verdict", tier: "good" },
-  { id: "2", slug: "second", name: "Second", city: "Lisbon", area: null, state: "not_enough_evidence", tier: null },
-  { id: "3", slug: "third", name: "Third", city: "Lisbon", area: "Bairro Alto", state: null, tier: null },
+  { id: "1", slug: "first", name: "First", city: "Lisbon", area: "Alfama", state: "verdict", tier: "good", provisional: false, lookedUp: true },
+  { id: "2", slug: "peer", name: "Peer", city: "Lisbon", area: "Alfama", state: "verdict", tier: "good", provisional: false, lookedUp: false },
+  { id: "3", slug: "second", name: "Second", city: "Lisbon", area: null, state: "not_enough_evidence", tier: null, provisional: true, lookedUp: true },
+  { id: "4", slug: "third", name: "Third", city: "Lisbon", area: "Bairro Alto", state: null, tier: null, provisional: null, lookedUp: true },
 ];
 
 describe("GET /api/v1/restaurants", () => {
@@ -66,9 +67,10 @@ describe("GET /api/v1/restaurants", () => {
   });
 
   it("reaches every Restaurant once across cursor pages", async () => {
-    vi.mocked(db).mockReturnValue((async (_strings: TemplateStringsArray, cursor: string, limit: number) =>
-      restaurants.filter((row) => BigInt(row.id) > BigInt(cursor)).slice(0, limit)
-    ) as unknown as ReturnType<typeof db>);
+    vi.mocked(db).mockReturnValue((async (strings: TemplateStringsArray, cursor: string, limit: number) => {
+      expect(strings.join(" ")).toMatch(/exists\s*\(select 1 from job j where j\.restaurant_id = r\.id and j\.kind = 'lookup'\)/);
+      return restaurants.filter((row) => row.lookedUp && BigInt(row.id) > BigInt(cursor)).slice(0, limit);
+    }) as unknown as ReturnType<typeof db>);
 
     const items = [];
     let cursor: string | null = null;
@@ -85,6 +87,7 @@ describe("GET /api/v1/restaurants", () => {
     expect(items.map((item) => item.slug)).toEqual(["first", "second", "third"]);
     expect(items.map((item) => item.state)).toEqual(["verdict", "not_enough_evidence", "no_verdict"]);
     expect(items.map((item) => item.tier)).toEqual(["good", null, null]);
+    expect(items.map((item) => item.provisional)).toEqual([false, true, null]);
   });
 
   it.each(["limit=0", "limit=101", "limit=abc", "cursor=bad", "cursor=0"]) (

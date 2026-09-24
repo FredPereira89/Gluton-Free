@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { parsePagination, idCursorQuerySchema } from "@/lib/api-contract";
-import { ApiError, parseApiRequest } from "@/lib/problem";
+import { parseIdPagination } from "@/lib/api-contract";
+import { ApiError } from "@/lib/problem";
 import { TierBadge } from "@/web/atoms";
 import { listRestaurants } from "@/web/data";
 
@@ -18,7 +18,7 @@ export default async function RestaurantListPage({ searchParams }: Props) {
 
   let pagination;
   try {
-    pagination = parseApiRequest(idCursorQuerySchema, parsePagination(query));
+    pagination = parseIdPagination(query);
   } catch (error) {
     if (error instanceof ApiError) notFound();
     throw error;
@@ -36,7 +36,7 @@ export default async function RestaurantListPage({ searchParams }: Props) {
             <span className="small muted"> · {restaurant.area ?? restaurant.city}</span>
           </span>
           {restaurant.state === "verdict" && restaurant.tier ? (
-            <TierBadge tier={restaurant.tier} dashed />
+            <TierBadge tier={restaurant.tier} dashed={restaurant.provisional === true} />
           ) : restaurant.state === "not_enough_evidence" ? (
             <span className="nee">Not enough evidence</span>
           ) : (
