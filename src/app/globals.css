@@ -145,6 +145,8 @@ body{margin:0;padding:16px 16px 64px}
 .index{display:grid;gap:10px}
 .index a.row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border-radius:10px;box-shadow:var(--shadow);padding:14px 16px;text-decoration:none;color:var(--ink)}
 .index a.row b{font-size:17px}
+.index .nee{font-size:13px;padding:4px 8px;border-width:1.5px}
+.index .next-page{justify-self:center;padding:9px 14px;font-weight:700}
 .footnote{font-size:12px;color:var(--faint);max-width:62ch}
 
 /* ---------- forms ---------- */

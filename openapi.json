@@ -42,6 +42,172 @@
         }
       }
     },
+    "/api/v1/restaurants": {
+      "get": {
+        "operationId": "restaurantList",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "city": {
+                            "type": "string"
+                          },
+                          "area": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "verdict",
+                              "not_enough_evidence",
+                              "no_verdict"
+                            ]
+                          },
+                          "tier": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "avoid",
+                                  "ok",
+                                  "good",
+                                  "must_go",
+                                  "life_changing"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "city",
+                          "area",
+                          "state",
+                          "tier"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "security": [
+          {
+            "ownerBearer": []
+          },
+          {
+            "ownerSession": []
+          }
+        ]
+      }
+    },
     "/api/v1/restaurants/{slug}/verdict": {
       "get": {
         "operationId": "verdict",

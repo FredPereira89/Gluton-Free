@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TIERS } from "@/domain/aspects";
 import { BlocksSchema, RollupSchema } from "@/verdict/blocks";
-import { problemSchema } from "./problem";
+import { parseApiRequest, problemSchema } from "./problem";
 
 const restaurantSchema = z.strictObject({
   id: z.number().int(),
@@ -78,12 +78,26 @@ export function parsePagination(searchParams: URLSearchParams) {
   const cursor = searchParams.get("cursor") ?? undefined;
   const rawLimit = searchParams.get("limit");
   const limit = rawLimit === null ? undefined : Number(rawLimit);
-  return paginationQuerySchema.parse({ cursor, limit });
+  return parseApiRequest(paginationQuerySchema, { cursor, limit });
 }
 
 export function paginatedSchema<T extends z.ZodType>(item: T) {
   return z.strictObject({ items: z.array(item), nextCursor: z.string().nullable() });
 }
+
+export const restaurantListItemSchema = z.strictObject({
+  slug: z.string(),
+  name: z.string(),
+  city: z.string(),
+  area: z.string().nullable(),
+  state: z.enum(["verdict", "not_enough_evidence", "no_verdict"]),
+  tier: z.enum(TIERS).nullable(),
+});
+export const restaurantListResponseSchema = paginatedSchema(restaurantListItemSchema);
+export type RestaurantListResponse = z.infer<typeof restaurantListResponseSchema>;
+export const restaurantListQuerySchema = paginationQuerySchema.extend({
+  cursor: z.string().refine((value) => /^[1-9][0-9]*$/.test(value) && value.length <= 19 && BigInt(value) <= 9223372036854775807n).optional(),
+});
 
 export const acceptedJobSchema = z.strictObject({ id: z.number().int().positive() });
 
@@ -102,6 +116,13 @@ export const routes = {
     auth: "none",
     request: {},
     responses: { 200: healthResponseSchema, 500: problemSchema },
+  },
+  restaurantList: {
+    method: "GET",
+    path: "/api/v1/restaurants",
+    auth: "owner",
+    request: { query: restaurantListQuerySchema },
+    responses: { 200: restaurantListResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   verdict: {
     method: "GET",

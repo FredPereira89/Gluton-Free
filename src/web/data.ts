@@ -1,6 +1,6 @@
 // Read side of the Verdict page and API. Blocks are re-validated on read.
 import { db } from "@/lib/db";
-import { restaurantBundleSchema, type RestaurantBundle } from "@/lib/api-contract";
+import { restaurantBundleSchema, type RestaurantBundle, type RestaurantListResponse } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 
 export type SourceRow = {
@@ -112,10 +112,24 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
   });
 }
 
-export async function listRestaurants() {
-  return db()`
-    select r.slug, r.name, r.area, r.format, v.state, v.tier, v.confidence
+export async function listRestaurants({ cursor, limit }: { cursor?: string; limit: number }): Promise<RestaurantListResponse> {
+  const rows = await db()`
+    select r.id::text as id, r.slug, r.name, r.city, r.area, v.state, v.tier
     from restaurant r
-    left join lateral (select state, tier, confidence from verdict where restaurant_id = r.id order by id desc limit 1) v on true
-    order by r.name`;
+    left join lateral (select state, tier from verdict where restaurant_id = r.id order by id desc limit 1) v on true
+    where r.id > ${cursor ?? "0"}::bigint
+    order by r.id
+    limit ${limit + 1}`;
+  const pageRows = rows.slice(0, limit);
+  return {
+    items: pageRows.map((r) => ({
+      slug: r.slug,
+      name: r.name,
+      city: r.city,
+      area: r.area,
+      state: r.state ?? "no_verdict",
+      tier: r.tier,
+    })),
+    nextCursor: rows.length > limit ? pageRows.at(-1)!.id : null,
+  };
 }
