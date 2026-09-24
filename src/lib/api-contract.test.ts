@@ -100,6 +100,7 @@ describe("handler responses", () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValueOnce({
       ...bundleFixture,
       activeJob: { id: 7, kind: "lookup", status: "running", step: "reading Sources", createdAt: "2026-09-24T12:00:00.000Z" },
+      series: [{ quarter: "2026-Q3", composite: 1.23, volume: 5, textVolume: 3 }],
     });
     const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
     expect(markup).toContain("O Velho Eurico");
@@ -109,6 +110,8 @@ describe("handler responses", () => {
     expect(markup).toContain("fetched");
     expect(markup).toContain("Not enough evidence");
     expect(markup).toContain("Current lookup job: running");
+    expect(markup).toContain("2026-Q3: 5 Reviews, 3 with text");
+    expect(markup).not.toContain("+1.23");
   });
 
   it("serves a strict Restaurant bundle with private conditional caching", async () => {

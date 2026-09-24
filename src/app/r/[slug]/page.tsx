@@ -347,8 +347,8 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
       )}
       {page.series.length > 0 && (
         <div>
-          <h2>Over time</h2>
-          <ul>{page.series.map((point) => <li key={point.quarter}>{point.quarter}: {point.composite === null ? "Not enough evidence" : signed(point.composite)} · {point.volume} Reviews</li>)}</ul>
+          <h2>Review volume over time</h2>
+          <ul>{page.series.map((point) => <li key={point.quarter}>{point.quarter}: {point.volume} Reviews, {point.textVolume} with text</li>)}</ul>
         </div>
       )}
       {page.changePoints.length > 0 && (
