@@ -50,18 +50,11 @@ async function main() {
       missing = missing.filter((r) => !results.has(r.id));
       await setStep(jobId, "extractor sign-off", { signoff: { attempt, missing: missing.length } });
     }
+    const ids = window.map((r) => Number(r.id));
     const [coverage] = await sql`
-      with ranked as (
-        select r.id, row_number() over (partition by r.listing_id order by r.published_at desc, r.id desc) as rank
-        from review r join listing l on l.id = r.listing_id
-        where l.restaurant_id = ${restaurantId}
-          and r.text is not null and r.published_at >= now() - interval '24 months'
-      )
-      select count(*)::int as total,
-        count(*) filter (where a.extractor_version = ${EXTRACTOR_VERSION})::int as extracted
-      from ranked left join review_analysis a on a.review_id = ranked.id
-      where ranked.rank <= 100`;
-    const total = Number(coverage!.total);
+      select count(*) filter (where extractor_version = ${EXTRACTOR_VERSION})::int as extracted
+      from review_analysis where review_id in ${sql(ids)}`;
+    const total = window.length;
     const extracted = Number(coverage!.extracted);
     await setStep(jobId, "extractor sign-off complete", { signoff: { total, extracted, failed: total - extracted } });
     if ((total - extracted) / total >= 0.02) throw new Error(`extraction failure rate >=2% (${total - extracted}/${total})`);

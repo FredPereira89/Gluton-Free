@@ -1,13 +1,13 @@
 # O Velho Eurico extractor sign-off pack — 24 September 2026
 
-**Status: for owner review.** The extraction and privacy checks passed. The expected renovation signal did **not** appear in the defined Review window, so this pack does not recommend freezing the extractor until the owner reviews that gap.
+**Status: for owner review.** The extraction and privacy checks passed. A targeted May 2025 diagnostic found the expected renovation signal, but one in-window Review changed from `none` to `renovated` on a second extraction pass. This pack does not recommend freezing the extractor until the owner reviews that instability.
 
 ## Scope and run
 
 - Candidate: `claude-haiku-4-5|extract-v2|themes-v1` (Haiku 4.5, schema v2, Theme vocabulary v1).
-- ADR 0004 window: each Source's newest 100 text Reviews no older than 24 months. This produced **100 Google** Reviews (15 June–23 September 2026) and **58 Tripadvisor** Reviews (26 September 2024–20 August 2026), **158 total**.
+- ADR 0004 candidate window, before any owner-confirmed Change point cut: each Source's newest 100 text Reviews no older than 24 months. This produced **100 Google** Reviews (15 June–23 September 2026) and **58 Tripadvisor** Reviews (26 September 2024–20 August 2026), **158 total**.
 - Re-extracted **158/158** with the candidate. **0 failures (0%)**, below the 2% limit. Existing older-version analyses were replaced for these rows.
-- Sign-off job **3** records eight synchronous extraction requests, **45,005 input tokens**, **17,373 output tokens** and **$0.131870** extraction cost. The job also records three 100-text privacy-audit passes costing **$0.064645** in total. No vendor fetch was needed.
+- Sign-off job **3** records eight synchronous window-extraction requests, **45,005 input tokens**, **17,373 output tokens** and **$0.131870** window-extraction cost. It also records a separate May 2025 diagnostic extraction costing **$0.026431** and three 100-text privacy-audit passes costing **$0.064645** in total. No vendor fetch was needed.
 - No new Verdict was issued; this is an extractor sign-off run, not a change to the owner-confirmed Change point or the published Verdict.
 
 ## Per-Review extraction schema
@@ -136,7 +136,9 @@ The row also has internal `id`, `listing_id` and `fetched_at`. No reviewer name,
 | 2026-09 | 19 | 19 | 0 | 0 |
 | **Total** | **158** | **158** | **0** | **0** |
 
-**Owner decision needed:** the expected `renovated` cluster around 6 May 2025 is absent. The database has **26 Google text Reviews from May 2025**, beginning on 6 May, but they fall outside Google's newest-100 window (which begins in June 2026). The five May 2025 Tripadvisor Reviews are in the window and all yielded `none`. This does not prove the extractor missed explicit renovation text; it shows the specified window cannot test most of the expected period. A targeted May 2025 diagnostic sample or owner review of the available source material is needed before claiming this signal works. No Change point has been inferred or applied automatically.
+**Diagnostic outside the capped-window run:** the database has **26 Google text Reviews from May 2025**, beginning on 6 May, but they fall outside Google's newest-100 window (which begins in June 2026). We ran the same candidate extractor on all **31** May 2025 texts (26 Google and five Tripadvisor) without storing those diagnostic results or changing the Verdict. It returned **two `renovated` markers**, both dated **13 May 2025**: Google Review 800 and Tripadvisor Review 4370. No marker landed on 6 May itself. The May 2025 rows of the table above remain the persisted capped-window result, where all five Tripadvisor Reviews had `none`.
+
+**Owner decision needed:** Tripadvisor Review 4370 was among the 158 window Reviews. It yielded `none` in the first pass but `renovated` in the May diagnostic pass. The candidate can detect a renovation mention, yet this example is sensitive to batch context or model variability. The owner should review the marker and decide whether to accept this behavior or adjust the extractor before freezing it. No Change point has been inferred or applied automatically.
 
 ## PII audit: 100 random stored texts
 
@@ -154,4 +156,4 @@ This is a model-assisted spot check of 100 texts, not a proof about every stored
 
 - [Issue #29](https://github.com/FredPereira89/Gluton-Free/issues/29), [ADR 0004](adr/0004-capped-recent-review-window.md), [ADR 0007](adr/0007-change-points-cut-the-review-window.md)
 - Extractor schema: `src/analysis/extract.ts`; Theme definitions: `src/domain/themes.ts`; ingest whitelist: `src/ingest/normalise.ts`
-- Reproduction: `npx tsx --env-file=.env.local scripts/extract-signoff.ts o-velho-eurico` and `npx tsx --env-file=.env.local scripts/audit-review-pii.ts o-velho-eurico 3`
+- Reproduction: `npx tsx --env-file=.env.local scripts/extract-signoff.ts o-velho-eurico`, `npx tsx --env-file=.env.local scripts/diagnose-change-month.ts o-velho-eurico 2025-05 3`, and `npx tsx --env-file=.env.local scripts/audit-review-pii.ts o-velho-eurico 3`
