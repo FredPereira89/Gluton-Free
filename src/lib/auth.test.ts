@@ -1,7 +1,10 @@
 import * as jose from "jose";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { NextRequest } from "next/server";
+import { POST as signOut } from "@/app/api/auth/sign-out/route";
 import { AuthError, requireOwner } from "./auth";
+import { proxy } from "@/proxy";
 
 const SUPABASE_URL = "https://owner-check-test.supabase.co";
 const OWNER_ID = "11111111-1111-1111-1111-111111111111";
@@ -16,6 +19,8 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "test-anon-key";
   process.env.OWNER_USER_ID = OWNER_ID;
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 async function signToken(sub: string): Promise<string> {
   return new jose.SignJWT({ sub, aud: "authenticated", role: "authenticated" })
@@ -143,5 +148,64 @@ describe("requireOwner: configuration", () => {
     const err = await requireOwner(req, { fetch: jwksFetch() }).catch((e) => e);
     expect(err).toBeInstanceOf(AuthError);
     expect((err as AuthError).status).toBe(503);
+  });
+});
+
+describe("protected request handlers", () => {
+  function apiRequest(path: string, init: ConstructorParameters<typeof NextRequest>[1] = {}): NextRequest {
+    return new NextRequest(`https://app.example${path}`, init);
+  }
+
+  async function dispatch(request: NextRequest, handler?: (request: Request) => Promise<Response>): Promise<Response> {
+    const gate = await proxy(request);
+    if (gate.headers.get("x-middleware-next") !== "1") return gate;
+    return handler ? handler(request) : gate;
+  }
+
+  it("lets an owner bearer token through without a cookie", async () => {
+    vi.stubGlobal("fetch", jwksFetch());
+    const token = await signToken(OWNER_ID);
+
+    const response = await dispatch(apiRequest("/api/v1/restaurants/x/verdict", { headers: { authorization: `Bearer ${token}` } }));
+
+    expect(response.status).toBe(200);
+  });
+
+  it("uses the bearer token instead of an owner cookie", async () => {
+    const cookie = await cookiesForOwnerSession(OWNER_ID);
+    vi.stubGlobal("fetch", jwksFetch());
+    const token = await signToken(OTHER_ID);
+
+    const response = await dispatch(apiRequest("/api/v1/restaurants/x/verdict", { headers: { authorization: `Bearer ${token}`, cookie } }));
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    expect((await response.json()).code).toBe("forbidden");
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["foreign", "https://evil.example"],
+  ])("rejects a cookie-backed POST with a %s Origin", async (_label, origin) => {
+    const cookie = await cookiesForOwnerSession(OWNER_ID);
+    vi.stubGlobal("fetch", jwksFetch());
+    const headers = new Headers({ cookie });
+    if (origin) headers.set("origin", origin);
+
+    const response = await dispatch(apiRequest("/api/auth/sign-out", { method: "POST", headers }), signOut);
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    expect((await response.json()).code).toBe("csrf");
+  });
+
+  it("lets a bearer-backed POST through without an Origin", async () => {
+    vi.stubGlobal("fetch", jwksFetch());
+    const token = await signToken(OWNER_ID);
+
+    const response = await dispatch(apiRequest("/api/auth/sign-out", { method: "POST", headers: { authorization: `Bearer ${token}` } }), signOut);
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("https://app.example/sign-in");
   });
 });
