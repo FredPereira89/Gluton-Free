@@ -32,6 +32,10 @@ _Avoid_: Place, profile, entry
 The first time Gluton-Free gathers a Restaurant's Listings and Reviews and judges it, started by the owner from search. A lookup never waits for the owner: any uncertain Listing match or disputed Format is asked afterwards, and the answer re-judges the Verdict. After the lookup, the Restaurant is kept current only by the monthly refresh.
 _Avoid_: Add, import, scan
 
+**Owner question**:
+Something about a Restaurant that only the owner can settle, such as which of two Listings is the right one, whether the proposed Format is right, or whether to retry a failed lookup or Source. It is raised beside a lookup and never blocks it; settling it re-judges the Verdict. A finished Verdict the owner has not yet opened is not an Owner question.
+_Avoid_: Task, todo, alert, inbox item
+
 **Review**:
 One reviewer's account of a Restaurant as published on one Source, with its rating (if any), date, and text.
 _Avoid_: Rating, comment, post
