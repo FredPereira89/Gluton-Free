@@ -4,6 +4,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextRequest } from "next/server";
 import { POST as signOut } from "@/app/api/auth/sign-out/route";
 import { AuthError, requireOwner } from "./auth";
+import { problemSchema } from "./problem";
 import { proxy } from "@/proxy";
 
 const SUPABASE_URL = "https://owner-check-test.supabase.co";
@@ -180,7 +181,7 @@ describe("protected request handlers", () => {
 
     expect(response.status).toBe(403);
     expect(response.headers.get("content-type")).toBe("application/problem+json");
-    expect((await response.json()).code).toBe("forbidden");
+    expect(problemSchema.parse(await response.json()).code).toBe("forbidden");
   });
 
   it.each([
@@ -196,7 +197,7 @@ describe("protected request handlers", () => {
 
     expect(response.status).toBe(403);
     expect(response.headers.get("content-type")).toBe("application/problem+json");
-    expect((await response.json()).code).toBe("csrf");
+    expect(problemSchema.parse(await response.json()).code).toBe("csrf");
   });
 
   it("lets a bearer-backed POST through without an Origin", async () => {

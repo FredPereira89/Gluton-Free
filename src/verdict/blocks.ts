@@ -4,7 +4,7 @@ import { z } from "zod";
 import { ASPECTS, FLAG_TYPES, INPUTS, TIERS } from "@/domain/aspects";
 import { THEME_CODES } from "@/domain/themes";
 
-const inputStat = z.object({
+const inputStat = z.strictObject({
   input: z.enum(INPUTS),
   counted: z.boolean(),
   weight: z.number(),
@@ -14,23 +14,23 @@ const inputStat = z.object({
   sumW: z.number(),
 });
 
-export const RollupSchema = z.object({
+export const RollupSchema = z.strictObject({
   ruleVersion: z.string(),
   provisional: z.literal(true),
   state: z.enum(["verdict", "not_enough_evidence"]),
   tier: z.enum(TIERS).nullable(),
   composite: z.number(),
   inputs: z.array(inputStat),
-  contributions: z.array(z.object({ input: z.enum(INPUTS), value: z.number() })),
+  contributions: z.array(z.strictObject({ input: z.enum(INPUTS), value: z.number() })),
   floorCap: z.string().nullable(),
-  notEnoughEvidence: z.object({
+  notEnoughEvidence: z.strictObject({
     textReviews: z.number(),
     foodMentions: z.number(),
     newestAgeMonths: z.number().nullable(),
     missed: z.array(z.string()),
   }),
   redFlags: z.array(
-    z.object({
+    z.strictObject({
       group: z.enum(["health", "money"]),
       incidents12m: z.number(),
       newestAt: z.string().nullable(),
@@ -39,17 +39,17 @@ export const RollupSchema = z.object({
       types: z.array(z.enum(FLAG_TYPES)),
     }),
   ),
-  confidence: z.object({ level: z.enum(["low", "medium", "high"]), bootstrapShare: z.number(), caps: z.array(z.string()) }),
-  consistencySpread: z.object({ sd: z.number().nullable(), n: z.number(), windowMonths: z.number() }),
-  counts: z.object({
+  confidence: z.strictObject({ level: z.enum(["low", "medium", "high"]), bootstrapShare: z.number(), caps: z.array(z.string()) }),
+  consistencySpread: z.strictObject({ sd: z.number().nullable(), n: z.number(), windowMonths: z.number() }),
+  counts: z.strictObject({
     reviews: z.number(),
     textReviews: z.number(),
     ratingOnly: z.number(),
     analysed: z.number(),
-    perSource: z.record(z.string(), z.object({ reviews: z.number(), text: z.number(), newest: z.string().nullable() })),
+    perSource: z.record(z.string(), z.strictObject({ reviews: z.number(), text: z.number(), newest: z.string().nullable() })),
   }),
   themes: z.array(
-    z.object({
+    z.strictObject({
       code: z.enum(THEME_CODES),
       aspect: z.enum(ASPECTS),
       polarity: z.union([z.literal(1), z.literal(-1)]),
@@ -57,11 +57,11 @@ export const RollupSchema = z.object({
       share: z.number(),
     }),
   ),
-  themeBase: z.object({ analysed: z.number(), windowMonths: z.number() }),
-  series: z.array(z.object({ quarter: z.string(), composite: z.number().nullable(), volume: z.number(), textVolume: z.number() })),
+  themeBase: z.strictObject({ analysed: z.number(), windowMonths: z.number() }),
+  series: z.array(z.strictObject({ quarter: z.string(), composite: z.number().nullable(), volume: z.number(), textVolume: z.number() })),
 });
 
-export const ShownQuoteSchema = z.object({
+export const ShownQuoteSchema = z.strictObject({
   reviewId: z.number(),
   aspect: z.enum(ASPECTS),
   polarity: z.union([z.literal(1), z.literal(-1)]),
@@ -73,7 +73,7 @@ export const ShownQuoteSchema = z.object({
   month: z.string(),
 });
 
-export const BlocksSchema = z.object({
+export const BlocksSchema = z.strictObject({
   rollup: RollupSchema,
   quotes: z.array(ShownQuoteSchema),
 });
