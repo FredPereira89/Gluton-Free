@@ -101,6 +101,8 @@ function isGoogleOrigin(item: z.infer<typeof googleItem>): boolean {
   if (item.type && item.type !== "google_reviews_search") return false;
   if (item.source && !/google/i.test(item.source)) return false;
   if (item.review_url && !/google\./i.test(item.review_url)) return false;
+  // Numeric Review IDs are used by Tripadvisor, not Google's opaque Review IDs.
+  if (item.review_id && /^\d+$/.test(item.review_id)) return false;
   return true;
 }
 

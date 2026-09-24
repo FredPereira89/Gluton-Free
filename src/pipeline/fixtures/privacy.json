@@ -1,0 +1,29 @@
+{
+  "rawMarker": "INVENTED_RAW_VENDOR_PAYLOAD_SENTINEL",
+  "google": {
+    "profile_name": "Invented Reviewer G PII",
+    "profile_id": "INVENTED_GOOGLE_REVIEWER_ID_PII",
+    "profile_image_url": "https://avatars.example.invalid/invented-google-pii.png",
+    "profile_url": "https://profiles.example.invalid/invented-google-pii",
+    "review_url": "https://www.google.com/maps/reviews/invented-google-permalink-pii",
+    "owner_answer": "INVENTED_GOOGLE_OWNER_REPLY_PII",
+    "original_owner_answer": "INVENTED_GOOGLE_ORIGINAL_REPLY_PII"
+  },
+  "tripadvisor": {
+    "user_profile": {
+      "id": "INVENTED_TRIPADVISOR_REVIEWER_ID_PII",
+      "name": "Invented Reviewer T PII",
+      "avatar": "https://avatars.example.invalid/invented-tripadvisor-pii.png",
+      "profile_url": "https://profiles.example.invalid/invented-tripadvisor-pii",
+      "reviews_count": 7
+    },
+    "url": "https://www.tripadvisor.com/invented-tripadvisor-permalink-pii",
+    "responses": [{ "text": "INVENTED_TRIPADVISOR_OWNER_REPLY_PII", "staff_name": "Invented Staff PII" }]
+  },
+  "thirdPartyReviews": [
+    { "review_id": "invented-other-type", "type": "tripadvisor_review_search", "review_text": "INVENTED_OTHER_TYPE_REVIEW", "timestamp": "2026-09-01T00:00:00Z", "rating": { "value": 5 } },
+    { "review_id": "invented-other-source", "type": "google_reviews_search", "source": "Tripadvisor", "review_text": "INVENTED_OTHER_SOURCE_REVIEW", "timestamp": "2026-09-01T00:00:00Z", "rating": { "value": 5 } },
+    { "review_id": "900000001", "type": "google_reviews_search", "review_text": "INVENTED_NUMERIC_ID_REVIEW", "timestamp": "2026-09-01T00:00:00Z", "rating": { "value": 5 } },
+    { "review_id": "invented-other-url", "type": "google_reviews_search", "review_url": "https://www.tripadvisor.com/invented-other-url", "review_text": "INVENTED_OTHER_URL_REVIEW", "timestamp": "2026-09-01T00:00:00Z", "rating": { "value": 5 } }
+  ]
+}

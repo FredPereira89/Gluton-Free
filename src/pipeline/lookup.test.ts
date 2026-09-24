@@ -29,9 +29,10 @@ beforeAll(async () => {
   const port = Number(docker("port", containerId, "5432/tcp").match(/:(\d+)$/)?.[1]);
   if (!port) throw new Error("Docker did not assign a Postgres port");
   process.env.SUPABASE_DB_URL = `postgres://postgres:pipeline-test-only@127.0.0.1:${port}/postgres`;
+  sql = postgres(process.env.SUPABASE_DB_URL, { prepare: false, connect_timeout: 1 });
   for (let attempt = 0; attempt < 100; attempt++) {
     try {
-      docker("exec", containerId, "pg_isready", "-U", "postgres");
+      await sql`select 1`;
       break;
     } catch {
       if (attempt === 99) throw new Error("Disposable Postgres did not become ready");
@@ -43,7 +44,6 @@ beforeAll(async () => {
     env: process.env,
     stdio: "pipe",
   });
-  sql = postgres(process.env.SUPABASE_DB_URL, { prepare: false });
 }, 180_000);
 
 afterAll(async () => {
