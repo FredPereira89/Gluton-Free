@@ -388,7 +388,6 @@
                                           "service",
                                           "overall",
                                           "value",
-                                          "consistency",
                                           "ambience",
                                           "wait"
                                         ]
@@ -436,7 +435,6 @@
                                           "service",
                                           "overall",
                                           "value",
-                                          "consistency",
                                           "ambience",
                                           "wait"
                                         ]
@@ -1214,7 +1212,6 @@
                                               "service",
                                               "overall",
                                               "value",
-                                              "consistency",
                                               "ambience",
                                               "wait"
                                             ]
@@ -1262,7 +1259,6 @@
                                               "service",
                                               "overall",
                                               "value",
-                                              "consistency",
                                               "ambience",
                                               "wait"
                                             ]

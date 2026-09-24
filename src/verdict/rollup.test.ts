@@ -214,6 +214,50 @@ describe("rollup", () => {
   });
 });
 
+describe("consistency spread (derived, not extracted — issue #32)", () => {
+  it("ranks a tight spread of stance below a wide one", () => {
+    const tight = many(40, () => review({ stars: 4 }));
+    const wide = many(40, (i) => review({ stars: i % 2 ? 1 : 5 }));
+    const tightR = rollup({ now: NOW, format: "tasca", reviews: tight, flags: [] });
+    const wideR = rollup({ now: NOW, format: "tasca", reviews: wide, flags: [] });
+    expect(tightR.consistencySpread.sd).toBeCloseTo(0, 5);
+    expect(wideR.consistencySpread.sd!).toBeGreaterThan(1.5);
+  });
+
+  it("shrinks the spread toward the median below about 20 Reviews, so one outlier can't swing it", () => {
+    // Two Reviews agree (stance 0) and one is a lone outlier (stance +2). The plain recency-weighted
+    // SD around the mean would be about 0.94; shrinkage toward the median-anchored spread (which is
+    // 0, since the median Review agrees with most of them) should pull the reported spread well below that.
+    const few = rollup({ now: NOW, format: "tasca", reviews: [review({ stars: 3 }), review({ stars: 3 }), review({ stars: 5 })], flags: [] });
+    expect(few.consistencySpread.sd!).toBeLessThan(0.4);
+
+    // A genuinely wide spread at n = 30 (past the ~20 threshold) should sit much closer to the
+    // unshrunk SD than to zero — shrinkage should have faded by now.
+    const many30 = rollup({
+      now: NOW,
+      format: "tasca",
+      reviews: many(30, (i) => review({ stars: (i % 5) + 1 })),
+      flags: [],
+    });
+    expect(many30.consistencySpread.sd!).toBeGreaterThan(0.7);
+  });
+
+  it("derives stance from the mean of a Review's Aspects when unrated, excluding the extracted consistency Aspect itself", () => {
+    // Both Reviews agree once `consistency` is left out of the average (food 2, service 2 -> stance 2);
+    // including it would disagree (2, 2, -2 vs 2, 2, 2 -> stance 0.67 vs 2) and produce a spread.
+    const a = review({ stars: null, aspects: { food: 2, service: 2, consistency: -2 } });
+    const b = review({ stars: null, aspects: { food: 2, service: 2, consistency: 2 } });
+    const r = rollup({ now: NOW, format: "tasca", reviews: [a, b], flags: [] });
+    expect(r.consistencySpread.n).toBe(2);
+    expect(r.consistencySpread.sd).toBeCloseTo(0, 5);
+  });
+
+  it("no longer feeds the composite as an input", () => {
+    const r = rollup({ now: NOW, format: "tasca", reviews: many(200, (i) => great(i)), flags: [] });
+    expect(r.inputs.map((x): string => x.input)).not.toContain("consistency");
+  });
+});
+
 describe("applyReviewWindow", () => {
   const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3600 * 1000);
 

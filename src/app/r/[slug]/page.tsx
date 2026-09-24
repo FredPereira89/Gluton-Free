@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { INPUT_LABEL, type FlagType, type Tier } from "@/domain/aspects";
+import { ASPECT_LABEL, INPUT_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { PARAMS } from "@/verdict/rollup";
 import { ConfChip, dateLabel, Explanation, monthLabel, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
@@ -203,8 +203,8 @@ export default async function VerdictPageRoute({ params }: Props) {
         {r.floorCap && <p className="small muted">Capped by a floor: {r.floorCap}.</p>}
         {r.consistencySpread.sd !== null && (
           <p className="small muted">
-            Star spread over {r.consistencySpread.windowMonths} months: SD {r.consistencySpread.sd.toFixed(2)} across {r.consistencySpread.n}{" "}
-            ratings (shown for information).
+            Consistency (spread of stance) over {r.consistencySpread.windowMonths} months: SD {r.consistencySpread.sd.toFixed(2)} across{" "}
+            {r.consistencySpread.n} Reviews (shown for information).
           </p>
         )}
       </section>
@@ -245,7 +245,7 @@ export default async function VerdictPageRoute({ params }: Props) {
                   sourceName={s?.name ?? q.source}
                   sourceUrl={s?.url ?? null}
                   month={monthLabel(q.month)}
-                  aspectLabel={INPUT_LABEL[q.aspect]}
+                  aspectLabel={ASPECT_LABEL[q.aspect]}
                   negative={q.polarity < 0}
                 />
               );

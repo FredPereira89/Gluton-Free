@@ -1,7 +1,7 @@
 // The Verdict rule, provisional form ("Verdict rule: gates, weights, confidence", section 8):
 // the ADR 0002 weights applied to absolute θ on the −2..+2 scale, because there are no Peers yet.
 // Pure: no I/O, deterministic (the bootstrap uses a seeded generator).
-import { INFORMATIVE_ONLY, INPUTS, INPUT_WEIGHTS, type Aspect, type FlagType, type Input, type Tier } from "@/domain/aspects";
+import { ASPECTS, INFORMATIVE_ONLY, INPUTS, INPUT_WEIGHTS, type Aspect, type FlagType, type Input, type Tier } from "@/domain/aspects";
 import { THEMES, type ThemeCode } from "@/domain/themes";
 
 export const RULE_VERSION = "provisional-v1";
@@ -21,7 +21,7 @@ export const PARAMS = {
   minFoodMentions: 8,
   maxNewestAgeMonths: 18,
   themeWindowMonths: 24,
-  spreadWindowMonths: 24,
+  consistencyShrinkK: 20,
   reviewWindowCap: 100,
   reviewWindowMaxAgeMonths: 24,
 } as const;
@@ -101,6 +101,7 @@ export type Rollup = {
   };
   redFlags: RedFlagGroup[];
   confidence: { level: "low" | "medium" | "high"; bootstrapShare: number; caps: string[] };
+  /** windowMonths is the per-Source Review window's own bound (ADR 0004), not a spread-specific cutoff. */
   consistencySpread: { sd: number | null; n: number; windowMonths: number };
   counts: {
     reviews: number;
@@ -231,6 +232,32 @@ function redFlagGroups(input: RollupInput, textIn12m: number): RedFlagGroup[] {
   return groups;
 }
 
+/**
+ * A Review's stance (issue #32): stars − 3 when rated, otherwise the mean of its Aspect scores.
+ * The extracted `consistency` Aspect is left out of that mean — Consistency is derived from the
+ * spread of stance, not fed by the extracted signal it replaces as an input.
+ */
+function stanceOf(r: RollupReview): number | null {
+  if (r.stars !== null) return r.stars - 3;
+  if (!r.aspects) return null;
+  const scored = ASPECTS.filter((a) => a !== "consistency")
+    .map((a) => r.aspects![a])
+    .filter((v): v is number => v !== null);
+  return scored.length ? scored.reduce((s, v) => s + v, 0) / scored.length : null;
+}
+
+/** Weighted median (lower value on ties), used as the robust anchor the spread shrinks toward. */
+function weightedMedian(points: { w: number; x: number }[]): number {
+  const sorted = [...points].sort((a, b) => a.x - b.x);
+  const total = sorted.reduce((s, p) => s + p.w, 0);
+  let cum = 0;
+  for (const p of sorted) {
+    cum += p.w;
+    if (cum >= total / 2) return p.x;
+  }
+  return sorted[sorted.length - 1]!.x;
+}
+
 function quarterOf(d: Date): string {
   return `${d.getUTCFullYear()}-Q${Math.floor(d.getUTCMonth() / 3) + 1}`;
 }
@@ -340,14 +367,28 @@ export function rollup(input: RollupInput): Rollup {
   caps.push("provisional: judged against default cut-offs, not Peers");
   level = 0;
 
-  // Consistency spread (information only while provisional): recency-weighted SD of stars − 3.
-  const inWindow = reviews.filter((r) => r.stars !== null && ageMonths(now, r.publishedAt) <= PARAMS.spreadWindowMonths);
+  // Consistency spread (informational: derived, not extracted — issue #32): the recency-weighted
+  // spread of per-Review stance, shrunk toward a robust, median-anchored spread below about
+  // `consistencyShrinkK` Reviews so one or two outliers can't swing it — the same
+  // (n·x + k·prior)/(n+k) blend `shrunk()` uses for θ, with the median-anchored spread standing in
+  // for that function's fixed `priorMu`. `reviews` is already the per-Source window (applyReviewWindow
+  // above), so no separate age cutoff is applied here.
+  const stancePoints = reviews
+    .map((r) => ({ w: recency(ageMonths(now, r.publishedAt)), x: stanceOf(r) }))
+    .filter((p): p is { w: number; x: number } => p.x !== null);
   let sd: number | null = null;
-  if (inWindow.length >= 2) {
-    const ws = inWindow.map((r) => [recency(ageMonths(now, r.publishedAt)), r.stars! - 3] as const);
-    const sw = ws.reduce((s, [w]) => s + w, 0);
-    const mean = ws.reduce((s, [w, x]) => s + w * x, 0) / sw;
-    sd = Math.sqrt(ws.reduce((s, [w, x]) => s + w * (x - mean) ** 2, 0) / sw);
+  if (stancePoints.length >= 2) {
+    const sw = stancePoints.reduce((s, p) => s + p.w, 0);
+    const mean = stancePoints.reduce((s, p) => s + p.w * p.x, 0) / sw;
+    const sdMean = Math.sqrt(stancePoints.reduce((s, p) => s + p.w * (p.x - mean) ** 2, 0) / sw);
+
+    const median = weightedMedian(stancePoints);
+    const mad = weightedMedian(stancePoints.map((p) => ({ w: p.w, x: Math.abs(p.x - median) })));
+    const sdMedian = mad * 1.4826;
+
+    const n = stancePoints.length;
+    const k = PARAMS.consistencyShrinkK;
+    sd = (n * sdMean + k * sdMedian) / (n + k);
   }
 
   // Themes over the recent window (all analysed Reviews if the window is thin).
@@ -416,7 +457,7 @@ export function rollup(input: RollupInput): Rollup {
     notEnoughEvidence,
     redFlags,
     confidence: { level: levels[level]!, bootstrapShare: share, caps },
-    consistencySpread: { sd, n: inWindow.length, windowMonths: PARAMS.spreadWindowMonths },
+    consistencySpread: { sd, n: stancePoints.length, windowMonths: PARAMS.reviewWindowMaxAgeMonths },
     counts: { reviews: reviews.length, textReviews: text.length, ratingOnly: reviews.length - text.length, analysed: analysed.length, perSource },
     themes,
     themeBase: { analysed: themeBase.length, windowMonths: themeWindow },

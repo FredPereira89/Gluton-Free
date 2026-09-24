@@ -1,8 +1,21 @@
 export const ASPECTS = ["food", "service", "ambience", "value", "wait", "consistency"] as const;
 export type Aspect = (typeof ASPECTS)[number];
 
-/** Verdict inputs: the six Aspects plus the Overall stars. */
-export const INPUTS = ["food", "service", "overall", "value", "consistency", "ambience", "wait"] as const;
+export const ASPECT_LABEL: Record<Aspect, string> = {
+  food: "Food",
+  service: "Service",
+  ambience: "Ambience",
+  value: "Value",
+  wait: "Wait time",
+  consistency: "Consistency",
+};
+
+/**
+ * Verdict inputs: five Aspects plus the Overall stars. Consistency is not among them — it is
+ * derived from the spread of per-Review stance (issue #32), not counted as a weighted input. The
+ * extracted `consistency` Aspect stays an Aspect, shown in Themes and Evidence only.
+ */
+export const INPUTS = ["food", "service", "overall", "value", "ambience", "wait"] as const;
 export type Input = (typeof INPUTS)[number];
 
 /** Owner-set weights (ADR 0002). Informative-only inputs are dropped and the rest rescaled. */
@@ -11,7 +24,6 @@ export const INPUT_WEIGHTS: Record<Input, number> = {
   service: 20,
   overall: 15,
   value: 15,
-  consistency: 10,
   ambience: 5,
   wait: 5,
 };
@@ -21,7 +33,6 @@ export const INPUT_LABEL: Record<Input, string> = {
   service: "Service",
   overall: "Overall stars",
   value: "Value",
-  consistency: "Consistency",
   ambience: "Ambience",
   wait: "Wait time",
 };
