@@ -102,7 +102,7 @@ describe("rollup", () => {
     expect(r.notEnoughEvidence.missed.join()).toMatch(/15 Reviews with text/);
   });
 
-  it("forces Avoid on two recent confirmed first-hand incidents in one group", () => {
+  it("forces Avoid on three confirmed first-hand incidents within 3 months in one group", () => {
     const reviews = many(100, (i) => great(i));
     const flag = (r: RollupReview, m: number): RollupFlag => ({
       reviewId: r.id,
@@ -112,9 +112,36 @@ describe("rollup", () => {
       verification: "confirmed",
       publishedAt: monthsAgo(m),
     });
-    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [flag(reviews[0]!, 2), flag(reviews[1]!, 8)] });
+    const r = rollup({
+      now: NOW,
+      format: "tasca",
+      reviews,
+      flags: [flag(reviews[0]!, 1), flag(reviews[1]!, 2), flag(reviews[2]!, 3)],
+    });
     expect(r.tier).toBe("avoid");
+    expect(r.redFlags[0]!.incidents12m).toBe(3);
     expect(r.redFlags[0]!.forcesAvoid).toBe(true);
+  });
+
+  it("does not force Avoid when only two of three incidents fall within the last 3 months", () => {
+    const reviews = many(100, (i) => great(i));
+    const flag = (r: RollupReview, m: number): RollupFlag => ({
+      reviewId: r.id,
+      type: "food_poisoning",
+      group: "health",
+      firstHand: true,
+      verification: "confirmed",
+      publishedAt: monthsAgo(m),
+    });
+    const r = rollup({
+      now: NOW,
+      format: "tasca",
+      reviews,
+      flags: [flag(reviews[0]!, 2), flag(reviews[1]!, 5), flag(reviews[2]!, 8)],
+    });
+    expect(r.tier).toBe("must_go");
+    expect(r.redFlags[0]!.incidents12m).toBe(3);
+    expect(r.redFlags[0]!.forcesAvoid).toBe(false);
   });
 
   it("shows a single incident without forcing Avoid, and ignores unconfirmed ones", () => {

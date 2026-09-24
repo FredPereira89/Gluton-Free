@@ -170,7 +170,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             <span className="small">
               {g.types.map((t) => FLAG_LABEL[t]).join(", ")}
               {g.newestAt ? `; newest ${monthLabel(g.newestAt.slice(0, 7))}` : ""}.{" "}
-              {g.forcesAvoid ? "This forces Avoid." : "Shown for awareness; it does not move the Tier."}
+              {g.forcesAvoid ? "3 or more within the last 3 months forces Avoid." : "Shown for awareness; it does not move the Tier."}
             </span>
           </div>
         ))}

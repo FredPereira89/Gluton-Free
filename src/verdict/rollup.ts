@@ -204,7 +204,8 @@ function redFlagGroups(input: RollupInput, textIn12m: number): RedFlagGroup[] {
     if (!reviewIds.size) continue;
     const newest = recent.reduce<Date | null>((m, f) => (!m || f.publishedAt > m ? f.publishedAt : m), null);
     const share = textIn12m ? reviewIds.size / textIn12m : 1;
-    const forcesAvoid = reviewIds.size >= 2 && newest !== null && ageMonths(input.now, newest) <= 6 && share >= 0.01;
+    const reviewIds3m = new Set(recent.filter((f) => ageMonths(input.now, f.publishedAt) <= 3).map((f) => f.reviewId));
+    const forcesAvoid = reviewIds3m.size >= 3 && share >= 0.01;
     groups.push({
       group,
       incidents12m: reviewIds.size,
