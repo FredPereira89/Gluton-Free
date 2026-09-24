@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TIERS } from "@/domain/aspects";
-import { RollupSchema } from "@/verdict/blocks";
+import { BlocksSchema, RollupSchema } from "@/verdict/blocks";
 import { problemSchema } from "./problem";
 
 const restaurantSchema = z.strictObject({
@@ -30,6 +30,41 @@ const sourceSchema = z.strictObject({
   url: z.url(),
   fetchStatus: z.string(),
 });
+
+const bundleSourceSchema = z.strictObject({
+  code: z.string(),
+  name: z.string(),
+  kind: z.enum(["crowd", "editorial"]),
+  access: z.enum(["public_ok", "personal_only"]),
+  url: z.url(),
+  rating: z.number().nullable(),
+  reviewCount: z.number().int().nullable(),
+  textCount: z.number().int().nullable(),
+  newestAt: z.iso.datetime().nullable(),
+  fetchStatus: z.enum(["not_fetched", "fetching", "fetched", "failed"]),
+});
+
+export const restaurantBundleSchema = z.strictObject({
+  restaurant: restaurantSchema,
+  verdict: z.strictObject({
+    id: z.number().int(),
+    state: z.enum(["verdict", "not_enough_evidence"]),
+    tier: z.enum(TIERS).nullable(),
+    confidence: z.enum(["low", "medium", "high"]).nullable(),
+    explanation: z.string().nullable(),
+    issuedAt: z.iso.datetime(),
+    provisional: z.boolean(),
+    blocks: BlocksSchema,
+  }).nullable(),
+  sources: z.array(bundleSourceSchema),
+  distinctions: z.array(z.strictObject({ guide: z.string(), level: z.string(), editionYear: z.number().int().nullable(), url: z.url() })),
+  critics: z.array(z.strictObject({ publication: z.string(), title: z.string(), url: z.url(), publishedOn: z.string().nullable() })),
+  series: RollupSchema.shape.series,
+  changePoints: z.array(z.strictObject({ occurredOn: z.string(), description: z.string() })),
+  activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot"]), status: z.enum(["queued", "running"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
+  ownerQuestions: z.array(z.strictObject({ id: z.number().int(), prompt: z.string() })),
+});
+export type RestaurantBundle = z.infer<typeof restaurantBundleSchema>;
 
 export const healthResponseSchema = z.strictObject({ status: z.literal("ok") });
 export const verdictResponseSchema = z.strictObject({
@@ -78,6 +113,13 @@ export const routes = {
     auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1) }) },
     responses: { 200: verdictResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  restaurantBundle: {
+    method: "GET",
+    path: "/api/v1/restaurants/{slug}",
+    auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }) },
+    responses: { 200: restaurantBundleSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
 } as const;
 

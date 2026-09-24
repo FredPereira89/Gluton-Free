@@ -1,15 +1,19 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import ts from "typescript";
+import { renderToStaticMarkup } from "react-dom/server";
+import VerdictPageRoute from "@/app/r/[slug]/page";
 import { GET as health } from "@/app/api/v1/health/route";
 import { GET as openApi } from "@/app/openapi.json/route";
 import { GET as verdict } from "@/app/api/v1/restaurants/[slug]/verdict/route";
+import { GET as restaurantBundle } from "@/app/api/v1/restaurants/[slug]/route";
 import { rollup } from "@/verdict/rollup";
-import { loadVerdictPage, type VerdictPage } from "@/web/data";
-import { acceptedJobResponse, acceptedJobSchema, paginatedSchema, parsePagination, routes } from "./api-contract";
+import { loadRestaurantBundle, loadVerdictPage, type VerdictPage } from "@/web/data";
+import { acceptedJobResponse, acceptedJobSchema, paginatedSchema, parsePagination, routes, type RestaurantBundle } from "./api-contract";
 import { problemSchema } from "./problem";
 
-vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn() }));
+vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn(), loadRestaurantBundle: vi.fn() }));
+vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 
 const fixture: VerdictPage = {
   restaurant: { id: 1, slug: "o-velho-eurico", name: "O Velho Eurico", city: "Lisbon", area: "Mouraria", format: "tasca", priceTier: null },
@@ -21,6 +25,16 @@ const fixture: VerdictPage = {
   },
   distinctions: [],
   critics: [],
+};
+
+const bundleFixture: RestaurantBundle = {
+  restaurant: fixture.restaurant as RestaurantBundle["restaurant"],
+  verdict: {
+    id: 1, state: "not_enough_evidence", tier: null, confidence: "low", explanation: "More Reviews needed.",
+    issuedAt: "2026-09-24T12:00:00.000Z", provisional: true, blocks: fixture.verdict!.blocks,
+  },
+  sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", url: "https://maps.google.com/", rating: 4.5, reviewCount: 5, textCount: 2, newestAt: null, fetchStatus: "fetched" }],
+  distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
 };
 
 describe("API registry and OpenAPI", () => {
@@ -82,6 +96,45 @@ describe("API registry and OpenAPI", () => {
 });
 
 describe("handler responses", () => {
+  it("renders the Verdict page from the bundle's Restaurant and Source data", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValueOnce(bundleFixture);
+    const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
+    expect(markup).toContain("O Velho Eurico");
+    expect(markup).toContain("Google");
+    expect(markup).toContain("personal-only");
+    expect(markup).toContain("4.5");
+    expect(markup).toContain("fetched");
+    expect(markup).toContain("Not enough evidence");
+  });
+
+  it("serves a strict Restaurant bundle with private conditional caching", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(bundleFixture);
+    const url = "https://app.example/api/v1/restaurants/o-velho-eurico";
+    const response = await restaurantBundle(new Request(url), { params: Promise.resolve({ slug: "o-velho-eurico" }) });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-cache");
+    const body = routes.restaurantBundle.responses[200].parse(await response.json());
+    expect(body.restaurant.name).toBe("O Velho Eurico");
+    expect(body.sources[0]).toMatchObject({ reviewCount: 5, textCount: 2, rating: 4.5 });
+    expect(body.verdict?.blocks.rollup.state).toBe("not_enough_evidence");
+    expect(() => routes.restaurantBundle.responses[200].parse({ ...body, reviewerName: "someone" })).toThrow();
+    const etag = response.headers.get("etag");
+    expect(etag).toMatch(/^"[a-f0-9]{64}"$/);
+    const repeated = await restaurantBundle(new Request(url, { headers: { "If-None-Match": etag! } }), { params: Promise.resolve({ slug: "o-velho-eurico" }) });
+    expect(repeated.status).toBe(304);
+    expect(repeated.headers.get("etag")).toBe(etag);
+    expect(repeated.headers.get("cache-control")).toBe("private, no-cache");
+    expect(await repeated.text()).toBe("");
+  });
+
+  it("returns a not_found problem for an unknown Restaurant slug", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValueOnce(null);
+    const response = await restaurantBundle(new Request("https://app.example/api/v1/restaurants/missing"), { params: Promise.resolve({ slug: "missing" }) });
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    expect(routes.restaurantBundle.responses[404].parse(await response.json()).code).toBe("not_found");
+  });
+
   it("parses health through its declared response schema", async () => {
     const response = await health();
     expect(response.status).toBe(200);

@@ -1,5 +1,6 @@
 // Read side of the Verdict page and API. Blocks are re-validated on read.
 import { db } from "@/lib/db";
+import { restaurantBundleSchema, type RestaurantBundle } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 
 export type SourceRow = {
@@ -78,6 +79,37 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
     distinctions: distinctions.map((d) => ({ guide: d.guide, level: d.level, editionYear: d.edition_year, url: d.url })),
     critics: critics.map((c) => ({ publication: c.publication, title: c.title, url: c.url, publishedOn: c.published_on })),
   };
+}
+
+export async function loadRestaurantBundle(slug: string): Promise<RestaurantBundle | null> {
+  const page = await loadVerdictPage(slug);
+  if (!page) return null;
+  const [job] = await db()`
+    select id, kind, status, step, created_at from job
+    where restaurant_id = ${page.restaurant.id} and status in ('queued', 'running')
+    order by id desc limit 1`;
+  return restaurantBundleSchema.parse({
+    restaurant: page.restaurant,
+    verdict: page.verdict && {
+      id: page.verdict.id,
+      state: page.verdict.state,
+      tier: page.verdict.tier,
+      confidence: page.verdict.confidence,
+      explanation: page.verdict.explanation,
+      issuedAt: page.verdict.createdAt.toISOString(),
+      provisional: page.verdict.blocks.rollup.provisional,
+      blocks: page.verdict.blocks,
+    },
+    sources: page.sources.map((source) => ({ ...source, newestAt: source.newestAt?.toISOString() ?? null })),
+    distinctions: page.distinctions,
+    critics: page.critics,
+    series: page.verdict?.blocks.rollup.series ?? [],
+    changePoints: [],
+    activeJob: job ? {
+      id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
+    } : null,
+    ownerQuestions: [],
+  });
 }
 
 export async function listRestaurants() {

@@ -7,7 +7,8 @@ import { INPUT_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { PARAMS } from "@/verdict/rollup";
 import { ConfChip, Explanation, monthLabel, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
-import { loadVerdictPage, type SourceRow, type VerdictPage } from "@/web/data";
+import { loadRestaurantBundle } from "@/web/data";
+import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -25,14 +26,14 @@ const dateLabel = (d: Date | string | null) =>
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const page = await loadVerdictPage(slug);
+  const page = await loadRestaurantBundle(slug);
   return { title: page ? `${page.restaurant.name} · Gluton-Free` : "Not found" };
 }
 
 export default async function VerdictPageRoute({ params }: Props) {
   await connection();
   const { slug } = await params;
-  const page = await loadVerdictPage(slug);
+  const page = await loadRestaurantBundle(slug);
   if (!page) notFound();
   const { restaurant: R, verdict: v } = page;
   const formatName = FORMAT_NAME[R.format] ?? R.format;
@@ -69,7 +70,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <div className="chips">{baseChips}</div>
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
-        <Sources page={page} perSource={{}} />
+        <Sources page={page} />
       </div>
     );
   }
@@ -116,8 +117,8 @@ export default async function VerdictPageRoute({ params }: Props) {
             ))}
           </div>
         </section>
-        <Sources page={page} perSource={r.counts.perSource} />
-        <Footer createdAt={v.createdAt} ruleVersion={r.ruleVersion} />
+        <Sources page={page} />
+        <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} />
       </div>
     );
   }
@@ -258,14 +259,13 @@ export default async function VerdictPageRoute({ params }: Props) {
         </p>
       </section>
 
-      <Sources page={page} perSource={r.counts.perSource} />
-      <Footer createdAt={v.createdAt} ruleVersion={r.ruleVersion} />
+      <Sources page={page} />
+      <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} />
     </div>
   );
 }
 
-function Sources({ page, perSource }: { page: VerdictPage; perSource: Record<string, { reviews: number; text: number; newest: string | null }> }) {
-  const crowd = page.sources.filter((s: SourceRow) => s.kind === "crowd");
+function Sources({ page }: { page: RestaurantBundle }) {
   return (
     <section className="sec">
       <h2>Sources</h2>
@@ -275,40 +275,33 @@ function Sources({ page, perSource }: { page: VerdictPage; perSource: Record<str
             <tr>
               <th>Source</th>
               <th>Access</th>
-              <th className="num">Reviews read</th>
+              <th className="num">Reviews</th>
               <th className="num">With text</th>
               <th className="num">Rating</th>
               <th>Newest</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {crowd.map((s) => {
-              const c = perSource[s.code];
+            {page.sources.map((s) => {
               return (
                 <tr key={s.code}>
                   <td>
                     <a href={s.url} rel="noreferrer nofollow" target="_blank">
                       {s.name} ↗
                     </a>
-                    <div className="small muted">Crowd Source</div>
+                    <div className="small muted">{s.kind === "crowd" ? "Crowd Source" : "Editorial Source"}</div>
                   </td>
                   <td>
                     <span className={`acc ${s.access === "personal_only" ? "personal" : "public"}`}>
                       {s.access === "personal_only" ? "personal-only" : "public-OK"}
                     </span>
                   </td>
-                  {s.fetchStatus === "fetched" ? (
-                    <>
-                      <td className="num">{(c?.reviews ?? 0).toLocaleString("en")}</td>
-                      <td className="num">{(c?.text ?? s.textCount ?? 0).toLocaleString("en")}</td>
-                      <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>
-                      <td>{dateLabel(c?.newest ?? s.newestAt)}</td>
-                    </>
-                  ) : (
-                    <td colSpan={4} className="small muted">
-                      {s.fetchStatus === "failed" ? "Fetch failed" : s.fetchStatus === "fetching" ? "Fetching" : "Not fetched yet"}
-                    </td>
-                  )}
+                  <td className="num">{s.reviewCount?.toLocaleString("en") ?? "—"}</td>
+                  <td className="num">{s.textCount?.toLocaleString("en") ?? "—"}</td>
+                  <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>
+                  <td>{dateLabel(s.newestAt)}</td>
+                  <td>{s.fetchStatus.replaceAll("_", " ")}</td>
                 </tr>
               );
             })}
@@ -342,7 +335,7 @@ function Sources({ page, perSource }: { page: VerdictPage; perSource: Record<str
   );
 }
 
-function Footer({ createdAt, ruleVersion }: { createdAt: Date; ruleVersion: string }) {
+function Footer({ createdAt, ruleVersion }: { createdAt: string; ruleVersion: string }) {
   return (
     <p className="footnote">
       Provisional Verdict issued {dateLabel(createdAt)} under rule {ruleVersion}: judged against default cut-offs, not against other

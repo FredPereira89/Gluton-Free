@@ -773,6 +773,1082 @@
           }
         ]
       }
+    },
+    "/api/v1/restaurants/{slug}": {
+      "get": {
+        "operationId": "restaurantBundle",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "restaurant": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "city": {
+                          "type": "string"
+                        },
+                        "area": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "format": {
+                          "type": "string"
+                        },
+                        "priceTier": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "€",
+                                "€€",
+                                "€€€",
+                                "€€€€"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "name",
+                        "city",
+                        "area",
+                        "format",
+                        "priceTier"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "verdict": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "verdict",
+                                "not_enough_evidence"
+                              ]
+                            },
+                            "tier": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "avoid",
+                                    "ok",
+                                    "good",
+                                    "must_go",
+                                    "life_changing"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "confidence": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "low",
+                                    "medium",
+                                    "high"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "explanation": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "issuedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "provisional": {
+                              "type": "boolean"
+                            },
+                            "blocks": {
+                              "type": "object",
+                              "properties": {
+                                "rollup": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ruleVersion": {
+                                      "type": "string"
+                                    },
+                                    "provisional": {
+                                      "type": "boolean",
+                                      "const": true
+                                    },
+                                    "state": {
+                                      "type": "string",
+                                      "enum": [
+                                        "verdict",
+                                        "not_enough_evidence"
+                                      ]
+                                    },
+                                    "tier": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "avoid",
+                                            "ok",
+                                            "good",
+                                            "must_go",
+                                            "life_changing"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "composite": {
+                                      "type": "number"
+                                    },
+                                    "inputs": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "input": {
+                                            "type": "string",
+                                            "enum": [
+                                              "food",
+                                              "service",
+                                              "overall",
+                                              "value",
+                                              "consistency",
+                                              "ambience",
+                                              "wait"
+                                            ]
+                                          },
+                                          "counted": {
+                                            "type": "boolean"
+                                          },
+                                          "weight": {
+                                            "type": "number"
+                                          },
+                                          "theta": {
+                                            "type": "number"
+                                          },
+                                          "nEff": {
+                                            "type": "number"
+                                          },
+                                          "n": {
+                                            "type": "number"
+                                          },
+                                          "sumW": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "input",
+                                          "counted",
+                                          "weight",
+                                          "theta",
+                                          "nEff",
+                                          "n",
+                                          "sumW"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "contributions": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "input": {
+                                            "type": "string",
+                                            "enum": [
+                                              "food",
+                                              "service",
+                                              "overall",
+                                              "value",
+                                              "consistency",
+                                              "ambience",
+                                              "wait"
+                                            ]
+                                          },
+                                          "value": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "input",
+                                          "value"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "floorCap": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "notEnoughEvidence": {
+                                      "type": "object",
+                                      "properties": {
+                                        "textReviews": {
+                                          "type": "number"
+                                        },
+                                        "foodMentions": {
+                                          "type": "number"
+                                        },
+                                        "newestAgeMonths": {
+                                          "type": [
+                                            "number",
+                                            "null"
+                                          ]
+                                        },
+                                        "missed": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "textReviews",
+                                        "foodMentions",
+                                        "newestAgeMonths",
+                                        "missed"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "redFlags": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "group": {
+                                            "type": "string",
+                                            "enum": [
+                                              "health",
+                                              "money"
+                                            ]
+                                          },
+                                          "incidents12m": {
+                                            "type": "number"
+                                          },
+                                          "newestAt": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "shareOfText12m": {
+                                            "type": "number"
+                                          },
+                                          "forcesAvoid": {
+                                            "type": "boolean"
+                                          },
+                                          "types": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string",
+                                              "enum": [
+                                                "food_poisoning",
+                                                "hygiene",
+                                                "scam_overcharge",
+                                                "other_safety"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "group",
+                                          "incidents12m",
+                                          "newestAt",
+                                          "shareOfText12m",
+                                          "forcesAvoid",
+                                          "types"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "confidence": {
+                                      "type": "object",
+                                      "properties": {
+                                        "level": {
+                                          "type": "string",
+                                          "enum": [
+                                            "low",
+                                            "medium",
+                                            "high"
+                                          ]
+                                        },
+                                        "bootstrapShare": {
+                                          "type": "number"
+                                        },
+                                        "caps": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "level",
+                                        "bootstrapShare",
+                                        "caps"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "consistencySpread": {
+                                      "type": "object",
+                                      "properties": {
+                                        "sd": {
+                                          "type": [
+                                            "number",
+                                            "null"
+                                          ]
+                                        },
+                                        "n": {
+                                          "type": "number"
+                                        },
+                                        "windowMonths": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "sd",
+                                        "n",
+                                        "windowMonths"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "counts": {
+                                      "type": "object",
+                                      "properties": {
+                                        "reviews": {
+                                          "type": "number"
+                                        },
+                                        "textReviews": {
+                                          "type": "number"
+                                        },
+                                        "ratingOnly": {
+                                          "type": "number"
+                                        },
+                                        "analysed": {
+                                          "type": "number"
+                                        },
+                                        "perSource": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {
+                                            "type": "object",
+                                            "properties": {
+                                              "reviews": {
+                                                "type": "number"
+                                              },
+                                              "text": {
+                                                "type": "number"
+                                              },
+                                              "newest": {
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "reviews",
+                                              "text",
+                                              "newest"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "reviews",
+                                        "textReviews",
+                                        "ratingOnly",
+                                        "analysed",
+                                        "perSource"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "themes": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "code": {
+                                            "type": "string",
+                                            "enum": [
+                                              "food_delicious",
+                                              "food_authentic",
+                                              "food_fresh",
+                                              "food_generous_portions",
+                                              "food_standout_dish",
+                                              "food_creative",
+                                              "food_desserts",
+                                              "food_drinks",
+                                              "food_bland",
+                                              "food_poorly_cooked",
+                                              "food_small_portions",
+                                              "food_not_fresh",
+                                              "food_touristy",
+                                              "food_few_options",
+                                              "service_warm",
+                                              "service_attentive",
+                                              "service_recommendations",
+                                              "service_slow",
+                                              "service_rude",
+                                              "service_rushed",
+                                              "service_inattentive",
+                                              "service_mistakes",
+                                              "ambience_cosy",
+                                              "ambience_lively",
+                                              "ambience_setting",
+                                              "ambience_noisy",
+                                              "ambience_cramped",
+                                              "ambience_touristy",
+                                              "ambience_uncomfortable",
+                                              "value_good",
+                                              "value_overpriced",
+                                              "value_unordered_couvert",
+                                              "value_bill_surprise",
+                                              "wait_quick",
+                                              "wait_booking_essential",
+                                              "wait_long_queue",
+                                              "wait_slow_kitchen",
+                                              "consistency_reliable",
+                                              "consistency_declined",
+                                              "consistency_uneven"
+                                            ]
+                                          },
+                                          "aspect": {
+                                            "type": "string",
+                                            "enum": [
+                                              "food",
+                                              "service",
+                                              "ambience",
+                                              "value",
+                                              "wait",
+                                              "consistency"
+                                            ]
+                                          },
+                                          "polarity": {
+                                            "anyOf": [
+                                              {
+                                                "type": "number",
+                                                "const": 1
+                                              },
+                                              {
+                                                "type": "number",
+                                                "const": -1
+                                              }
+                                            ]
+                                          },
+                                          "count": {
+                                            "type": "number"
+                                          },
+                                          "share": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "code",
+                                          "aspect",
+                                          "polarity",
+                                          "count",
+                                          "share"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "themeBase": {
+                                      "type": "object",
+                                      "properties": {
+                                        "analysed": {
+                                          "type": "number"
+                                        },
+                                        "windowMonths": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "analysed",
+                                        "windowMonths"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "series": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "quarter": {
+                                            "type": "string"
+                                          },
+                                          "composite": {
+                                            "type": [
+                                              "number",
+                                              "null"
+                                            ]
+                                          },
+                                          "volume": {
+                                            "type": "number"
+                                          },
+                                          "textVolume": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "quarter",
+                                          "composite",
+                                          "volume",
+                                          "textVolume"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "ruleVersion",
+                                    "provisional",
+                                    "state",
+                                    "tier",
+                                    "composite",
+                                    "inputs",
+                                    "contributions",
+                                    "floorCap",
+                                    "notEnoughEvidence",
+                                    "redFlags",
+                                    "confidence",
+                                    "consistencySpread",
+                                    "counts",
+                                    "themes",
+                                    "themeBase",
+                                    "series"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "quotes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "reviewId": {
+                                        "type": "number"
+                                      },
+                                      "aspect": {
+                                        "type": "string",
+                                        "enum": [
+                                          "food",
+                                          "service",
+                                          "ambience",
+                                          "value",
+                                          "wait",
+                                          "consistency"
+                                        ]
+                                      },
+                                      "polarity": {
+                                        "anyOf": [
+                                          {
+                                            "type": "number",
+                                            "const": 1
+                                          },
+                                          {
+                                            "type": "number",
+                                            "const": -1
+                                          }
+                                        ]
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "textEn": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "lang": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "stars": {
+                                        "type": [
+                                          "number",
+                                          "null"
+                                        ]
+                                      },
+                                      "source": {
+                                        "type": "string"
+                                      },
+                                      "month": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "reviewId",
+                                      "aspect",
+                                      "polarity",
+                                      "text",
+                                      "textEn",
+                                      "lang",
+                                      "stars",
+                                      "source",
+                                      "month"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "rollup",
+                                "quotes"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "tier",
+                            "confidence",
+                            "explanation",
+                            "issuedAt",
+                            "provisional",
+                            "blocks"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "crowd",
+                              "editorial"
+                            ]
+                          },
+                          "access": {
+                            "type": "string",
+                            "enum": [
+                              "public_ok",
+                              "personal_only"
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "rating": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "reviewCount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "textCount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "newestAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "fetchStatus": {
+                            "type": "string",
+                            "enum": [
+                              "not_fetched",
+                              "fetching",
+                              "fetched",
+                              "failed"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "name",
+                          "kind",
+                          "access",
+                          "url",
+                          "rating",
+                          "reviewCount",
+                          "textCount",
+                          "newestAt",
+                          "fetchStatus"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "distinctions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "guide": {
+                            "type": "string"
+                          },
+                          "level": {
+                            "type": "string"
+                          },
+                          "editionYear": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "required": [
+                          "guide",
+                          "level",
+                          "editionYear",
+                          "url"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "critics": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "publication": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "publishedOn": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "publication",
+                          "title",
+                          "url",
+                          "publishedOn"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "series": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "quarter": {
+                            "type": "string"
+                          },
+                          "composite": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "volume": {
+                            "type": "number"
+                          },
+                          "textVolume": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "quarter",
+                          "composite",
+                          "volume",
+                          "textVolume"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "changePoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "occurredOn": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "occurredOn",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "activeJob": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "lookup",
+                                "refresh",
+                                "baseline",
+                                "snapshot"
+                              ]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "queued",
+                                "running"
+                              ]
+                            },
+                            "step": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "kind",
+                            "status",
+                            "step",
+                            "createdAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "ownerQuestions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "prompt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "prompt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "restaurant",
+                    "verdict",
+                    "sources",
+                    "distinctions",
+                    "critics",
+                    "series",
+                    "changePoints",
+                    "activeJob",
+                    "ownerQuestions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "ownerBearer": []
+          },
+          {
+            "ownerSession": []
+          }
+        ]
+      }
     }
   },
   "components": {
