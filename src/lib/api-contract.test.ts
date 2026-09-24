@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
+import ts from "typescript";
 import { GET as health } from "@/app/api/v1/health/route";
 import { GET as openApi } from "@/app/openapi.json/route";
 import { GET as verdict } from "@/app/api/v1/restaurants/[slug]/verdict/route";
@@ -27,11 +28,29 @@ describe("API registry and OpenAPI", () => {
     expect(Object.values(routes).filter((route) => route.auth !== "owner").map((route) => route.path)).toEqual(["/api/v1/health"]);
   });
 
-  it("registers every /api/v1 handler", () => {
+  it("registers every /api/v1 handler method", () => {
     const files = readdirSync(new URL("../app/api/v1/", import.meta.url), { recursive: true })
       .map(String).filter((file) => file.endsWith("route.ts"));
-    const paths = files.map((file) => `/api/v1/${file.replaceAll("\\", "/").replace(/\/route\.ts$/, "").replace(/\[([^\]]+)\]/g, "{$1}")}`);
-    expect(paths.sort()).toEqual(Object.values(routes).map((route) => route.path).sort());
+    const methods = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
+    const registered = files.flatMap((file) => {
+      const path = `/api/v1/${file.replaceAll("\\", "/").replace(/\/route\.ts$/, "").replace(/\[([^\]]+)\]/g, "{$1}")}`;
+      const content = readFileSync(new URL(`../app/api/v1/${file.replaceAll("\\", "/")}`, import.meta.url), "utf8");
+      const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true);
+      const names: string[] = [];
+      for (const node of source.statements) {
+        if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
+          names.push(...node.exportClause.elements.map((element) => element.name.text));
+        }
+        const exported = ts.canHaveModifiers(node) && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+        if (!exported) continue;
+        if (ts.isFunctionDeclaration(node) && node.name) names.push(node.name.text);
+        if (ts.isVariableStatement(node)) {
+          names.push(...node.declarationList.declarations.filter((declaration) => ts.isIdentifier(declaration.name)).map((declaration) => declaration.name.getText(source)));
+        }
+      }
+      return names.filter((name) => methods.has(name)).map((name) => `${name} ${path}`);
+    });
+    expect(registered.sort()).toEqual(Object.values(routes).map((route) => `${route.method} ${route.path}`).sort());
   });
 
   it("serves the checked-in OpenAPI 3.1 document", async () => {

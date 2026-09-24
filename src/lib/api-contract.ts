@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TIERS } from "@/domain/aspects";
 import { RollupSchema } from "@/verdict/blocks";
 import { problemSchema } from "./problem";
 
@@ -9,13 +10,13 @@ const restaurantSchema = z.strictObject({
   city: z.string(),
   area: z.string().nullable(),
   format: z.string(),
-  priceTier: z.string().nullable(),
+  priceTier: z.enum(["€", "€€", "€€€", "€€€€"]).nullable(),
 });
 
 const verdictSchema = z.strictObject({
-  state: z.string(),
-  tier: z.string().nullable(),
-  confidence: z.string().nullable(),
+  state: z.enum(["verdict", "not_enough_evidence"]),
+  tier: z.enum(TIERS).nullable(),
+  confidence: z.enum(["low", "medium", "high"]).nullable(),
   explanation: z.string().nullable(),
   issuedAt: z.iso.datetime(),
   provisional: z.literal(true),
@@ -81,7 +82,7 @@ export const routes = {
 } as const;
 
 type ResponseSchema = z.ZodType;
-export function apiJsonResponse<S extends ResponseSchema>(schema: S, status: number, value: z.input<S>): Response {
+export function apiJsonResponse<S extends ResponseSchema>(schema: S, status: number, value: unknown): Response {
   return Response.json(schema.parse(value), {
     status,
     headers: { "Cache-Control": "private, no-store" },

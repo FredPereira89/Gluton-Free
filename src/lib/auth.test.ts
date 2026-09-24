@@ -3,9 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextRequest } from "next/server";
 import { POST as signOut } from "@/app/api/auth/sign-out/route";
+import { GET as getVerdict } from "@/app/api/v1/restaurants/[slug]/verdict/route";
+import { routes } from "./api-contract";
+import { loadVerdictPage } from "@/web/data";
 import { AuthError, requireOwner } from "./auth";
 import { problemSchema } from "./problem";
 import { proxy } from "@/proxy";
+
+vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn() }));
 
 const SUPABASE_URL = "https://owner-check-test.supabase.co";
 const OWNER_ID = "11111111-1111-1111-1111-111111111111";
@@ -170,6 +175,29 @@ describe("protected request handlers", () => {
     const response = await dispatch(apiRequest("/api/v1/restaurants/x/verdict", { headers: { authorization: `Bearer ${token}` } }));
 
     expect(response.status).toBe(200);
+  });
+
+  it("runs the protected Verdict handler only for the owner and parses its declared problems", async () => {
+    vi.stubGlobal("fetch", jwksFetch());
+    vi.mocked(loadVerdictPage).mockResolvedValue(null);
+    const path = "/api/v1/restaurants/missing/verdict";
+    const handler = (request: Request) => getVerdict(request, { params: Promise.resolve({ slug: "missing" }) });
+
+    const unauthenticated = await dispatch(apiRequest(path), handler);
+    expect(unauthenticated.status).toBe(401);
+    expect(unauthenticated.headers.get("content-type")).toBe("application/problem+json");
+    expect(routes.verdict.responses[401].parse(await unauthenticated.json()).code).toBe("unauthenticated");
+
+    const otherToken = await signToken(OTHER_ID);
+    const forbidden = await dispatch(apiRequest(path, { headers: { authorization: `Bearer ${otherToken}` } }), handler);
+    expect(forbidden.status).toBe(403);
+    expect(routes.verdict.responses[403].parse(await forbidden.json()).code).toBe("forbidden");
+
+    const ownerToken = await signToken(OWNER_ID);
+    const missing = await dispatch(apiRequest(path, { headers: { authorization: `Bearer ${ownerToken}` } }), handler);
+    expect(missing.status).toBe(404);
+    expect(routes.verdict.responses[404].parse(await missing.json()).code).toBe("not_found");
+    expect(loadVerdictPage).toHaveBeenCalledTimes(1);
   });
 
   it("uses the bearer token instead of an owner cookie", async () => {

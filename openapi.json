@@ -80,9 +80,19 @@
                           "type": "string"
                         },
                         "priceTier": {
-                          "type": [
-                            "string",
-                            "null"
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "€",
+                                "€€",
+                                "€€€",
+                                "€€€€"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         }
                       },
@@ -103,18 +113,42 @@
                           "type": "object",
                           "properties": {
                             "state": {
-                              "type": "string"
+                              "type": "string",
+                              "enum": [
+                                "verdict",
+                                "not_enough_evidence"
+                              ]
                             },
                             "tier": {
-                              "type": [
-                                "string",
-                                "null"
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "avoid",
+                                    "ok",
+                                    "good",
+                                    "must_go",
+                                    "life_changing"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
                               ]
                             },
                             "confidence": {
-                              "type": [
-                                "string",
-                                "null"
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "low",
+                                    "medium",
+                                    "high"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
                               ]
                             },
                             "explanation": {
