@@ -28,6 +28,10 @@ _Avoid_: Award, badge, accolade
 One Restaurant's page on one Source. A Restaurant has at most one Listing per Source; matching Listings across Sources is how Gluton-Free knows they are the same Restaurant.
 _Avoid_: Place, profile, entry
 
+**Lookup**:
+The first time Gluton-Free gathers a Restaurant's Listings and Reviews and judges it, started by the owner from search. A lookup never waits for the owner: any uncertain Listing match or disputed Format is asked afterwards, and the answer re-judges the Verdict. After the lookup, the Restaurant is kept current only by the monthly refresh.
+_Avoid_: Add, import, scan
+
 **Review**:
 One reviewer's account of a Restaurant as published on one Source, with its rating (if any), date, and text.
 _Avoid_: Rating, comment, post
