@@ -144,6 +144,33 @@ describe("handler responses", () => {
     expect(markup).toContain('href="/r/o-velho-eurico/history"');
   });
 
+  it("renders percentile rows and names the frozen Peer snapshot", async () => {
+    const reviews: RollupReview[] = Array.from({ length: 15 }, (_, i) => ({
+      id: i + 1, source: i % 2 ? "google" : "tripadvisor", publishedAt: new Date("2026-09-01T12:00:00.000Z"),
+      stars: 5, hasText: true, subRatings: null,
+      aspects: { food: 2, service: 2, ambience: -1, value: 2, wait: 1, consistency: 2 }, exceptional: "none", themes: [],
+    }));
+    const groups = (["food", "service", "overall", "value", "ambience", "wait"] as const).map((input) => ({
+      city: "Lisbon", level: "format" as const, key: "tasca", input,
+      sortedTheta: Array.from({ length: 30 }, (_, i) => i / 30), formatMean: 0, k: 10,
+      composite: Array.from({ length: 30 }, (_, i) => i * 3), exceptionalPrior: { alpha: 1, beta: 1 }, peerCount: 30,
+    }));
+    const evidence = rollup({ now: new Date("2026-09-24T12:00:00.000Z"), city: "Lisbon", format: "tasca", reviews, flags: [],
+      peerSnapshot: { id: 7, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups },
+    });
+    vi.mocked(loadRestaurantBundle).mockResolvedValueOnce({ ...bundleFixture, verdict: {
+      ...bundleFixture.verdict!, state: "verdict", tier: evidence.tier, provisional: true, peerSnapshotId: 7,
+      blocks: { rollup: evidence, quotes: [] },
+    } });
+    const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
+    expect(markup).toContain("Where it stands among 30 tascas");
+    expect(markup).toMatch(/better than \d+% of tascas/);
+    expect(markup).toContain("not counted");
+    expect(markup).toContain("P50");
+    expect(markup).toContain("Peer snapshot #7 (Sept 2026)");
+    expect(markup).toContain("Tier uses default cut-offs; standings use Peer snapshot");
+  });
+
   it("serves a strict Restaurant bundle with private conditional caching", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(bundleFixture);
     const url = "https://app.example/api/v1/restaurants/o-velho-eurico";

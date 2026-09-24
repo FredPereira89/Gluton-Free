@@ -86,6 +86,30 @@ export function StripAxis() {
   );
 }
 
+export function PeerStripRow({ s, standing, formatName }: { s: Stat; standing: NonNullable<Blocks["rollup"]["standings"]>[number] | undefined; formatName: string }) {
+  const label = INPUT_LABEL[s.input];
+  const groupName = standing?.level === "format" ? `${formatName}s` : standing?.level === "family"
+    ? `${standing.key.replaceAll("_", " ")} Restaurants` : "Lisbon Restaurants";
+  const pct = standing ? Math.round(standing.percentile) : null;
+  const description = !s.counted ? "not counted" : pct === null ? "Peers still being gathered"
+    : `better than ${pct}% of ${groupName}`;
+  return (
+    <div className={`strip ${s.counted ? "" : "info"}`}>
+      <div className="lab">{label}<small>{description}</small></div>
+      <div className="track" role="img" aria-label={`${label}: ${description}; median at P50`}>
+        <div className="rail" />
+        <div className="med" style={{ left: "50%" }} />
+        {pct !== null && <div className="dot" style={{ left: `${standing!.percentile}%` }} />}
+      </div>
+      <div className="val">{pct === null ? "—" : `P${pct}`}</div>
+    </div>
+  );
+}
+
+export function PeerStripAxis() {
+  return <div className="axis"><span /><div className="ticks"><span style={{ left: "0%" }}>P0</span><span style={{ left: "50%" }}>P50</span><span style={{ left: "100%" }}>P100</span></div><span /></div>;
+}
+
 /** Renders the explanation, whose only markup is one **bold** Tier name. */
 export function Explanation({ text }: { text: string }): ReactNode {
   return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : <Fragment key={i}>{part}</Fragment>));

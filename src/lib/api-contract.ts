@@ -19,7 +19,8 @@ const verdictSchema = z.strictObject({
   confidence: z.enum(["low", "medium", "high"]).nullable(),
   explanation: z.string().nullable(),
   issuedAt: z.iso.datetime(),
-  provisional: z.literal(true),
+  provisional: z.boolean(),
+  peerSnapshotId: z.number().int().nullable(),
   rollup: RollupSchema,
 });
 
@@ -50,6 +51,7 @@ export const restaurantBundleSchema = z.strictObject({
     explanation: z.string().nullable(),
     issuedAt: z.iso.datetime(),
     provisional: z.boolean(),
+    peerSnapshotId: z.number().int().nullable().optional(),
     blocks: BlocksSchema,
   }).nullable(),
   sources: z.array(bundleSourceSchema),

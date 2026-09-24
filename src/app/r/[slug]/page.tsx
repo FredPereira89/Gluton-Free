@@ -7,7 +7,7 @@ import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { PARAMS } from "@/verdict/rollup";
-import { ConfChip, dateLabel, Explanation, monthLabel, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
+import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripRow, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
@@ -106,7 +106,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           </div>
           <div className="chips">
             {baseChips}
-            <span className="chip prov">Provisional</span>
+            {r.provisional && <span className="chip prov">Provisional</span>}
           </div>
           {nee.reasonLine && <p className="explain">{nee.reasonLine}</p>}
           {v.explanation && (
@@ -128,7 +128,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         </section>
         <Sources page={page} perSource={perSource} />
         <BundleExtras page={page} />
-        <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} />
+        <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} />
       </div>
     );
   }
@@ -137,6 +137,11 @@ export default async function VerdictPageRoute({ params }: Props) {
   const pos = r.themes.filter((t) => t.polarity > 0).slice(0, 6);
   const neg = r.themes.filter((t) => t.polarity < 0).slice(0, 6);
   const maxTheme = Math.max(1, ...r.themes.map((t) => t.count));
+  const foodStanding = r.standings?.find((s) => s.input === "food");
+  const peerGroupLabel = foodStanding?.level === "family" ? `${cap(foodStanding.key.replaceAll("_", " "))} Restaurants`
+    : foodStanding?.level === "city" ? "Lisbon Restaurants" : `${formatName}s`;
+  const onePeerGroup = r.standings?.filter((s) => r.inputs.find((i) => i.input === s.input)?.counted)
+    .every((s) => s.level === foodStanding?.level && s.key === foodStanding.key && s.peerCount === foodStanding.peerCount);
   const themeRow = (t: (typeof r.themes)[number]) => (
     <div className={`theme ${t.polarity < 0 ? "neg" : ""}`} key={t.code}>
       <span>{THEMES[t.code].label}</span>
@@ -152,12 +157,12 @@ export default async function VerdictPageRoute({ params }: Props) {
       <section className="hero">
         {head}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 14px", alignItems: "center" }}>
-          <TierBadge tier={r.tier as Tier} size="lg" dashed />
+          <TierBadge tier={r.tier as Tier} size="lg" dashed={r.provisional} />
         </div>
         <div className="chips">
           {baseChips}
           <ConfChip level={r.confidence.level} />
-          <span className="chip prov">Provisional</span>
+          {r.provisional && <span className="chip prov">Provisional</span>}
         </div>
         {v.explanation && (
           <p className="explain">
@@ -184,22 +189,22 @@ export default async function VerdictPageRoute({ params }: Props) {
 
       <section className="sec">
         <div className="hd">
-          <h2>Where it stands</h2>
+          <h2>{r.peerSnapshot ? onePeerGroup ? `Where it stands among ${foodStanding?.peerCount ?? 0} ${peerGroupLabel}` : "Where it stands among Peers" : "Where it stands"}</h2>
           <span className="small muted">
             Composite <span className="mono">{signed(r.composite)}</span>
           </span>
         </div>
         <div>
-          {r.inputs.map((s) => (
-            <StripRow key={s.input} s={s} formatName={formatName} />
-          ))}
-          <StripAxis />
+          {r.inputs.map((s) => r.peerSnapshot
+            ? <PeerStripRow key={s.input} s={s} standing={r.standings?.find((p) => p.input === s.input)} formatName={formatName} />
+            : <StripRow key={s.input} s={s} formatName={formatName} />)}
+          {r.peerSnapshot ? <PeerStripAxis /> : <StripAxis />}
         </div>
-        <p className="small muted">
+        {!r.peerSnapshot && <p className="small muted">
           θ on the −2…+2 Review scale; the tick marks 0. Good from {signed(PARAMS.goodCut)}, Must Go from {signed(PARAMS.mustGoCut)}{" "}
           with food ≥ {signed(PARAMS.mustGoFood)} and service ≥ {signed(PARAMS.mustGoService)}. Positions become percentiles once
           other {formatName}s are gathered.
-        </p>
+        </p>}
         {r.floorCap && <p className="small muted">Capped by a floor: {r.floorCap}.</p>}
         {r.consistencySpread.sd !== null && (
           <p className="small muted">
@@ -264,14 +269,14 @@ export default async function VerdictPageRoute({ params }: Props) {
             <li key={c}>{c}</li>
           ))}
         </ul>
-        <p className="small muted">
+        {r.provisional && <p className="small muted">
           The same Tier came out in {Math.round(r.confidence.bootstrapShare * 100)}% of {PARAMS.bootstrap} resamples of the Reviews.
-        </p>
+        </p>}
       </section>
 
       <Sources page={page} perSource={perSource} />
       <BundleExtras page={page} />
-      <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} />
+      <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} />
     </div>
   );
 }
@@ -382,11 +387,11 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
   );
 }
 
-function Footer({ createdAt, ruleVersion }: { createdAt: string; ruleVersion: string }) {
+function Footer({ createdAt, ruleVersion, snapshot, standings }: { createdAt: string; ruleVersion: string; snapshot?: { id: number; month: string } | null; standings?: { input: string; level: string; key: string }[] }) {
   return (
     <p className="footnote">
-      Provisional Verdict issued {dateLabel(createdAt)} under rule {ruleVersion}: judged against default cut-offs, not against other
-      Restaurants of the same Format. Life Changing is not available while provisional. Reviewers are never identified.
+      {snapshot ? `Provisional Verdict issued ${dateLabel(createdAt)} under rule ${ruleVersion}: Tier uses default cut-offs; standings use Peer snapshot #${snapshot.id} (${monthLabel(snapshot.month)}). Levels: ${standings?.map((s) => `${INPUT_LABEL[s.input as keyof typeof INPUT_LABEL]}—${s.level} ${s.key}`).join("; ")}. Reviewers are never identified.`
+        : `Provisional Verdict issued ${dateLabel(createdAt)} under rule ${ruleVersion}: judged against default cut-offs, not against other Restaurants of the same Format. Life Changing is not available while provisional. Reviewers are never identified.`}
     </p>
   );
 }

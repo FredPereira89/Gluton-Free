@@ -22,7 +22,7 @@ export type SourceRow = {
 export type VerdictPage = {
   restaurant: { id: number; slug: string; name: string; city: string; area: string | null; format: string; priceTier: string | null };
   sources: SourceRow[];
-  verdict: { id: number; state: string; tier: string | null; confidence: string | null; explanation: string | null; createdAt: Date; blocks: Blocks } | null;
+  verdict: { id: number; state: string; tier: string | null; confidence: string | null; explanation: string | null; createdAt: Date; blocks: Blocks; peerSnapshotId?: number | null } | null;
   distinctions: { guide: string; level: string; editionYear: number | null; url: string }[];
   critics: { publication: string; title: string; url: string; publishedOn: string | null }[];
 };
@@ -39,7 +39,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       from listing l join source s on s.code = l.source_code
       where l.restaurant_id = ${id} order by s.name`,
     sql`
-      select id, state, tier, confidence, explanation, created_at, blocks
+      select id, state, tier, confidence, explanation, created_at, blocks, peer_snapshot_id
       from verdict where restaurant_id = ${id} order by id desc limit 1`,
     sql`select guide, level, edition_year, url from distinction where restaurant_id = ${id} order by edition_year desc nulls last`,
     sql`
@@ -77,6 +77,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
           explanation: v.explanation,
           createdAt: v.created_at,
           blocks: BlocksSchema.parse(v.blocks),
+          peerSnapshotId: v.peer_snapshot_id === null ? null : Number(v.peer_snapshot_id),
         }
       : null,
     distinctions: distinctions.map((d) => ({ guide: d.guide, level: d.level, editionYear: d.edition_year, url: d.url })),
@@ -101,6 +102,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       explanation: page.verdict.explanation,
       issuedAt: page.verdict.createdAt.toISOString(),
       provisional: page.verdict.blocks.rollup.provisional,
+      peerSnapshotId: page.verdict.peerSnapshotId ?? null,
       blocks: page.verdict.blocks,
     },
     sources: page.sources.map((source) => ({ ...source, newestAt: source.newestAt?.toISOString() ?? null })),

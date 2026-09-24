@@ -16,7 +16,9 @@ const inputStat = z.strictObject({
 
 export const RollupSchema = z.strictObject({
   ruleVersion: z.string(),
-  provisional: z.literal(true),
+  provisional: z.boolean(),
+  peerSnapshot: z.strictObject({ id: z.number().int(), month: z.string(), publishedAt: z.iso.datetime() }).nullable().optional(),
+  standings: z.array(z.strictObject({ input: z.enum(INPUTS), theta: z.number(), percentile: z.number(), level: z.enum(["format", "family", "city"]), key: z.string(), peerCount: z.number().int() })).optional(),
   state: z.enum(["verdict", "not_enough_evidence"]),
   tier: z.enum(TIERS).nullable(),
   composite: z.number(),

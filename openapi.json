@@ -336,8 +336,19 @@
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                             },
                             "provisional": {
-                              "type": "boolean",
-                              "const": true
+                              "type": "boolean"
+                            },
+                            "peerSnapshotId": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             },
                             "rollup": {
                               "type": "object",
@@ -346,8 +357,88 @@
                                   "type": "string"
                                 },
                                 "provisional": {
-                                  "type": "boolean",
-                                  "const": true
+                                  "type": "boolean"
+                                },
+                                "peerSnapshot": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "month": {
+                                          "type": "string"
+                                        },
+                                        "publishedAt": {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "month",
+                                        "publishedAt"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "standings": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "input": {
+                                        "type": "string",
+                                        "enum": [
+                                          "food",
+                                          "service",
+                                          "overall",
+                                          "value",
+                                          "ambience",
+                                          "wait"
+                                        ]
+                                      },
+                                      "theta": {
+                                        "type": "number"
+                                      },
+                                      "percentile": {
+                                        "type": "number"
+                                      },
+                                      "level": {
+                                        "type": "string",
+                                        "enum": [
+                                          "format",
+                                          "family",
+                                          "city"
+                                        ]
+                                      },
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "peerCount": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "input",
+                                      "theta",
+                                      "percentile",
+                                      "level",
+                                      "key",
+                                      "peerCount"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 },
                                 "state": {
                                   "type": "string",
@@ -894,6 +985,7 @@
                             "explanation",
                             "issuedAt",
                             "provisional",
+                            "peerSnapshotId",
                             "rollup"
                           ],
                           "additionalProperties": false
@@ -1160,6 +1252,18 @@
                             "provisional": {
                               "type": "boolean"
                             },
+                            "peerSnapshotId": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
                             "blocks": {
                               "type": "object",
                               "properties": {
@@ -1170,8 +1274,88 @@
                                       "type": "string"
                                     },
                                     "provisional": {
-                                      "type": "boolean",
-                                      "const": true
+                                      "type": "boolean"
+                                    },
+                                    "peerSnapshot": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "month": {
+                                              "type": "string"
+                                            },
+                                            "publishedAt": {
+                                              "type": "string",
+                                              "format": "date-time",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "month",
+                                            "publishedAt"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "standings": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "input": {
+                                            "type": "string",
+                                            "enum": [
+                                              "food",
+                                              "service",
+                                              "overall",
+                                              "value",
+                                              "ambience",
+                                              "wait"
+                                            ]
+                                          },
+                                          "theta": {
+                                            "type": "number"
+                                          },
+                                          "percentile": {
+                                            "type": "number"
+                                          },
+                                          "level": {
+                                            "type": "string",
+                                            "enum": [
+                                              "format",
+                                              "family",
+                                              "city"
+                                            ]
+                                          },
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "peerCount": {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          }
+                                        },
+                                        "required": [
+                                          "input",
+                                          "theta",
+                                          "percentile",
+                                          "level",
+                                          "key",
+                                          "peerCount"
+                                        ],
+                                        "additionalProperties": false
+                                      }
                                     },
                                     "state": {
                                       "type": "string",

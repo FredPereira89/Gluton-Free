@@ -5,13 +5,14 @@ import type { LlmUsage } from "@/lib/job";
 import { BlocksSchema } from "./blocks";
 import { explainAndQuote, preselect, type QuoteCandidate } from "./explain";
 import { rollup, type RollupFlag, type RollupReview } from "./rollup";
+import { loadCurrentPeerSnapshot } from "./snapshot-store";
 
 const FORMAT_NAME: Record<string, string> = { tasca: "tasca" };
 
 // changePointAt is null until #58 (Declare and delete Change points) adds storage for it.
 export async function loadRollupInput(restaurantId: number, now = new Date(), changePointAt: Date | null = null) {
   const sql = db();
-  const [restaurant] = await sql`select id, name, format from restaurant where id = ${restaurantId}`;
+  const [restaurant] = await sql`select id, name, city, format from restaurant where id = ${restaurantId}`;
   if (!restaurant) throw new Error(`restaurant ${restaurantId} not found`);
   const rows = await sql`
     select r.id, l.source_code, r.published_at, r.stars, r.text is not null as has_text, r.sub_ratings,
@@ -48,7 +49,7 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
     verification: f.verification as RollupFlag["verification"],
     publishedAt: f.published_at as Date,
   }));
-  return { restaurant, input: { now, format: restaurant.format as string, reviews, flags, changePointAt } };
+  return { restaurant, input: { now, city: restaurant.city as string, format: restaurant.format as string, reviews, flags, changePointAt } };
 }
 
 async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> {
@@ -76,7 +77,7 @@ async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> 
 export async function issueVerdict(restaurantId: number, jobId: number | null, usage: LlmUsage): Promise<number> {
   const sql = db();
   const { restaurant, input } = await loadRollupInput(restaurantId);
-  const r = rollup(input);
+  const r = rollup({ ...input, peerSnapshot: await loadCurrentPeerSnapshot() });
   const inputsHash = createHash("sha256").update(JSON.stringify(r)).digest("hex");
 
   const candidates = preselect(await quoteCandidates(restaurantId));
@@ -90,9 +91,9 @@ export async function issueVerdict(restaurantId: number, jobId: number | null, u
 
   const blocks = BlocksSchema.parse({ rollup: r, quotes });
   const [row] = await sql`
-    insert into verdict (restaurant_id, job_id, state, tier, confidence, provisional, blocks, explanation, inputs_hash)
-    values (${restaurantId}, ${jobId}, ${r.state}, ${r.tier}, ${r.state === "verdict" ? r.confidence.level : null},
-            true, ${sql.json(blocks as never)}, ${explanation}, ${inputsHash})
+    insert into verdict (restaurant_id, job_id, peer_snapshot_id, state, tier, confidence, provisional, blocks, explanation, inputs_hash)
+    values (${restaurantId}, ${jobId}, ${r.peerSnapshot?.id ?? null}, ${r.state}, ${r.tier}, ${r.state === "verdict" ? r.confidence.level : null},
+            ${r.provisional}, ${sql.json(blocks as never)}, ${explanation}, ${inputsHash})
     returning id`;
   return Number(row!.id);
 }

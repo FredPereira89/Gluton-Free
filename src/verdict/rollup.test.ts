@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Aspect } from "@/domain/aspects";
+import { INPUTS, type Aspect, type Input } from "@/domain/aspects";
+import { midRank } from "./peer";
 import { applyReviewWindow, rollup, shrunk, type RollupFlag, type RollupReview } from "./rollup";
 
 const NOW = new Date("2026-09-01T00:00:00Z");
@@ -41,6 +42,67 @@ describe("shrunk", () => {
 });
 
 describe("rollup", () => {
+  it("shrinks toward the snapshot Format mean and uses mid-rank standings", () => {
+    const groups = INPUTS.map((input) => ({
+      city: "Lisbon", level: "format" as const, key: "tasca", input,
+      sortedTheta: Array.from({ length: 30 }, (_, i) => i < 15 ? 0 : 1),
+      formatMean: 1, k: 10, composite: Array.from({ length: 30 }, (_, i) => i / 30),
+      exceptionalPrior: { alpha: 1, beta: 1 }, peerCount: 30,
+    }));
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews: many(15, () => review({ publishedAt: NOW, stars: 3, aspects: { food: 0 } })), flags: [],
+      peerSnapshot: { id: 7, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups },
+    });
+    expect(r.provisional).toBe(true);
+    expect(r.inputs.find((s) => s.input === "food")!.theta).toBe(0);
+    expect(r.standings?.find((s) => s.input === "food")).toMatchObject({ theta: 0.4, percentile: 50, level: "format", peerCount: 30 });
+    expect(r.peerSnapshot?.id).toBe(7);
+    const defaultVerdict = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews: many(15, () => review({ publishedAt: NOW, stars: 3, aspects: { food: 0 } })), flags: [] });
+    expect(r.tier).toBe(defaultVerdict.tier);
+  });
+
+  it("falls back per input from Format to family to all Lisbon at 30 qualified Peers", () => {
+    const groups = [
+      ...INPUTS.map((input) => ({ city: "Lisbon", level: "format" as const, key: "tasca", input, peerCount: 29 })),
+      { city: "Lisbon", level: "family" as const, key: "traditional_portuguese", input: "food" as Input, peerCount: 30 },
+      ...INPUTS.filter((input) => input !== "food").map((input) => ({ city: "Lisbon", level: "city" as const, key: "Lisbon", input, peerCount: 30 })),
+    ].map((g) => ({ ...g, sortedTheta: Array(g.peerCount).fill(0), formatMean: 0, k: 10,
+      composite: Array(g.peerCount).fill(0), exceptionalPrior: { alpha: 1, beta: 1 } }));
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews: many(15, (i) => great(i)), flags: [],
+      peerSnapshot: { id: 8, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups },
+    });
+    expect(r.standings?.find((s) => s.input === "food")?.level).toBe("family");
+    expect(r.standings?.find((s) => s.input === "service")?.level).toBe("city");
+    expect(r.provisional).toBe(true);
+    expect(r.standings?.find((s) => s.input === "overall")?.level).toBe("city");
+  });
+
+  it("keeps a Restaurant outside the snapshot city provisional", () => {
+    const r = rollup({ now: NOW, city: "Porto", format: "tasca", reviews: many(15, (i) => great(i)), flags: [],
+      peerSnapshot: { id: 8, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups: [] },
+    });
+    expect(r.provisional).toBe(true);
+    expect(r.peerSnapshot).toBeNull();
+  });
+
+  it("uses the default prior when the snapshot has no complete Peer group", () => {
+    const reviews = many(15, () => review({ aspects: { food: 0 } }));
+    const provisional = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [] });
+    const incomplete = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [],
+      peerSnapshot: { id: 9, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups: [{
+        city: "Lisbon", level: "format", key: "tasca", input: "food", sortedTheta: Array(30).fill(0),
+        formatMean: 2, k: 10, composite: Array(30).fill(0), exceptionalPrior: { alpha: 1, beta: 1 }, peerCount: 30,
+      }] },
+    });
+    expect(incomplete.provisional).toBe(true);
+    expect(incomplete.peerSnapshot).toBeNull();
+    expect(incomplete.inputs).toEqual(provisional.inputs);
+  });
+
+  it("uses a mid-rank for ties", () => {
+    expect(midRank([0, 1, 1, 2], 1)).toBe(50);
+    expect(midRank([0, 1, 1, 2], 2)).toBe(87.5);
+  });
+
   it("gives Must Go to a consistently excellent Restaurant, ignoring ambience at a tasca", () => {
     const r = rollup({ now: NOW, format: "tasca", reviews: many(200, (i) => great(i)), flags: [] });
     expect(r.state).toBe("verdict");

@@ -3,12 +3,13 @@
 // Pure: no I/O, deterministic (the bootstrap uses a seeded generator).
 import { ASPECTS, INFORMATIVE_ONLY, INPUTS, INPUT_WEIGHTS, type Aspect, type FlagType, type Input, type Tier } from "@/domain/aspects";
 import { THEMES, type ThemeCode } from "@/domain/themes";
+import { DEFAULT_SHRINK_K, judgeWithSnapshot, type PeerSnapshot, type Standing } from "./peer";
 
 export const RULE_VERSION = "provisional-v1";
 
 export const PARAMS = {
   halfLifeMonths: 18,
-  shrinkK: 10,
+  shrinkK: DEFAULT_SHRINK_K,
   priorMu: 0,
   subRatingWeight: 0.5,
   goodCut: 0.8,
@@ -51,6 +52,8 @@ export type RollupFlag = {
 export type RollupInput = {
   now: Date;
   format: string;
+  city?: string;
+  peerSnapshot?: PeerSnapshot | null;
   reviews: RollupReview[];
   flags: RollupFlag[];
   /** The newest confirmed Change point, if any (ADR 0007). Cuts every Source's window short. */
@@ -80,7 +83,9 @@ export type RedFlagGroup = {
 
 export type Rollup = {
   ruleVersion: string;
-  provisional: true;
+  provisional: boolean;
+  peerSnapshot?: { id: number; month: string; publishedAt: string } | null;
+  standings?: Standing[];
   state: "verdict" | "not_enough_evidence";
   tier: Tier | null;
   composite: number;
@@ -442,7 +447,7 @@ export function rollup(input: RollupInput): Rollup {
       notEnoughEvidence.reasonLine = `${event} on ${date}; ${notEnoughEvidence.textReviews} Reviews since`;
     }
   }
-  return {
+  const result: Rollup = {
     ruleVersion: RULE_VERSION,
     provisional: true,
     state,
@@ -463,4 +468,5 @@ export function rollup(input: RollupInput): Rollup {
     themeBase: { analysed: themeBase.length, windowMonths: themeWindow },
     series,
   };
+  return judgeWithSnapshot(result, input.peerSnapshot, input.city, format);
 }

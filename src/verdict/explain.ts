@@ -65,7 +65,9 @@ function facts(name: string, formatName: string, r: Rollup): string {
   } else {
     lines.push(`Tier: ${TIER_LABEL[r.tier!]}`);
   }
-  lines.push(`Provisional: yes. Judged against default cut-offs on the −2..+2 Review scale, not against Peers (other ${formatName}s have not been gathered yet). Life Changing is not available while provisional.`);
+  lines.push(r.peerSnapshot
+    ? `Provisional: yes. The Tier uses default cut-offs; standings use Peer snapshot #${r.peerSnapshot.id} (${r.peerSnapshot.month}). Per-input Peer levels: ${r.standings?.map((s) => `${INPUT_LABEL[s.input]} ${s.level} ${s.key} (${s.peerCount} Peers, P${Math.round(s.percentile)})`).join("; ")}.`
+    : `Provisional: yes. Judged against default cut-offs on the −2..+2 Review scale, not against Peers (other ${formatName}s have not been gathered yet). Life Changing is not available while provisional.`);
   lines.push(`Composite: ${fmt(r.composite)} (Good from +0.80, Must Go from +1.30)`);
   lines.push("Inputs (θ on −2..+2, weight in the composite, effective number of Reviews):");
   for (const s of r.inputs) {
@@ -107,7 +109,7 @@ ${facts(args.name, args.formatName, r)}
 </facts>
 
 Write 2–3 plain sentences, no bullet points, no markdown except wrapping the Tier name in **bold** once. They must state, in this order:
-1. the Tier, and that it is provisional: judged against default cut-offs rather than other ${args.formatName}s;
+1. the Tier and that it is provisional; when a Peer snapshot exists, name it and the levels used for the deciding inputs' standings;
 2. the one or two inputs that decided it (use their θ values, e.g. "food (θ +1.21)"), or the floor that capped it;
 3. any Red flag: its group, how many incidents, how recent (skip if none);
 4. the Confidence level and its main reason.
