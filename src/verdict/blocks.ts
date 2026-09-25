@@ -110,6 +110,7 @@ export const ShownQuoteSchema = z.strictObject({
   stars: z.number().nullable(),
   source: z.string(),
   month: z.string(),
+  access: z.enum(["public_ok", "personal_only"]).optional(),
 });
 
 export const BlocksSchema = z.strictObject({

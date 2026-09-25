@@ -27,6 +27,21 @@ function answer(explanation: string) {
 beforeEach(() => parse.mockReset());
 
 describe("explainAndQuote", () => {
+  it("keeps at most three positive and two negative quotes per Aspect in their original language", async () => {
+    const { preselect, shownQuotes } = await import("./explain");
+    const candidates = Array.from({ length: 7 }, (_, i) => ({
+      reviewId: i + 1, aspect: "food" as const, polarity: (i < 4 ? 1 : -1) as 1 | -1,
+      text: `Uma descrição original suficientemente longa número ${i}.`,
+      textEn: null, lang: "pt", stars: 4, source: "google", access: "personal_only" as const,
+      publishedAt: new Date(`2026-09-${String(i + 1).padStart(2, "0")}T00:00:00Z`),
+    }));
+    const quotes = shownQuotes(preselect(candidates));
+    expect(quotes.filter((q) => q.polarity === 1)).toHaveLength(3);
+    expect(quotes.filter((q) => q.polarity === -1)).toHaveLength(2);
+    expect(quotes.every((q) => q.text.startsWith("Uma descrição original") && q.textEn === null && q.access === "personal_only")).toBe(true);
+    expect(quotes[0]).not.toHaveProperty("reviewerName");
+    expect(quotes[0]).not.toHaveProperty("permalink");
+  });
   it("keeps a passing explanation from the Anthropic fake", async () => {
     const { explainAndQuote } = await import("./explain");
     const r = computed();

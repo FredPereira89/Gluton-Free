@@ -60,6 +60,26 @@ function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBund
   };
 }
 
+describe("Quote evidence (issue #43)", () => {
+  it("opens the input's Themes and original quotes inline with a Listing link and Source access", async () => {
+    const page = bundle(0);
+    page.verdict!.blocks.rollup.themes = [{ code: "food_delicious", aspect: "food", polarity: 1, count: 3, share: 0.15 }];
+    page.verdict!.blocks.quotes = [{ reviewId: 7, aspect: "food", polarity: 1,
+      text: "A comida estava muito saborosa.", textEn: null, lang: "pt", stars: 5,
+      source: "google", access: "personal_only", month: "2026-08" }];
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Show Food Themes and quotes");
+    expect(html).toContain("Food Themes and quotes");
+    expect(html).toContain("A comida estava muito saborosa.");
+    expect(html).toContain("Translate");
+    expect(html).toContain("Personal only");
+    expect(html).toContain('href="https://example.com/restaurant"');
+    expect(html).not.toContain("reviewerName");
+    expect(html).not.toContain("reviewPermalink");
+  });
+});
+
 describe("Life Changing ceiling note (issue #36)", () => {
   it("shows the ceiling note explaining the nearest unmet Life Changing gate when the Tier lands below it", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(bundleWithPeers(40, 40));

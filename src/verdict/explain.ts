@@ -1,6 +1,5 @@
-// The explanation and the quotes shown with it (Sonnet). Code computes every number and
-// pre-selects quote candidates; the model only chooses among them, translates, and writes
-// 2–3 sentences. It never re-decides the Tier.
+// Code computes every number and preselects the quotes. Sonnet writes only the
+// explanation and never re-decides the Tier.
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { INPUT_LABEL, TIER_LABEL, type Aspect } from "@/domain/aspects";
@@ -19,6 +18,7 @@ export type QuoteCandidate = {
   source: string;
   publishedAt: Date;
   textEn: string | null;
+  access?: "public_ok" | "personal_only";
 };
 
 export type ShownQuote = {
@@ -31,6 +31,7 @@ export type ShownQuote = {
   stars: number | null;
   source: string;
   month: string; // YYYY-MM
+  access?: "public_ok" | "personal_only";
 };
 
 /** Per Aspect, the newest few positive and negative quotes of a readable length. */
@@ -45,14 +46,17 @@ export function preselect(all: QuoteCandidate[], perAspect = { pos: 3, neg: 2 })
   return out;
 }
 
+export function shownQuotes(candidates: QuoteCandidate[]): ShownQuote[] {
+  return candidates.map((q) => ({
+    reviewId: q.reviewId, aspect: q.aspect, polarity: q.polarity, text: q.text,
+    textEn: q.lang?.startsWith("en") ? null : q.textEn,
+    lang: q.lang, stars: q.stars, source: q.source, access: q.access,
+    month: q.publishedAt.toISOString().slice(0, 7),
+  }));
+}
+
 const Out = z.object({
   explanation: z.string(),
-  quotes: z.array(
-    z.object({
-      id: z.number().int(),
-      translation_en: z.string().nullable().describe("English translation, or null if the quote is already in English"),
-    }),
-  ),
 });
 const format = zodOutputFormat(Out);
 
@@ -158,10 +162,7 @@ export async function explainAndQuote(
   args: { name: string; formatName: string; rollup: Rollup; candidates: QuoteCandidate[] },
   usage: LlmUsage,
 ): Promise<{ explanation: string; quotes: ShownQuote[] }> {
-  const { rollup: r, candidates } = args;
-  const list = candidates
-    .map((q, id) => `[${id}] ${q.aspect} ${q.polarity > 0 ? "positive" : "negative"} · ${q.lang ?? "?"} · ${q.stars ?? "-"}★ · ${q.publishedAt.toISOString().slice(0, 7)}\n${q.text}`)
-    .join("\n\n");
+  const { rollup: r } = args;
   const request = {
     model: JUDGE_MODEL,
     max_tokens: 4096,
@@ -182,12 +183,7 @@ Write 2–3 plain sentences, no bullet points, no markdown except wrapping the T
 4. the Confidence level and its main reason.
 For Not enough evidence, say which bar was missed instead of 1–2.
 Do not mention Distinctions, critics, or star averages from Sources.
-
-Then choose 4–6 quotes from the candidates below for an "In their words" section. Together they should reflect the balance of the facts: mostly quotes for the inputs that decided the Tier, and at least one criticism if any input is weak or a notable share of Reviews complain. Prefer concrete, specific quotes over generic praise, and at most two per Aspect. For each chosen quote give its id and an English translation (null if it is already English). Translate faithfully, keeping the tone.
-
-<candidates>
-${list}
-</candidates>`,
+`,
       },
     ],
   };
@@ -205,24 +201,5 @@ ${list}
     if (explanationPasses(explanation, args.formatName, r)) break;
     if (attempt === 1) explanation = templateExplanation(args.formatName, r);
   }
-  const seen = new Set<number>();
-  const quotes: ShownQuote[] = [];
-  for (const q of out!.quotes) {
-    const c = candidates[q.id];
-    if (!c || seen.has(q.id)) continue;
-    seen.add(q.id);
-    const isEnglish = (c.lang ?? "").startsWith("en");
-    quotes.push({
-      reviewId: c.reviewId,
-      aspect: c.aspect,
-      polarity: c.polarity,
-      text: c.text,
-      textEn: isEnglish ? null : (c.textEn ?? q.translation_en),
-      lang: c.lang,
-      stars: c.stars,
-      source: c.source,
-      month: c.publishedAt.toISOString().slice(0, 7),
-    });
-  }
-  return { explanation, quotes };
+  return { explanation, quotes: shownQuotes(args.candidates) };
 }

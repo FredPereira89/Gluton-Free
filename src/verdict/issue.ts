@@ -3,7 +3,7 @@ import type { Aspect, FlagType } from "@/domain/aspects";
 import { db } from "@/lib/db";
 import type { LlmUsage } from "@/lib/job";
 import { BlocksSchema } from "./blocks";
-import { explainAndQuote, explanationFacts, preselect, type QuoteCandidate } from "./explain";
+import { explainAndQuote, explanationFacts, preselect, shownQuotes, type QuoteCandidate } from "./explain";
 import { rollup, type RollupFlag, type RollupReview } from "./rollup";
 import { loadCurrentPeerSnapshot } from "./snapshot-store";
 import { stabilizeTier, type RejudgeCause } from "./stability";
@@ -64,10 +64,11 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
 
 async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> {
   const rows = await db()`
-    select a.review_id, a.quote, a.quote_aspect, a.quote_polarity, a.quote_en, r.language, r.stars, l.source_code, r.published_at
+    select a.review_id, a.quote, a.quote_aspect, a.quote_polarity, a.quote_en, r.language, r.stars, l.source_code, s.access, r.published_at
     from review_analysis a
     join review r on r.id = a.review_id
     join listing l on l.id = r.listing_id
+    join source s on s.code = l.source_code
     where l.restaurant_id = ${restaurantId} and a.quote is not null
       and r.published_at > now() - interval '24 months'`;
   return rows.map((q) => ({
@@ -79,6 +80,7 @@ async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> 
     lang: q.language as string | null,
     stars: q.stars as number | null,
     source: q.source_code as string,
+    access: q.access as "public_ok" | "personal_only",
     publishedAt: q.published_at as Date,
   }));
 }
@@ -101,15 +103,11 @@ export async function issueVerdict(restaurantId: number, jobId: number | null, u
   })).digest("hex");
 
   const { explanation, quotes } = previous?.inputs_hash === inputsHash && typeof previous.explanation === "string" && priorBlocks
-    ? { explanation: previous.explanation as string, quotes: priorBlocks.quotes }
+    ? { explanation: previous.explanation as string, quotes: shownQuotes(candidates) }
     : await explainAndQuote(
       { name: restaurant.name as string, formatName, rollup: r, candidates },
       usage,
     );
-  for (const q of quotes) {
-    if (q.textEn) await sql`update review_analysis set quote_en = ${q.textEn} where review_id = ${q.reviewId} and quote_en is null`;
-  }
-
   const blocks = BlocksSchema.parse({ rollup: r, quotes });
   const [row] = await sql`
     insert into verdict (restaurant_id, job_id, peer_snapshot_id, state, tier, confidence, provisional, blocks, explanation, inputs_hash)

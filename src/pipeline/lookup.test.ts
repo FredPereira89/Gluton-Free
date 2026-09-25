@@ -115,9 +115,36 @@ describe("Lookup pipeline", () => {
 
     await database`update review_analysis set quote = 'A revised invented quote about the food.', quote_aspect = 'food', quote_polarity = 1 where review_id = ${review!.id}`;
     await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
-    const [withQuote] = await database`select inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    const [withQuote] = await database`select inputs_hash, blocks from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
     expect(withQuote!.inputs_hash).not.toBe(changed!.inputs_hash);
     expect(parse).toHaveBeenCalledTimes(4);
+    expect((withQuote!.blocks as { quotes: { text: string; access: string }[] }).quotes).toContainEqual(expect.objectContaining({
+      text: "A revised invented quote about the food.", access: "personal_only",
+    }));
+    const [portuguese] = await database`
+      insert into review (listing_id, source_review_id, stars, published_at, language, text)
+      select listing_id, 'invented-pt-quote', 4, now(), 'pt', 'A comida estava muito saborosa e o serviço foi atencioso.'
+      from review where id = ${review!.id} returning id`;
+    await database`
+      insert into review_analysis (review_id, extractor_version, exceptional, quote, quote_aspect, quote_polarity)
+      values (${portuguese!.id}, 'test', 'none', 'A comida estava muito saborosa e o serviço foi atencioso.', 'food', 1)`;
+    await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
+    const translateCall = vi.spyOn(fakeAnthropic.messages, "create").mockResolvedValue({
+      usage: { input_tokens: 10, output_tokens: 10 },
+      content: [{ type: "text", text: "An invented English food quote." }],
+    } as never);
+    const { translateQuote } = await import("@/verdict/translate");
+    expect(await translateQuote("fictional-copper-spoon", Number(portuguese!.id))).toBe("An invented English food quote.");
+    expect(await translateQuote("fictional-copper-spoon", Number(portuguese!.id))).toBe("An invented English food quote.");
+    expect(translateCall).toHaveBeenCalledTimes(1);
+    const [cached] = await database`select quote_en from review_analysis where review_id = ${portuguese!.id}`;
+    expect(cached!.quote_en).toBe("An invented English food quote.");
+    const { loadRestaurantBundle } = await import("@/web/data");
+    const page = await loadRestaurantBundle("fictional-copper-spoon");
+    expect(page!.verdict!.blocks.quotes).toContainEqual(expect.objectContaining({
+      reviewId: Number(portuguese!.id), textEn: "An invented English food quote.", access: "personal_only",
+    }));
+    translateCall.mockRestore();
     parse.mockRestore();
   }, 30_000);
 

@@ -168,6 +168,14 @@ export default async function VerdictPageRoute({ params }: Props) {
       <div className="bar" style={{ width: `${(t.count / maxTheme) * 100}%` }} />
     </div>
   );
+  const quoteCard = (q: (typeof v.blocks.quotes)[number]) => {
+    const s = sourceByCode.get(q.source);
+    return <Quote key={q.reviewId} reviewId={q.reviewId} restaurantSlug={R.slug}
+      text={q.text} textEn={q.textEn} lang={q.lang} stars={q.stars}
+      sourceName={s?.name ?? q.source} sourceUrl={s?.url ?? null}
+      month={monthLabel(q.month)} aspectLabel={ASPECT_LABEL[q.aspect]}
+      negative={q.polarity < 0} access={q.access ?? s?.access} />;
+  };
 
   return (
     <div className="A">
@@ -200,9 +208,23 @@ export default async function VerdictPageRoute({ params }: Props) {
           </span>
         </div>
         <div>
-          {r.inputs.map((s) => r.peerSnapshot
-            ? <PeerStripRow key={s.input} s={s} standing={r.standings?.find((p) => p.input === s.input)} floor={r.tierFloors?.find((f) => f.input === s.input)?.percentile} formatName={formatName} />
-            : <StripRow key={s.input} s={s} formatName={formatName} />)}
+          {r.inputs.map((s) => {
+            const themes = r.themes.filter((t) => t.aspect === s.input);
+            const quotes = v.blocks.quotes.filter((q) => q.aspect === s.input);
+            return <details className="standing-detail" key={s.input}>
+              <summary aria-label={`Show ${INPUT_LABEL[s.input]} Themes and quotes`}>
+                {r.peerSnapshot
+                  ? <PeerStripRow s={s} standing={r.standings?.find((p) => p.input === s.input)} floor={r.tierFloors?.find((f) => f.input === s.input)?.percentile} formatName={formatName} />
+                  : <StripRow s={s} formatName={formatName} />}
+              </summary>
+              <div className="standing-evidence">
+                <h3>{INPUT_LABEL[s.input]} Themes and quotes</h3>
+                {themes.map(themeRow)}
+                {quotes.map(quoteCard)}
+                {!themes.length && !quotes.length && <p className="small muted">No Themes or quotes yet.</p>}
+              </div>
+            </details>;
+          })}
           {r.peerSnapshot ? <PeerStripAxis /> : <StripAxis />}
         </div>
         {!r.peerSnapshot && <p className="small muted">
@@ -244,23 +266,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         <section className="sec">
           <h2>In their words</h2>
           <div className="quotes">
-            {v.blocks.quotes.map((q) => {
-              const s = sourceByCode.get(q.source);
-              return (
-                <Quote
-                  key={q.reviewId}
-                  text={q.text}
-                  textEn={q.textEn}
-                  lang={q.lang}
-                  stars={q.stars}
-                  sourceName={s?.name ?? q.source}
-                  sourceUrl={s?.url ?? null}
-                  month={monthLabel(q.month)}
-                  aspectLabel={ASPECT_LABEL[q.aspect]}
-                  negative={q.polarity < 0}
-                />
-              );
-            })}
+            {v.blocks.quotes.map(quoteCard)}
           </div>
         </section>
       )}

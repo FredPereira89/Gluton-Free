@@ -62,6 +62,7 @@ export const restaurantBundleSchema = z.strictObject({
   activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot"]), status: z.enum(["queued", "running"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
   ownerQuestions: z.array(z.strictObject({ id: z.number().int(), prompt: z.string() })),
 });
+export const quoteTranslationResponseSchema = z.strictObject({ textEn: z.string().min(1) });
 export type RestaurantBundle = z.infer<typeof restaurantBundleSchema>;
 
 export const healthResponseSchema = z.strictObject({ status: z.literal("ok") });
@@ -160,6 +161,13 @@ export const routes = {
     auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1) }) },
     responses: { 200: restaurantBundleSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  quoteTranslation: {
+    method: "POST",
+    path: "/api/v1/restaurants/{slug}/quotes/{reviewId}/translation",
+    auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1), reviewId: z.coerce.number().int().positive().safe() }) },
+    responses: { 200: quoteTranslationResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   verdictHistory: {
     method: "GET",

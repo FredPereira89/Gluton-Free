@@ -48,6 +48,20 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       from critic_piece where restaurant_id = ${id} order by published_on desc nulls last, id`,
   ]);
   const blocks = v ? BlocksSchema.parse(v.blocks) : null;
+  if (blocks) {
+    const accessBySource = new Map(listings.map((listing) => [listing.code as string, listing.access as "public_ok" | "personal_only"]));
+    for (const quote of blocks.quotes) quote.access = accessBySource.get(quote.source) ?? quote.access;
+    if (blocks.quotes.length) {
+      const cached = await sql`
+        select review_id, quote, quote_en from review_analysis
+        where review_id in ${sql(blocks.quotes.map((quote) => quote.reviewId))}`;
+      const translations = new Map(cached.map((row) => [Number(row.review_id), row]));
+      for (const quote of blocks.quotes) {
+        const row = translations.get(quote.reviewId);
+        if (row?.quote === quote.text && row.quote_en) quote.textEn = row.quote_en as string;
+      }
+    }
+  }
   // Earlier append-only Verdicts predate stored Source history. Reconstruct only from Reviews
   // already fetched by issuance, so their charts stay fixed without changing the Verdict row.
   if (v && blocks && !blocks.rollup.sourceHistory) {
