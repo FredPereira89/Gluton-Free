@@ -4,6 +4,7 @@ import { googleBusinessByReference, searchGoogleMaps, type MapsSearchItem } from
 import { searchKnownRestaurants } from "@/web/data";
 import { recordSearchCost, spendCapStatus } from "@/lib/spend-cap";
 import { sameRestaurantName, searchInput } from "./input";
+import { sourcePriceTier } from "@/domain/restaurant-facts";
 
 export const LISBON = { lat: 38.7223, lng: -9.1393 };
 
@@ -23,10 +24,6 @@ function status(item: MapsSearchItem): SearchResponse["candidates"][number]["sta
   if (value === "close" || value === "closed") return "closed";
   return value === "open" || value === "opened" ? "open" : "unknown";
 }
-
-const priceTiers: Record<string, SearchResponse["candidates"][number]["priceTier"]> = {
-  inexpensive: "€", moderate: "€€", expensive: "€€€", very_expensive: "€€€€",
-};
 
 export const GET = withApiErrors(async (request: Request) => {
   const params = new URL(request.url).searchParams;
@@ -109,7 +106,7 @@ export const GET = withApiErrors(async (request: Request) => {
     candidates.push({
       placeId, name: item.title!, address: item.address ?? null, distanceMeters: distanceMeters(near, item),
       stars: item.rating?.value ?? null, reviewCount: item.rating?.votes_count ?? null,
-      category, priceTier: priceTiers[item.price_level ?? ""] ?? null, status: status(item) as SearchResponse["candidates"][number]["status"], warnings,
+      category, priceTier: sourcePriceTier("google", item.price_level ?? null), status: status(item) as SearchResponse["candidates"][number]["status"], warnings,
     });
   }
   const known = knownRows.map(({ placeId: _placeId, ...row }) => row);

@@ -221,7 +221,7 @@ describe("Lookup pipeline", () => {
     }));
     expect(response.status).toBe(202);
     const { restaurantSlug } = await response.json() as { restaurantSlug: string };
-    const [restaurant] = await sql!`select id, format, format_provenance, price_tier, price_provenance from restaurant where slug = ${restaurantSlug}`;
+    const [restaurant] = await sql!`select id, format, format_provenance, format_changed_at, price_tier, price_provenance from restaurant where slug = ${restaurantSlug}`;
     expect(restaurant).toMatchObject({ format: "tasca", format_provenance: "llm", price_tier: "€€", price_provenance: "source" });
     const [verdict] = await sql!`select id from verdict where restaurant_id = ${restaurant!.id}`;
     expect(verdict).toBeDefined();
@@ -233,9 +233,13 @@ describe("Lookup pipeline", () => {
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: restaurantSlug }) }));
     expect(html).toContain("Tasca (proposed)");
 
+    const { runLookup } = await import("./lookup");
+    await runLookup(Number(restaurant!.id), async () => {}, { from: "judge" });
+    const [unchanged] = await sql!`select format_changed_at from restaurant where id = ${restaurant!.id}`;
+    expect(unchanged!.format_changed_at).toEqual(restaurant!.format_changed_at);
+
     await sql!`update restaurant set format = 'fine_dining', format_provenance = 'owner' where id = ${restaurant!.id}`;
     await sql!`update listing set price_level = null where restaurant_id = ${restaurant!.id}`;
-    const { runLookup } = await import("./lookup");
     await runLookup(Number(restaurant!.id), async () => {}, { from: "judge" });
     const [after] = await sql!`select format, format_provenance, price_tier, price_provenance from restaurant where id = ${restaurant!.id}`;
     expect(after).toMatchObject({ format: "fine_dining", format_provenance: "owner", price_tier: "€", price_provenance: "llm" });
