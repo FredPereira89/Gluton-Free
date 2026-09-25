@@ -77,6 +77,7 @@ function facts(name: string, formatName: string, r: Rollup): string {
   lines.push(`Largest contributions to the composite: ${r.contributions.slice(0, 3).map((c) => `${INPUT_LABEL[c.input]} ${fmt(c.value)}`).join(", ")}`);
   if (r.floorCap) lines.push(`Floor that capped the Tier: ${r.floorCap}`);
   if (r.ceilingNote) lines.push(`What stands between this Restaurant and Life Changing: ${r.ceilingNote}`);
+  if (r.tierHeld) lines.push("Tier stability: this automatic re-judgement would have changed the Tier, but the composite or floor has not clearly crossed its threshold, so the previous Tier remains.");
   if (r.redFlags.length) {
     for (const g of r.redFlags) {
       lines.push(`Red flag (${g.group}): ${g.incidents12m} confirmed first-hand incident(s) in the last 12 months, newest ${g.newestAt?.slice(0, 7)}, types ${g.types.join(", ")}; ${g.forcesAvoid ? "recurring and recent incidents force Avoid" : "shown, does not move the Tier and blocks Life Changing"}.`);
@@ -112,7 +113,7 @@ ${facts(args.name, args.formatName, r)}
 
 Write 2–3 plain sentences, no bullet points, no markdown except wrapping the Tier name in **bold** once. They must state, in this order:
 1. the Tier and whether it is provisional or ranked against Peers; when a Peer snapshot exists, name it, the levels used for the deciding inputs' standings, and the composite's Peer percentile;
-2. the one or two inputs that decided it (use their θ values, e.g. "food (θ +1.21)"), or the floor that capped it;
+2. the one or two inputs that decided it (use their θ values, e.g. "food (θ +1.21)"), or the floor that capped it; when Tier stability held the previous Tier, say so;
 3. any Red flag: its group, how many incidents, how recent (skip if none);
 4. the Confidence level and its main reason.
 For Not enough evidence, say which bar was missed instead of 1–2.

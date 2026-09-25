@@ -69,6 +69,23 @@ describe("Life Changing ceiling note (issue #36)", () => {
   });
 });
 
+describe("Tier change header (issue #39)", () => {
+  it("shows the previous Tier and the date the current Tier began", async () => {
+    const page = bundle(0);
+    page.verdict!.blocks.rollup.tierChange = { from: "ok", at: "2026-09-01T12:00:00.000Z" };
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Was OK until 1 Sept 2026");
+  });
+  it("labels a held Tier without a stale floor claim", async () => {
+    const page = bundle(0);
+    page.verdict!.blocks.rollup.tierHeld = true;
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Tier held until the composite or a floor clearly crosses its boundary.");
+  });
+});
+
 describe("Restaurant Verdict red flags", () => {
   it("shows a quiet callout and its evidence for one incident while retaining the standings", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(bundle(1));

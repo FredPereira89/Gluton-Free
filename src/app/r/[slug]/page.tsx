@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { ASPECT_LABEL, INPUT_LABEL, type FlagType, type Tier } from "@/domain/aspects";
+import { ASPECT_LABEL, INPUT_LABEL, TIER_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { formatPercentile } from "@/verdict/peer";
 import { PARAMS, type RedFlagGroup } from "@/verdict/rollup";
@@ -79,6 +79,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   }
 
   const r = v.blocks.rollup;
+  const tierChange = r.tierChange && <p className="small muted">Was {TIER_LABEL[r.tierChange.from]} until {dateLabel(r.tierChange.at)}</p>;
   const perSource = r.counts.perSource;
   const sourceByCode = new Map(page.sources.map((s) => [s.code, s]));
 
@@ -143,6 +144,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         <section className="hero">
           {head}
           <TierBadge tier="avoid" size="lg" dashed={r.provisional} />
+          {tierChange}
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         </section>
         <Sources page={page} perSource={perSource} hideExtras />
@@ -174,6 +176,8 @@ export default async function VerdictPageRoute({ params }: Props) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 14px", alignItems: "center" }}>
           <TierBadge tier={r.tier as Tier} size="lg" dashed={r.provisional} />
         </div>
+        {tierChange}
+        {r.tierHeld && <p className="small muted">Tier held until the composite or a floor clearly crosses its boundary.</p>}
         <div className="chips">
           {baseChips}
           <ConfChip level={r.confidence.level} />

@@ -502,6 +502,74 @@
                                     }
                                   ]
                                 },
+                                "tierChange": {
+                                  "type": "object",
+                                  "properties": {
+                                    "from": {
+                                      "type": "string",
+                                      "enum": [
+                                        "avoid",
+                                        "ok",
+                                        "good",
+                                        "must_go",
+                                        "life_changing"
+                                      ]
+                                    },
+                                    "at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    }
+                                  },
+                                  "required": [
+                                    "from",
+                                    "at"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "tierBasis": {
+                                  "type": "object",
+                                  "properties": {
+                                    "composite": {
+                                      "type": "number"
+                                    },
+                                    "standings": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "input": {
+                                            "type": "string",
+                                            "enum": [
+                                              "food",
+                                              "service",
+                                              "overall",
+                                              "value",
+                                              "ambience",
+                                              "wait"
+                                            ]
+                                          },
+                                          "percentile": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "input",
+                                          "percentile"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "composite",
+                                    "standings"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "tierHeld": {
+                                  "type": "boolean"
+                                },
                                 "composite": {
                                   "type": "number"
                                 },
@@ -1586,6 +1654,74 @@
                                           "type": "null"
                                         }
                                       ]
+                                    },
+                                    "tierChange": {
+                                      "type": "object",
+                                      "properties": {
+                                        "from": {
+                                          "type": "string",
+                                          "enum": [
+                                            "avoid",
+                                            "ok",
+                                            "good",
+                                            "must_go",
+                                            "life_changing"
+                                          ]
+                                        },
+                                        "at": {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                        }
+                                      },
+                                      "required": [
+                                        "from",
+                                        "at"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "tierBasis": {
+                                      "type": "object",
+                                      "properties": {
+                                        "composite": {
+                                          "type": "number"
+                                        },
+                                        "standings": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "input": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "food",
+                                                  "service",
+                                                  "overall",
+                                                  "value",
+                                                  "ambience",
+                                                  "wait"
+                                                ]
+                                              },
+                                              "percentile": {
+                                                "type": "number"
+                                              }
+                                            },
+                                            "required": [
+                                              "input",
+                                              "percentile"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "composite",
+                                        "standings"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "tierHeld": {
+                                      "type": "boolean"
                                     },
                                     "composite": {
                                       "type": "number"

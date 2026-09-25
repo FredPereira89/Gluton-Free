@@ -44,9 +44,10 @@ export const DEFAULT_SHRINK_K = 10;
 const keyOf = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
 // Tier boundaries and floors (ADR 0002, issue #35). Percentiles are mid-ranks on a 0-100 scale.
-const AVOID_PCT = 10;
-const OK_PCT = 45;
-const GOOD_PCT = 85;
+export const COMPOSITE_TIER_BOUNDARIES = { avoid: 10, good: 45, mustGo: 85, lifeChanging: 98 } as const;
+const AVOID_PCT = COMPOSITE_TIER_BOUNDARIES.avoid;
+const OK_PCT = COMPOSITE_TIER_BOUNDARIES.good;
+const GOOD_PCT = COMPOSITE_TIER_BOUNDARIES.mustGo;
 const GOOD_FOOD_FLOOR = 40;
 const GOOD_SERVICE_FLOOR = 25;
 const MUSTGO_FOOD_FLOOR = 75;
@@ -55,7 +56,7 @@ const MUSTGO_ASPECT_FLOOR = 25;
 
 // Life Changing (issue #36): the exceptional-language test is never lowered, so its threshold is
 // a constant, not tunable per Format like the floors above.
-const LIFECHANGING_PCT = 98;
+const LIFECHANGING_PCT = COMPOSITE_TIER_BOUNDARIES.lifeChanging;
 const LIFECHANGING_FOOD_FLOOR = 98;
 const LIFECHANGING_MIN_PEERS = 50;
 const EXCEPTIONAL_POSTERIOR_THRESHOLD = 0.9;

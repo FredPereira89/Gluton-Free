@@ -150,7 +150,7 @@ export async function judgeRestaurant(restaurantId: number, jobId: number) {
 
   await setStep(jobId, "issuing Verdict");
   const explainUsage = emptyUsage("explain", JUDGE_MODEL, false);
-  const verdictId = await issueVerdict(restaurantId, jobId, explainUsage);
+  const verdictId = await issueVerdict(restaurantId, jobId, explainUsage, "automatic");
   await addLlmUsage(jobId, explainUsage);
   return { flags, verdictId };
 }

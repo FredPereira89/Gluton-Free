@@ -110,6 +110,12 @@ export type Rollup = {
   compositeStanding?: CompositeStanding | null;
   state: "verdict" | "not_enough_evidence";
   tier: Tier | null;
+  /** Most recent change from one issued Tier to another. */
+  tierChange?: { from: Tier; at: string };
+  /** Peer standings when the current Tier was first issued, used across held re-judges. */
+  tierBasis?: { composite: number; standings: { input: Input; percentile: number }[] };
+  /** Current raw judgement differed, but the automatic stability margin held the issued Tier. */
+  tierHeld?: boolean;
   composite: number;
   inputs: InputStat[];
   contributions: { input: Input; value: number }[];

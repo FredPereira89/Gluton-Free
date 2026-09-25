@@ -22,6 +22,12 @@ export const RollupSchema = z.strictObject({
   compositeStanding: z.strictObject({ percentile: z.number(), level: z.enum(["format", "family", "city"]), key: z.string(), peerCount: z.number().int() }).nullable().optional(),
   state: z.enum(["verdict", "not_enough_evidence"]),
   tier: z.enum(TIERS).nullable(),
+  tierChange: z.strictObject({ from: z.enum(TIERS), at: z.iso.datetime() }).optional(),
+  tierBasis: z.strictObject({
+    composite: z.number(),
+    standings: z.array(z.strictObject({ input: z.enum(INPUTS), percentile: z.number() })),
+  }).optional(),
+  tierHeld: z.boolean().optional(),
   composite: z.number(),
   inputs: z.array(inputStat),
   contributions: z.array(z.strictObject({ input: z.enum(INPUTS), value: z.number() })),

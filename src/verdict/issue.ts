@@ -6,6 +6,7 @@ import { BlocksSchema } from "./blocks";
 import { explainAndQuote, preselect, type QuoteCandidate } from "./explain";
 import { rollup, type RollupFlag, type RollupReview } from "./rollup";
 import { loadCurrentPeerSnapshot } from "./snapshot-store";
+import { stabilizeTier, type RejudgeCause } from "./stability";
 
 const FORMAT_NAME: Record<string, string> = { tasca: "tasca" };
 
@@ -81,11 +82,14 @@ async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> 
   }));
 }
 
-/** Computes the rollup, writes the explanation, and appends a Verdict row. Returns its id. */
-export async function issueVerdict(restaurantId: number, jobId: number | null, usage: LlmUsage): Promise<number> {
+/** Computes and appends a Verdict. Format, Listing, Change point and undo answers use owner_answer. */
+export async function issueVerdict(restaurantId: number, jobId: number | null, usage: LlmUsage, cause: RejudgeCause): Promise<number> {
   const sql = db();
   const { restaurant, input } = await loadRollupInput(restaurantId);
-  const r = rollup({ ...input, peerSnapshot: await loadCurrentPeerSnapshot() });
+  const [previous] = await sql`
+    select blocks from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+  const priorRollup = previous ? BlocksSchema.parse(previous.blocks).rollup : null;
+  const r = stabilizeTier(rollup({ ...input, peerSnapshot: await loadCurrentPeerSnapshot() }), priorRollup, cause, input.now);
   const inputsHash = createHash("sha256").update(JSON.stringify(r)).digest("hex");
 
   const candidates = preselect(await quoteCandidates(restaurantId));
