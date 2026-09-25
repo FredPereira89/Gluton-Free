@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { INFORMATIVE_ONLY, INPUT_WEIGHTS, INPUTS, type Aspect, type Input } from "@/domain/aspects";
 import { judgeWithSnapshot, midRank, type PeerGroupStat, type PeerSnapshot } from "./peer";
-import { applyReviewWindow, rollup, shrunk, tierWithRedFlags, type InputStat, type RollupFlag, type RollupReview } from "./rollup";
+import { applyReviewWindow, exceptionalCounts, rollup, shrunk, tierWithRedFlags, type InputStat, type RollupFlag, type RollupReview } from "./rollup";
 
 const NOW = new Date("2026-09-01T00:00:00Z");
 const monthsAgo = (m: number) => new Date(NOW.getTime() - m * 30.4375 * 24 * 3600 * 1000);
@@ -29,6 +29,27 @@ function many(n: number, f: (i: number) => RollupReview): RollupReview[] {
 
 const great = (i: number, source = i % 2 ? "google" : "tripadvisor") =>
   review({ source, stars: 5, aspects: { food: 2, service: 2, value: 2, wait: 1, consistency: 2, ambience: -1 } });
+
+describe("exceptionalCounts (issue #36)", () => {
+  it("counts food and overall exceptional Reviews as successes, but not service-only ones", () => {
+    const reviews = [
+      review({ exceptional: "food" }),
+      review({ exceptional: "overall" }),
+      review({ exceptional: "service" }),
+      review({ exceptional: "none" }),
+    ];
+    expect(exceptionalCounts(reviews)).toEqual({ successes: 2, trials: 4 });
+  });
+
+  it("excludes Reviews with no text or not yet classified from trials", () => {
+    const classified = review({ exceptional: "food" });
+    const noText = review({ hasText: false, aspects: null });
+    noText.exceptional = null;
+    const unclassified = review({ exceptional: "none" });
+    unclassified.exceptional = null;
+    expect(exceptionalCounts([classified, noText, unclassified])).toEqual({ successes: 1, trials: 1 });
+  });
+});
 
 describe("shrunk", () => {
   it("pulls sparse inputs toward 0 with k = 10", () => {
@@ -364,12 +385,13 @@ describe("Peer-relative Tiers and floors (issue #35)", () => {
   // clusters far below/above that point so midRank reads back exactly `percentile`. The same
   // trick on the food group's own `composite` array lets a test pin the final composite
   // percentile directly, independent of the (still realistic, 0-100 scale) per-input weights.
-  function peerGroup(input: Input, format: string, percentile: number, theta = 0): PeerGroupStat {
+  function peerGroup(input: Input, format: string, percentile: number, theta = 0, peerCount = 100): PeerGroupStat {
+    const below = Math.round((percentile / 100) * peerCount);
     return {
       city: "Lisbon", level: "format", key: format, input,
-      sortedTheta: Array.from({ length: 100 }, (_, i) => (i < percentile ? theta - 1000 : theta + 1000)),
+      sortedTheta: Array.from({ length: peerCount }, (_, i) => (i < below ? theta - 1000 : theta + 1000)),
       formatMean: theta, k: 1e9, composite: [],
-      exceptionalPrior: { alpha: 1, beta: 1 }, peerCount: 100,
+      exceptionalPrior: { alpha: 1, beta: 1 }, peerCount,
     };
   }
 
@@ -387,16 +409,21 @@ describe("Peer-relative Tiers and floors (issue #35)", () => {
     format: string,
     percentiles: Partial<Record<Input, number>>,
     compositePercentile: number,
-    opts: { thetas?: Partial<Record<Input, number>>; forced?: boolean } = {},
+    opts: {
+      thetas?: Partial<Record<Input, number>>;
+      forced?: boolean;
+      peerCount?: number;
+      exceptional?: { successes: number; trials: number };
+    } = {},
   ) {
     const groups = INPUTS.map((input) => {
-      const group = peerGroup(input, format, percentiles[input] ?? 50, opts.thetas?.[input] ?? 0);
+      const group = peerGroup(input, format, percentiles[input] ?? 50, opts.thetas?.[input] ?? 0, opts.peerCount ?? 100);
       // The composite is ranked again against the anchor input's (food) own Peer composites.
       if (input === "food") group.composite = Array.from({ length: 100 }, (_, i) => (i < compositePercentile ? -1000 : 1000));
       return group;
     });
     const snapshot: PeerSnapshot = { id: 1, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups };
-    return judgeWithSnapshot(statsFor(format), format, "Lisbon", snapshot, opts.forced ?? false);
+    return judgeWithSnapshot(statsFor(format), format, "Lisbon", snapshot, opts.forced ?? false, opts.exceptional ?? { successes: 0, trials: 0 });
   }
 
   it("Avoids when the composite is below P10 and peer θ on food is negative", () => {
@@ -481,6 +508,74 @@ describe("Peer-relative Tiers and floors (issue #35)", () => {
     expect(r.tier).toBe("avoid");
     expect(r.floorCap).toBeNull();
     expect(r.tierFloors).toEqual([]);
+  });
+
+  describe("Life Changing and the exceptional-language test (issue #36)", () => {
+    const highFloors = { food: 99, service: 99, overall: 50, value: 99, wait: 99 };
+
+    it("reaches Life Changing when every gate is met", () => {
+      const r = judge("tasca", highFloors, 99, { exceptional: { successes: 50, trials: 50 } });
+      expect(r.tier).toBe("life_changing");
+      expect(r.ceilingNote).toBeNull();
+    });
+
+    it("caps at Must Go and names the composite gap when the composite is below P98", () => {
+      const r = judge("tasca", highFloors, 90, { exceptional: { successes: 50, trials: 50 } });
+      expect(r.tier).toBe("must_go");
+      expect(r.ceilingNote).toBe("needs composite ≥ P98, now P90");
+    });
+
+    it("caps at Must Go and names the food gap when composite qualifies but food does not", () => {
+      const r = judge("tasca", { ...highFloors, food: 93 }, 99, { exceptional: { successes: 50, trials: 50 } });
+      expect(r.tier).toBe("must_go");
+      expect(r.ceilingNote).toBe("needs food ≥ P98, now P93");
+    });
+
+    it("caps at Must Go and names the Peer-count gap when fewer than 50 Peers are at the level used", () => {
+      const r = judge("tasca", highFloors, 99, { peerCount: 40, exceptional: { successes: 50, trials: 50 } });
+      expect(r.tier).toBe("must_go");
+      expect(r.ceilingNote).toBe("needs at least 50 Peers at the level used, now 40");
+    });
+
+    it("caps at Must Go when the exceptional-language test fails, without ever lowering the earned Must Go", () => {
+      const r = judge("tasca", highFloors, 99, { exceptional: { successes: 0, trials: 50 } });
+      expect(r.tier).toBe("must_go");
+      expect(r.ceilingNote).toBe("needs the exceptional-language test to pass");
+    });
+
+    it("names the Must Go floor gap, not a false composite/food pass, when a non-food Must Go floor fails at a Life-Changing-eligible composite", () => {
+      const r = judge("tasca", { ...highFloors, value: 10 }, 99, { exceptional: { successes: 50, trials: 50 } });
+      expect(r.tier).toBe("good");
+      expect(r.floorCap).toMatch(/Must Go floor not met: value below P25/);
+      expect(r.ceilingNote).toBe("needs the Must Go floor(s) met: value below P25");
+    });
+  });
+});
+
+describe("Life Changing blocked by a Red flag, end to end (issue #36)", () => {
+  it("downgrades an otherwise-earned Life Changing Tier to Must Go and explains why in the ceiling note", () => {
+    const reviews = many(120, (i) => review({
+      source: i % 2 ? "google" : "tripadvisor",
+      stars: 5,
+      aspects: { food: 2, service: 2, ambience: 2, value: 2, wait: 2, consistency: 2 },
+      exceptional: i < 60 ? "food" : "none",
+    }));
+    const groups = INPUTS.map((input) => ({
+      city: "Lisbon", level: "format" as const, key: "tasca", input,
+      sortedTheta: Array(100).fill(-1000), formatMean: 0, k: 1e9,
+      composite: Array(100).fill(-1000), exceptionalPrior: { alpha: 1, beta: 20 }, peerCount: 100,
+    }));
+    const peerSnapshot = { id: 1, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups };
+    const flags: RollupFlag[] = [{
+      reviewId: reviews[0]!.id, type: "hygiene", group: "health", firstHand: true,
+      verification: "confirmed", publishedAt: monthsAgo(2),
+    }];
+    const withoutFlag = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot });
+    const withFlag = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags, peerSnapshot });
+    expect(withoutFlag.tier).toBe("life_changing");
+    expect(withFlag.tier).toBe("must_go");
+    expect(withFlag.redFlags[0]).toMatchObject({ group: "health", forcesAvoid: false });
+    expect(withFlag.ceilingNote).toBe("blocked by a verified Red flag in the last 12 months");
   });
 });
 

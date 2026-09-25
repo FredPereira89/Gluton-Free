@@ -68,7 +68,7 @@ function facts(name: string, formatName: string, r: Rollup): string {
   }
   lines.push(r.provisional
     ? `Provisional: yes. Judged against default cut-offs on the −2..+2 Review scale, not against Peers (other ${formatName}s have not been gathered yet). Life Changing is not available while provisional.`
-    : `Provisional: no. Ranked against Peer snapshot #${r.peerSnapshot!.id} (${r.peerSnapshot!.month}). Per-input Peer levels: ${r.standings?.map((s) => `${INPUT_LABEL[s.input]} ${s.level} ${s.key} (${s.peerCount} Peers, ${formatPercentile(s.percentile)})`).join("; ")}. Composite stands at ${formatPercentile(r.compositeStanding!.percentile)} among Peer composites (Avoid below P10 with a negative θ on food or Overall, OK P10–P45, Good P45–P85, Must Go P85 and up).`);
+    : `Provisional: no. Ranked against Peer snapshot #${r.peerSnapshot!.id} (${r.peerSnapshot!.month}). Per-input Peer levels: ${r.standings?.map((s) => `${INPUT_LABEL[s.input]} ${s.level} ${s.key} (${s.peerCount} Peers, ${formatPercentile(s.percentile)})`).join("; ")}. Composite stands at ${formatPercentile(r.compositeStanding!.percentile)} among Peer composites (Avoid below P10 with a negative θ on food or Overall, OK P10–P45, Good P45–P85, Must Go P85 and up, Life Changing at P98 and up with food also at P98, at least 50 Peers at the level used, no verified Red flag in the last 12 months, and the exceptional-language test).`);
   lines.push(`Composite: ${fmt(r.composite)} on the −2..+2 scale${r.provisional ? " (Good from +0.80, Must Go from +1.30)" : ""}`);
   lines.push("Inputs (θ on −2..+2, weight in the composite, effective number of Reviews):");
   for (const s of r.inputs) {
@@ -76,6 +76,7 @@ function facts(name: string, formatName: string, r: Rollup): string {
   }
   lines.push(`Largest contributions to the composite: ${r.contributions.slice(0, 3).map((c) => `${INPUT_LABEL[c.input]} ${fmt(c.value)}`).join(", ")}`);
   if (r.floorCap) lines.push(`Floor that capped the Tier: ${r.floorCap}`);
+  if (r.ceilingNote) lines.push(`What stands between this Restaurant and Life Changing: ${r.ceilingNote}`);
   if (r.redFlags.length) {
     for (const g of r.redFlags) {
       lines.push(`Red flag (${g.group}): ${g.incidents12m} confirmed first-hand incident(s) in the last 12 months, newest ${g.newestAt?.slice(0, 7)}, types ${g.types.join(", ")}; ${g.forcesAvoid ? "recurring and recent incidents force Avoid" : "shown, does not move the Tier and blocks Life Changing"}.`);

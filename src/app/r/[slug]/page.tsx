@@ -207,6 +207,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           other {formatName}s are gathered.
         </p>}
         {r.floorCap && <p className="small muted">Capped by a floor: {r.floorCap}.</p>}
+        {r.ceilingNote && <p className="small muted">Ceiling: {r.ceilingNote}.</p>}
         {r.consistencySpread.sd !== null && (
           <p className="small muted">
             Consistency (spread of stance) over {r.consistencySpread.windowMonths} months: SD {r.consistencySpread.sd.toFixed(2)} across{" "}

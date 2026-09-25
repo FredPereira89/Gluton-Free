@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { INPUTS } from "@/domain/aspects";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { rollup, type RollupFlag, type RollupReview } from "@/verdict/rollup";
 import { loadRestaurantBundle } from "@/web/data";
@@ -33,6 +34,40 @@ function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20):
     distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
   };
 }
+
+function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBundle {
+  const reviews: RollupReview[] = Array.from({ length: reviewCount }, (_, i) => ({
+    id: i + 1, source: i % 2 ? "google" : "tripadvisor", publishedAt, stars: 5, hasText: true, subRatings: null,
+    aspects: { food: 2, service: 2, ambience: 2, value: 2, wait: 2, consistency: null },
+    exceptional: i < reviewCount / 2 ? "food" : "none", themes: [],
+  }));
+  const groups = INPUTS.map((input) => ({
+    city: "Lisbon", level: "format" as const, key: "tasca", input,
+    sortedTheta: Array(peerCount).fill(-1000), formatMean: 0, k: 1e9,
+    composite: Array(100).fill(-1000), exceptionalPrior: { alpha: 1, beta: 20 }, peerCount,
+  }));
+  const r = rollup({
+    now, city: "Lisbon", format: "tasca", reviews, flags: [],
+    peerSnapshot: { id: 1, month: "2026-09", publishedAt: now.toISOString(), groups },
+  });
+  return {
+    restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, format: "tasca", priceTier: null },
+    verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
+      issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: r.peerSnapshot?.id ?? null, blocks: { rollup: r, quotes: [] } },
+    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", url: "https://example.com/restaurant",
+      rating: 4.9, reviewCount, textCount: reviewCount, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
+    distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
+  };
+}
+
+describe("Life Changing ceiling note (issue #36)", () => {
+  it("shows the ceiling note explaining the nearest unmet Life Changing gate when the Tier lands below it", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(bundleWithPeers(40, 40));
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Must Go");
+    expect(html).toContain("Ceiling: needs at least 50 Peers at the level used, now 40.");
+  });
+});
 
 describe("Restaurant Verdict red flags", () => {
   it("shows a quiet callout and its evidence for one incident while retaining the standings", async () => {

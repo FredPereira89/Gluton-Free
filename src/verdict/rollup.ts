@@ -5,6 +5,17 @@ import { ASPECTS, INFORMATIVE_ONLY, INPUTS, INPUT_WEIGHTS, type Aspect, type Fla
 import { THEMES, type ThemeCode } from "@/domain/themes";
 import { DEFAULT_SHRINK_K, judgeWithSnapshot, type CompositeStanding, type PeerSnapshot, type Standing, type TierFloor } from "./peer";
 
+/**
+ * Successes/trials for the exceptional-language test (issue #36): "exceptional" Reviews for food
+ * or overall count toward the Restaurant's own rate; service-only exceptional language does not,
+ * though it still counts as a trial once a Review has been classified.
+ */
+export function exceptionalCounts(reviews: RollupReview[]): { successes: number; trials: number } {
+  const classified = reviews.filter((r) => r.hasText && r.exceptional !== null);
+  const successes = classified.filter((r) => r.exceptional === "food" || r.exceptional === "overall").length;
+  return { successes, trials: classified.length };
+}
+
 export const RULE_VERSION = "provisional-v2-red-flags";
 
 export const PARAMS = {
@@ -104,6 +115,7 @@ export type Rollup = {
   contributions: { input: Input; value: number }[];
   floorCap: string | null;
   tierFloors?: TierFloor[];
+  ceilingNote?: string | null;
   notEnoughEvidence: {
     textReviews: number;
     foodMentions: number;
@@ -421,7 +433,7 @@ export function rollup(input: RollupInput): Rollup {
   // Peer-relative Tier (issue #35): mid-rank standings, the composite ranked again among Peer
   // composites, and the resulting Tier with its floors. Falls back to the provisional θ-based
   // Tier above when the snapshot is missing or incomplete for a counted input.
-  const peers = judgeWithSnapshot(stats, format, input.city, input.peerSnapshot, forced);
+  const peers = judgeWithSnapshot(stats, format, input.city, input.peerSnapshot, forced, exceptionalCounts(reviews));
 
   // Confidence: bootstrap over Reviews, then the caps. A still-provisional Verdict always ends Low.
   const rand = mulberry32(42);
@@ -538,6 +550,11 @@ export function rollup(input: RollupInput): Rollup {
   }
   const finalTier = tierWithRedFlags(peers.provisional ? tier : peers.tier!, redFlags);
   const finalFloorCap = peers.provisional ? (forced ? null : base.floorCap) : peers.floorCap;
+  // tierWithRedFlags only ever moves a peer-judged Life Changing when a confirmed Red flag is
+  // present (issue #36); anything else that changed the Tier already has its own ceiling note.
+  const finalCeilingNote = !peers.provisional && peers.tier === "life_changing" && finalTier !== "life_changing"
+    ? "blocked by a verified Red flag in the last 12 months"
+    : peers.provisional ? null : peers.ceilingNote;
   const result: Rollup = {
     ruleVersion: RULE_VERSION,
     provisional: peers.provisional,
@@ -554,6 +571,7 @@ export function rollup(input: RollupInput): Rollup {
       .sort((a, b) => b.value - a.value),
     floorCap: finalFloorCap,
     tierFloors: peers.provisional ? [] : peers.tierFloors,
+    ceilingNote: finalCeilingNote,
     notEnoughEvidence,
     redFlags,
     confidence: { level: levels[level]!, bootstrapShare: share, caps },

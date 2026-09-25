@@ -612,6 +612,12 @@
                                     "additionalProperties": false
                                   }
                                 },
+                                "ceilingNote": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
                                 "notEnoughEvidence": {
                                   "type": "object",
                                   "properties": {
@@ -1690,6 +1696,12 @@
                                         ],
                                         "additionalProperties": false
                                       }
+                                    },
+                                    "ceilingNote": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
                                     },
                                     "notEnoughEvidence": {
                                       "type": "object",

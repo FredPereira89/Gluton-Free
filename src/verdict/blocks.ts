@@ -27,6 +27,8 @@ export const RollupSchema = z.strictObject({
   contributions: z.array(z.strictObject({ input: z.enum(INPUTS), value: z.number() })),
   floorCap: z.string().nullable(),
   tierFloors: z.array(z.strictObject({ input: z.enum(INPUTS), percentile: z.number() })).optional(),
+  // Optional so Verdicts issued before Life Changing's ceiling note (issue #36) remain readable.
+  ceilingNote: z.string().nullable().optional(),
   notEnoughEvidence: z.strictObject({
     textReviews: z.number(),
     foodMentions: z.number(),
