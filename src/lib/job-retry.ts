@@ -1,6 +1,7 @@
 import { tasks } from "@trigger.dev/sdk";
 import { db } from "./db";
 import { acceptedJobResponse } from "./api-contract";
+import { markJobStartFailed } from "./job";
 import { ApiError } from "./problem";
 
 /** Retries a failed Lookup Job, resuming from the stage that failed so already-fetched Reviews are not paid for again. */
@@ -24,7 +25,7 @@ export async function retryJob(id: number): Promise<Response> {
     });
     await sql`update job set trigger_run_id = ${handle.id}, updated_at = now() where id = ${id}`;
   } catch (error) {
-    await sql`update job set status = 'failed', error_code = 'job_start_failed', error_detail = 'Could not start retry', finished_at = now(), updated_at = now() where id = ${id}`;
+    await markJobStartFailed(id, "Could not start retry");
     throw error;
   }
   return acceptedJobResponse(id);

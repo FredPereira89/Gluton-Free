@@ -5,6 +5,7 @@ import { LISBON } from "@/app/api/v1/search/route";
 import type { z } from "zod";
 import { startLookupBodySchema } from "./api-contract";
 import { db } from "./db";
+import { markJobStartFailed } from "./job";
 import { raiseListingQuestions } from "./owner-question";
 import { ApiError } from "./problem";
 import { recordSearchCost, spendCapStatus } from "./spend-cap";
@@ -93,7 +94,7 @@ export async function startLookup(input: Input): Promise<Started> {
     });
     await db()`update job set trigger_run_id = ${handle.id}, updated_at = now() where id = ${result.jobId}`;
   } catch (error) {
-    await db()`update job set status = 'failed', error_code = 'job_start_failed', error_detail = 'Could not start lookup', finished_at = now(), updated_at = now() where id = ${result.jobId}`;
+    await markJobStartFailed(result.jobId, "Could not start lookup");
     throw error;
   }
   return result;

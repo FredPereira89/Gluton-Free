@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import type { PreviewListing } from "@/app/api/v1/lookups/preview/preview";
 import { db } from "./db";
 import { acceptedJobResponse, answerListingResponseSchema } from "./api-contract";
+import { markJobStartFailed } from "./job";
 import type { PipelineError } from "./pipeline-error";
 import { ApiError } from "./problem";
 
@@ -97,7 +98,7 @@ export async function answerListingQuestion(
     });
     await sql`update job set trigger_run_id = ${handle.id}, updated_at = now() where id = ${fetchJobId}`;
   } catch (error) {
-    await sql`update job set status = 'failed', error_code = 'job_start_failed', error_detail = 'Could not start listing fetch', finished_at = now(), updated_at = now() where id = ${fetchJobId}`;
+    await markJobStartFailed(fetchJobId, "Could not start listing fetch");
     throw error;
   }
   return acceptedJobResponse(fetchJobId);
