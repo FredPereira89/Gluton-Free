@@ -955,6 +955,56 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "sourceHistory": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string"
+                                      },
+                                      "quarters": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "quarter": {
+                                              "type": "string"
+                                            },
+                                            "stars": {
+                                              "type": [
+                                                "number",
+                                                "null"
+                                              ]
+                                            },
+                                            "ratings": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "volume": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991
+                                            }
+                                          },
+                                          "required": [
+                                            "quarter",
+                                            "stars",
+                                            "ratings",
+                                            "volume"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "quarters"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -1869,6 +1919,56 @@
                                           "composite",
                                           "volume",
                                           "textVolume"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "sourceHistory": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "source": {
+                                            "type": "string"
+                                          },
+                                          "quarters": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "quarter": {
+                                                  "type": "string"
+                                                },
+                                                "stars": {
+                                                  "type": [
+                                                    "number",
+                                                    "null"
+                                                  ]
+                                                },
+                                                "ratings": {
+                                                  "type": "integer",
+                                                  "minimum": -9007199254740991,
+                                                  "maximum": 9007199254740991
+                                                },
+                                                "volume": {
+                                                  "type": "integer",
+                                                  "minimum": -9007199254740991,
+                                                  "maximum": 9007199254740991
+                                                }
+                                              },
+                                              "required": [
+                                                "quarter",
+                                                "stars",
+                                                "ratings",
+                                                "volume"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "source",
+                                          "quarters"
                                         ],
                                         "additionalProperties": false
                                       }

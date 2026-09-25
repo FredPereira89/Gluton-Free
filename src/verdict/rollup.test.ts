@@ -365,3 +365,26 @@ describe("applyReviewWindow", () => {
     expect(applyReviewWindow(reviews, NOW, null)).toEqual([]);
   });
 });
+
+describe("quarterly Source history", () => {
+  it("keeps full-history Review volume and draws stars only from five or more ratings in a quarter", () => {
+    const reviews = [
+      ...many(5, () => review({ source: "google", publishedAt: new Date("2023-01-15T00:00:00Z"), stars: 4, aspects: null })),
+      ...many(4, () => review({ source: "google", publishedAt: new Date("2023-07-15T00:00:00Z"), stars: 2 })),
+      review({ source: "google", publishedAt: new Date("2023-07-15T00:00:00Z"), stars: null }),
+      review({ source: "tripadvisor", publishedAt: new Date("2023-01-15T00:00:00Z"), stars: 5 }),
+      review({ source: "tripadvisor", publishedAt: new Date("2023-07-15T00:00:00Z"), stars: null }),
+      review({ source: "google", publishedAt: NOW, stars: 5, aspects: null }),
+    ];
+    const result = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
+    expect(result.counts.reviews).toBe(0); // no qualifying text Review in the recent window
+    const google = result.sourceHistory.find((s) => s.source === "google")!.quarters;
+    expect(google).toHaveLength(15);
+    expect(google[0]).toEqual({ quarter: "2023-Q1", stars: 4, ratings: 5, volume: 5 });
+    expect(google[1]).toEqual({ quarter: "2023-Q2", stars: null, ratings: 0, volume: 0 });
+    expect(google[2]).toEqual({ quarter: "2023-Q3", stars: null, ratings: 4, volume: 5 });
+    expect(google[8]).toEqual({ quarter: "2025-Q1", stars: null, ratings: 0, volume: 0 });
+    expect(google.at(-1)).toEqual({ quarter: "2026-Q3", stars: null, ratings: 1, volume: 1 });
+    expect(result.sourceHistory.find((s) => s.source === "tripadvisor")?.quarters[2]).toEqual({ quarter: "2023-Q3", stars: null, ratings: 0, volume: 1 });
+  });
+});

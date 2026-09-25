@@ -137,6 +137,20 @@ table.src th.num{text-align:right}
 .A .ev-list{display:grid;gap:8px}
 .A .ev-list a{font-weight:600}
 
+/* Full Review history: independent star and volume scales for each Source. */
+.source-history{display:grid;gap:12px;min-width:0}
+.history-source{display:grid;gap:8px;min-width:0;margin-top:8px}
+.history-source h3{font-size:15px}
+.history-scroll{overflow-x:auto;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.history-scroll svg{display:block;max-width:none}
+.chart-grid{stroke:var(--line);stroke-width:1}
+.chart-stars{stroke:var(--accent);stroke-width:2.5}
+.chart-star-dot{fill:var(--accent);stroke:var(--surface);stroke-width:1.5}
+.chart-volume{fill:var(--t-good)}
+.chart-label{fill:var(--muted);font:600 11px var(--sans)}
+.chart-tick{fill:var(--muted);font:10px var(--mono)}
+.history-source details summary{cursor:pointer;color:var(--accent);font-weight:600}
+
 /* ---------- app shell ---------- */
 body{margin:0;padding:16px 16px 64px}
 .wrap{max-width:720px;margin:0 auto}

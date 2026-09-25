@@ -1,5 +1,4 @@
-// The Verdict page, layout A ("Report"). Provisional: θ on the −2..+2 scale, no Peers, no
-// "Over time" section.
+// The Verdict page, layout A ("Report"). Provisional: θ on the −2..+2 scale, no Peers.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,6 +10,7 @@ import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripR
 import { loadRestaurantBundle } from "@/web/data";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
+import { SourceHistoryChart } from "@/web/source-history";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -359,13 +359,15 @@ function Sources({ page, perSource }: { page: RestaurantBundle; perSource?: Reco
 }
 
 function BundleExtras({ page }: { page: RestaurantBundle }) {
-  if (!page.activeJob && !page.series.length && !page.changePoints.length && !page.ownerQuestions.length) return null;
+  const history = page.verdict?.blocks.rollup.sourceHistory ?? [];
+  if (!page.activeJob && !page.series.length && !history.length && !page.changePoints.length && !page.ownerQuestions.length) return null;
   return (
     <section className="sec">
       {page.activeJob && (
         <p>Current {page.activeJob.kind} job: {page.activeJob.status}{page.activeJob.step ? ` · ${page.activeJob.step}` : ""}.</p>
       )}
-      {page.series.length > 0 && (
+      {history.length > 0 && <SourceHistoryChart history={history} names={Object.fromEntries(page.sources.map((s) => [s.code, s.name]))} />}
+      {history.length === 0 && page.series.length > 0 && (
         <div>
           <h2>Review volume over time</h2>
           <ul>{page.series.map((point) => <li key={point.quarter}>{point.quarter}: {point.volume} Reviews, {point.textVolume} with text</li>)}</ul>

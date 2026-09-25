@@ -144,6 +144,37 @@ describe("handler responses", () => {
     expect(markup).toContain('href="/r/o-velho-eurico/history"');
   });
 
+  it("renders O Velho Eurico's full-history stars and Review volume by Source, including gaps on a provisional Verdict", async () => {
+    const now = new Date("2026-09-24T12:00:00.000Z");
+    const makeReview = (id: number, source: string, publishedAt: string, stars: number | null): RollupReview => ({
+      id, source, publishedAt: new Date(publishedAt), stars, hasText: true, subRatings: null,
+      aspects: { food: 1, service: 1, ambience: null, value: null, wait: null, consistency: null },
+      exceptional: "none", themes: [],
+    });
+    const reviews = [
+      ...Array.from({ length: 5 }, (_, i) => makeReview(i + 1, "google", "2023-01-15T00:00:00Z", 4)),
+      ...Array.from({ length: 4 }, (_, i) => makeReview(i + 6, "google", "2023-07-15T00:00:00Z", 2)),
+      ...Array.from({ length: 5 }, (_, i) => makeReview(i + 10, "tripadvisor", "2023-01-15T00:00:00Z", 5)),
+      ...Array.from({ length: 15 }, (_, i) => makeReview(i + 15, i % 2 ? "google" : "tripadvisor", "2026-09-01T00:00:00Z", 5)),
+    ];
+    const evidence = rollup({ now, format: "tasca", reviews, flags: [] });
+    vi.mocked(loadRestaurantBundle).mockResolvedValueOnce({
+      ...bundleFixture,
+      verdict: { ...bundleFixture.verdict!, blocks: { rollup: evidence, quotes: [] } },
+      sources: [...bundleFixture.sources, { ...bundleFixture.sources[0]!, code: "tripadvisor", name: "Tripadvisor" }],
+    });
+    const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
+    expect(markup).toContain("O Velho Eurico");
+    expect(markup).toContain("Stars and Review volume over time");
+    expect(markup).toContain('aria-label="Google quarterly stars and Review volume"');
+    expect(markup).toContain('aria-label="Tripadvisor quarterly stars and Review volume"');
+    expect(markup).toContain("2023-Q1: 4.00 stars from 5 ratings");
+    expect(markup).toContain("2023-Q3: 4 Reviews");
+    expect(markup).not.toContain("2023-Q3: 2.00 stars");
+    expect(markup).toContain("2026-Q3");
+    expect(markup).toContain("Provisional");
+  });
+
   it("renders percentile rows and names the frozen Peer snapshot", async () => {
     const reviews: RollupReview[] = Array.from({ length: 15 }, (_, i) => ({
       id: i + 1, source: i % 2 ? "google" : "tripadvisor", publishedAt: new Date("2026-09-01T12:00:00.000Z"),

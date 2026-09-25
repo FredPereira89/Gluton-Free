@@ -5,6 +5,7 @@ import {
   type IdPagination, type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
 } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
+import { quarterlySourceHistory } from "@/verdict/rollup";
 
 export type SourceRow = {
   code: string;
@@ -46,6 +47,20 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       select publication, title, url, published_on::text as published_on
       from critic_piece where restaurant_id = ${id} order by published_on desc nulls last, id`,
   ]);
+  const blocks = v ? BlocksSchema.parse(v.blocks) : null;
+  // Earlier append-only Verdicts predate stored Source history. Fill it on read so their pages
+  // show the same full history without changing the original Verdict row.
+  if (v && blocks && !blocks.rollup.sourceHistory) {
+    const rows = await sql`
+      select l.source_code, rv.published_at, rv.stars
+      from review rv join listing l on l.id = rv.listing_id
+      where l.restaurant_id = ${id}`;
+    blocks.rollup.sourceHistory = quarterlySourceHistory(rows.map((row) => ({
+      source: row.source_code as string,
+      publishedAt: row.published_at as Date,
+      stars: row.stars as number | null,
+    })), v.created_at as Date);
+  }
   return {
     restaurant: {
       id,
@@ -76,7 +91,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
           confidence: v.confidence,
           explanation: v.explanation,
           createdAt: v.created_at,
-          blocks: BlocksSchema.parse(v.blocks),
+          blocks: blocks!,
           peerSnapshotId: v.peer_snapshot_id === null ? null : Number(v.peer_snapshot_id),
         }
       : null,

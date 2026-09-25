@@ -71,6 +71,11 @@ export const RollupSchema = z.strictObject({
   ),
   themeBase: z.strictObject({ analysed: z.number(), windowMonths: z.number() }),
   series: z.array(z.strictObject({ quarter: z.string(), composite: z.number().nullable(), volume: z.number(), textVolume: z.number() })),
+  // Optional for Verdicts issued before full Source history was recorded.
+  sourceHistory: z.array(z.strictObject({
+    source: z.string(),
+    quarters: z.array(z.strictObject({ quarter: z.string(), stars: z.number().nullable(), ratings: z.number().int(), volume: z.number().int() })),
+  })).optional(),
 });
 
 export const ShownQuoteSchema = z.strictObject({

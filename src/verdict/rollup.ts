@@ -81,6 +81,11 @@ export type RedFlagGroup = {
   types: FlagType[];
 };
 
+export type SourceHistory = {
+  source: string;
+  quarters: { quarter: string; stars: number | null; ratings: number; volume: number }[];
+};
+
 export type Rollup = {
   ruleVersion: string;
   provisional: boolean;
@@ -118,6 +123,7 @@ export type Rollup = {
   themes: { code: ThemeCode; aspect: Aspect; polarity: 1 | -1; count: number; share: number }[];
   themeBase: { analysed: number; windowMonths: number };
   series: { quarter: string; composite: number | null; volume: number; textVolume: number }[];
+  sourceHistory: SourceHistory[];
 };
 
 const MONTH_MS = 30.4375 * 24 * 3600 * 1000;
@@ -265,6 +271,43 @@ function weightedMedian(points: { w: number; x: number }[]): number {
 
 function quarterOf(d: Date): string {
   return `${d.getUTCFullYear()}-Q${Math.floor(d.getUTCMonth() / 3) + 1}`;
+}
+
+/** Full stored Review history; the Verdict's Review window does not limit chart data. */
+export function quarterlySourceHistory(reviews: Pick<RollupReview, "source" | "publishedAt" | "stars">[], now: Date): SourceHistory[] {
+  if (!reviews.length) return [];
+  const quarterIndex = (d: Date) => d.getUTCFullYear() * 4 + Math.floor(d.getUTCMonth() / 3);
+  const first = Math.min(...reviews.map((r) => quarterIndex(r.publishedAt)));
+  const last = Math.max(quarterIndex(now), ...reviews.map((r) => quarterIndex(r.publishedAt)));
+  const bySource = new Map<string, Map<number, { volume: number; ratings: number; starsTotal: number }>>();
+  for (const r of reviews) {
+    let quarters = bySource.get(r.source);
+    if (!quarters) {
+      quarters = new Map();
+      bySource.set(r.source, quarters);
+    }
+    const index = quarterIndex(r.publishedAt);
+    const bucket = quarters.get(index) ?? { volume: 0, ratings: 0, starsTotal: 0 };
+    bucket.volume++;
+    if (r.stars !== null) {
+      bucket.ratings++;
+      bucket.starsTotal += r.stars;
+    }
+    quarters.set(index, bucket);
+  }
+  return [...bySource.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([source, quarters]) => ({
+    source,
+    quarters: Array.from({ length: last - first + 1 }, (_, offset) => {
+      const index = first + offset;
+      const bucket = quarters.get(index);
+      return {
+        quarter: `${Math.floor(index / 4)}-Q${index % 4 + 1}`,
+        stars: bucket && bucket.ratings >= 5 ? bucket.starsTotal / bucket.ratings : null,
+        ratings: bucket?.ratings ?? 0,
+        volume: bucket?.volume ?? 0,
+      };
+    }),
+  }));
 }
 
 /**
@@ -467,6 +510,7 @@ export function rollup(input: RollupInput): Rollup {
     themes,
     themeBase: { analysed: themeBase.length, windowMonths: themeWindow },
     series,
+    sourceHistory: quarterlySourceHistory(input.reviews, now),
   };
   return judgeWithSnapshot(result, input.peerSnapshot, input.city, format);
 }
