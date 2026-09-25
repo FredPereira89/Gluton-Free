@@ -53,6 +53,7 @@ export type MapsSearchItem = {
   rating?: { value?: number | null; votes_count?: number | null } | null;
   price_level?: string | null;
   work_hours?: { current_status?: string | null } | null;
+  work_time?: { work_hours?: { current_status?: string | null } | null } | null;
 };
 
 /** A live Google Maps result. Do not retain the vendor envelope or its extra fields. */
@@ -65,6 +66,21 @@ export async function searchGoogleMaps(keyword: string, near: { lat: number; lng
   if (!task || task.status_code !== 20000) throw new Error(`DataForSEO Maps search: ${task?.status_code ?? "missing task"}`);
   const result = task.result?.[0] as { items?: MapsSearchItem[] } | undefined;
   return { items: result?.items ?? [], cost: task.cost ?? 0 };
+}
+
+/** Resolve a Google place ID or CID to its current business facts. */
+export async function googleBusinessByReference(reference: `place_id:${string}` | `cid:${string}`, near: { lat: number; lng: number }): Promise<{ item: MapsSearchItem | null; cost: number }> {
+  const env = await call("/google/my_business_info/live", {
+    body: [{ keyword: reference, location_coordinate: `${near.lat},${near.lng},200`, language_code: "pt" }],
+  });
+  const task = env.tasks?.[0];
+  if (!task || task.status_code !== 20000) throw new Error(`DataForSEO business info: ${task?.status_code ?? "missing task"}`);
+  const result = task.result?.[0] as { items?: MapsSearchItem[] } | undefined;
+  return {
+    item: result?.items?.find((item) => item.type === "google_business_info" && item.place_id
+      && (reference.startsWith("cid:") || item.place_id === reference.slice("place_id:".length))) ?? null,
+    cost: task.cost ?? 0,
+  };
 }
 
 export type ReviewTaskParams =

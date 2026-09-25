@@ -11,6 +11,7 @@ const warnings = {
 };
 
 type Result = SearchResponse["known"][number] | SearchResponse["candidates"][number];
+const emptyResults: SearchResponse = { known: [], candidates: [], recognised: null, message: null };
 
 function detail(result: Result) {
   return [
@@ -37,7 +38,7 @@ function ResultContent({ result }: { result: Result }) {
 
 export default function SearchHome() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResponse>({ known: [], candidates: [] });
+  const [results, setResults] = useState<SearchResponse>(emptyResults);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [spendCapResetAt, setSpendCapResetAt] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export default function SearchHome() {
   useEffect(() => {
     const q = query.trim();
     if (!q) {
-      setResults({ known: [], candidates: [] });
+      setResults(emptyResults);
       setLoading(false);
       setError(false);
       setSpendCapResetAt(null);
@@ -54,7 +55,7 @@ export default function SearchHome() {
     }
     let active = true;
     const controller = new AbortController();
-    setResults({ known: [], candidates: [] });
+    setResults(emptyResults);
     setLoading(true);
     setError(false);
     setSpendCapResetAt(null);
@@ -93,16 +94,25 @@ export default function SearchHome() {
 
   return <section className="index search-home">
     <h1>Find a Restaurant</h1>
-    <p className="muted">Search by name to see its Verdict or find a Restaurant to look up.</p>
-    <label htmlFor="restaurant-search" className="eyebrow">Restaurant name</label>
+    <p className="muted">Search by name, paste a Google Maps, Tripadvisor or TheFork link, or enter a Google place ID.</p>
+    <label htmlFor="restaurant-search" className="eyebrow">Restaurant name or link</label>
     <input id="restaurant-search" type="search" autoComplete="off" value={query}
-      onChange={(event) => setQuery(event.target.value)} placeholder="Name of a Restaurant" />
+      onChange={(event) => setQuery(event.target.value)} placeholder="Restaurant name, link or Google place ID" />
     <div role="status" aria-live="polite" className="small muted">
       {loading ? "Searching…"
         : spendCapResetAt ? `Today's search budget is spent. It resets at ${formatResetTime(spendCapResetAt)}.`
         : error ? "Search is unavailable. Try again."
-        : query.trim() && !results.known.length && !results.candidates.length ? "No Restaurants found." : ""}
+        : results.message ?? (query.trim() && !results.recognised && !results.known.length && !results.candidates.length ? "No Restaurants found." : "")}
     </div>
+    {results.recognised && <div className="search-group">
+      <h2>Recognised Restaurant</h2>
+      {"slug" in results.recognised ? <Link className="search-result" href={`/r/${encodeURIComponent(results.recognised.slug)}`}>
+        <ResultContent result={results.recognised} />
+        <span className="search-action">Open Verdict →</span>
+      </Link> : <article className="search-result">
+        <ResultContent result={results.recognised} />
+      </article>}
+    </div>}
     {!!results.known.length && <div className="search-group">
       <h2>Already looked up</h2>
       {results.known.map((result) => <Link className="search-result" href={`/r/${encodeURIComponent(result.slug)}`} key={result.slug}>

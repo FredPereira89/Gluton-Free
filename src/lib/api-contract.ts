@@ -101,7 +101,7 @@ export const restaurantListItemSchema = z.strictObject({
 export const restaurantListResponseSchema = paginatedSchema(restaurantListItemSchema);
 export type RestaurantListResponse = z.infer<typeof restaurantListResponseSchema>;
 export const searchQuerySchema = z.strictObject({
-  q: z.string().trim().max(120),
+  q: z.string().trim().max(2048),
   near: z.strictObject({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).optional(),
 });
 const searchRestaurantSchema = z.strictObject({
@@ -110,11 +110,15 @@ const searchRestaurantSchema = z.strictObject({
   priceTier: z.enum(["€", "€€", "€€€", "€€€€"]).nullable(),
   status: z.enum(["open", "closed", "temporarily_closed", "unknown"]),
 });
+const knownSearchRestaurantSchema = searchRestaurantSchema.extend({ slug: z.string() });
+const candidateSearchRestaurantSchema = searchRestaurantSchema.extend({
+  placeId: z.string(), warnings: z.array(z.enum(["same_name", "outside_lisbon", "maybe_not_restaurant"])),
+});
 export const searchResponseSchema = z.strictObject({
-  known: z.array(searchRestaurantSchema.extend({ slug: z.string() })),
-  candidates: z.array(searchRestaurantSchema.extend({
-    placeId: z.string(), warnings: z.array(z.enum(["same_name", "outside_lisbon", "maybe_not_restaurant"])),
-  })),
+  known: z.array(knownSearchRestaurantSchema),
+  candidates: z.array(candidateSearchRestaurantSchema),
+  recognised: z.union([knownSearchRestaurantSchema, candidateSearchRestaurantSchema]).nullable(),
+  message: z.string().nullable(),
 });
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 // Keyset pagination over a bigint identity column: the cursor is the last id on the page.
@@ -170,7 +174,7 @@ export const routes = {
     method: "GET",
     path: "/api/v1/search",
     auth: "owner",
-    request: { query: z.strictObject({ q: z.string().max(120), near: z.string().optional() }) },
+    request: { query: z.strictObject({ q: z.string().max(2048), near: z.string().optional() }) },
     responses: { 200: searchResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 429: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   verdict: {

@@ -15,7 +15,7 @@ export async function searchKnownRestaurants(q: string, placeIds: string[]): Pro
            l.source_rating, l.source_review_count, l.categories
     from restaurant r
     left join listing l on l.restaurant_id = r.id and l.source_code = 'google'
-    where (r.name ilike ${pattern} escape '\\' or l.place_ref = any(${placeIds}::text[]))
+    where ((${q.length > 0} and r.name ilike ${pattern} escape '\\') or l.place_ref = any(${placeIds}::text[]))
       and r.status <> 'permanently_closed'
     order by (l.place_ref = any(${placeIds}::text[])) desc, r.name, r.id limit 50`;
   return rows.map((row) => ({
