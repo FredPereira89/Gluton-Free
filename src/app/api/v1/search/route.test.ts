@@ -73,4 +73,14 @@ describe("GET /api/v1/search", () => {
     expect(body.candidates).toEqual([]);
     expect(searchKnownRestaurants).toHaveBeenCalledWith("google", ["known-id"]);
   });
+
+  it("warns when coordinates are clearly outside Lisbon and the vendor omits city", async () => {
+    vi.mocked(searchKnownRestaurants).mockResolvedValueOnce([]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(vendor([
+      { ...item("far-id", "Far Away"), address_info: null, latitude: 41.15, longitude: -8.61 },
+    ]));
+    const response = await GET(new Request("https://app.example/api/v1/search?q=far"));
+    const body = routes.search.responses[200].parse(await response.json());
+    expect(body.candidates[0]?.warnings).toContain("outside_lisbon");
+  });
 });

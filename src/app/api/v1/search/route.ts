@@ -69,7 +69,9 @@ export const GET = withApiErrors(async (request: Request) => {
     const warnings: SearchResponse["candidates"][number]["warnings"] = [];
     if ((names.get(item.title!.trim().toLocaleLowerCase())?.size ?? 0) > 1) warnings.push("same_name");
     const city = item.address_info?.city?.trim().toLocaleLowerCase();
-    if (city && city !== "lisbon" && city !== "lisboa") warnings.push("outside_lisbon");
+    // Without a city, warn only when coordinates are well beyond Lisbon's extent.
+    const clearlyOutside = city ? city !== "lisbon" && city !== "lisboa" : (distanceMeters(LISBON, item) ?? 0) > 12_000;
+    if (clearlyOutside) warnings.push("outside_lisbon");
     if (/\b(bar|cafe|café|coffee|pub|tavern)\b/i.test(categoryText)) warnings.push("maybe_not_restaurant");
     candidates.push({
       placeId, name: item.title!, address: item.address ?? null, distanceMeters: distanceMeters(near, item),
