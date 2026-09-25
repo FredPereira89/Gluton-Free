@@ -9,12 +9,16 @@ vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
 }));
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, payload: never) => {
   const { runLookup, runListingFetch, runRejudge } = await import("./lookup");
   if (id === "owner-listing-answer") {
     const p = payload as { restaurantId: number; listingId: number; fetchJobId: number };
     await runListingFetch(p.restaurantId, p.listingId, async () => {}, { jobId: p.fetchJobId });
     await runRejudge(p.restaurantId, async () => {}, { cause: "owner_answer" });
+  } else if (id === "owner-listing-undo") {
+    const p = payload as { restaurantId: number; jobId: number };
+    await runRejudge(p.restaurantId, async () => {}, { jobId: p.jobId, cause: "owner_answer" });
   } else {
     const p = payload as { restaurantId: number; jobId: number };
     await runLookup(p.restaurantId, async () => {}, { jobId: p.jobId });
@@ -170,6 +174,68 @@ describe("Lookup pipeline", () => {
     expect(translateCall).toHaveBeenCalledTimes(1);
     translateCall.mockRestore();
     parse.mockRestore();
+  }, 30_000);
+
+  it("undoes an auto-accepted Listing and appends a Verdict from the remaining Sources", async () => {
+    const database = sql!;
+    await database`insert into source (code, name, kind, access) values
+      ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only')
+      on conflict (code) do nothing`;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance, price_tier, price_provenance)
+      values ('fictional-undo-auto-match', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner', '€', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    const [google] = await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'google', 'invented-undo-google-place', 'https://example.invalid/google', 'auto_accepted') returning id`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'tripadvisor', 'invented-undo-tripadvisor-path', 'https://example.invalid/tripadvisor', 'proposed_confirmed')`;
+
+    const { runLookup } = await import("./lookup");
+    await runLookup(restaurantId, async () => {});
+    const [before] = await database`select count(*)::int as n from verdict where restaurant_id = ${restaurantId}`;
+    expect(before!.n).toBe(1);
+    const [flaggedReview] = await database`select id from review where listing_id = ${google!.id} order by id limit 1`;
+    await database`insert into review_flag (review_id, type, flag_group, first_hand, severity, evidence, verification)
+      values (${flaggedReview!.id}, 'hygiene', 'health', true, 'low', 'Invented source-specific flag', 'rejected')`;
+
+    const { DELETE } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/route");
+    const response = await DELETE(
+      new Request("http://localhost/api/v1/restaurants/fictional-undo-auto-match/listings/google", { method: "DELETE" }),
+      { params: Promise.resolve({ slug: "fictional-undo-auto-match", source: "google" }) },
+    );
+    expect(response.status).toBe(202);
+    const { routes } = await import("@/lib/api-contract");
+    const accepted = routes.undoListing.responses[202].parse(await response.json());
+
+    const listings = await database`select source_code from listing where restaurant_id = ${restaurantId} order by source_code`;
+    expect(listings.map((listing) => listing.source_code)).toEqual(["tripadvisor"]);
+    const reviews = await database`
+      select l.source_code, count(*)::int as n from review r join listing l on l.id = r.listing_id
+      where l.restaurant_id = ${restaurantId} group by l.source_code`;
+    expect(reviews).toEqual([{ source_code: "tripadvisor", n: 8 }]);
+    const sourceFlags = await database`
+      select f.id from review_flag f join review r on r.id = f.review_id join listing l on l.id = r.listing_id
+      where l.restaurant_id = ${restaurantId} and l.source_code = 'google'`;
+    expect(sourceFlags).toEqual([]);
+    const [after] = await database`select count(*)::int as n from verdict where restaurant_id = ${restaurantId}`;
+    expect(after!.n).toBe(2);
+    const [latest] = await database`select blocks from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    const perSource = (latest!.blocks as { rollup: { counts: { perSource: Record<string, unknown> } } }).rollup.counts.perSource;
+    expect(perSource).not.toHaveProperty("google");
+    expect(perSource).toHaveProperty("tripadvisor");
+    const [job] = await database`select status from job where id = ${accepted.id}`;
+    expect(job!.status).toBe("succeeded");
+
+    const refused = await DELETE(
+      new Request("http://localhost/api/v1/restaurants/fictional-undo-auto-match/listings/tripadvisor", { method: "DELETE" }),
+      { params: Promise.resolve({ slug: "fictional-undo-auto-match", source: "tripadvisor" }) },
+    );
+    expect(refused.status).toBe(409);
+    expect((await refused.json()).code).toBe("not_auto_accepted");
+    const [tripadvisor] = await database`select 1 from listing where restaurant_id = ${restaurantId} and source_code = 'tripadvisor'`;
+    expect(tripadvisor).toBeDefined();
   }, 30_000);
 
   it("serves the invented Apify fixture and rejects every unknown external URL", async () => {

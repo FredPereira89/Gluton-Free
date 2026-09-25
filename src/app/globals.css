@@ -208,6 +208,8 @@ body{margin:0;padding:16px 16px 64px}
 .owner-question-candidate a{font-weight:650}
 .owner-question-candidate p{margin-top:3px}
 .owner-question .btn-secondary{margin-top:0}
+.source-undo{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
+.source-undo .btn{padding:4px 8px;font-size:12px}
 .btn-secondary{background:var(--sunk);color:var(--ink);border:1px solid var(--line)}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .form{display:grid;gap:12px;max-width:340px}

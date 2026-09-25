@@ -141,7 +141,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
 export async function loadRestaurantBundle(slug: string): Promise<RestaurantBundle | null> {
   const page = await loadVerdictPage(slug);
   if (!page) return null;
-  const [job, openQuestions] = await Promise.all([
+  const [job, openQuestions, listingProvenance] = await Promise.all([
     db()`
       select id, kind, status, step, created_at from job
       where restaurant_id = ${page.restaurant.id} and status in ('queued', 'running')
@@ -150,7 +150,9 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       select id, source_code, payload from owner_question
       where restaurant_id = ${page.restaurant.id} and status = 'open'
       order by id`,
+    db()`select source_code, match_provenance from listing where restaurant_id = ${page.restaurant.id}`,
   ]);
+  const matchProvenanceBySource = new Map(listingProvenance.map((listing) => [listing.source_code as string, listing.match_provenance as string]));
   return restaurantBundleSchema.parse({
     restaurant: page.restaurant,
     verdict: page.verdict && {
@@ -164,7 +166,11 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       peerSnapshotId: page.verdict.peerSnapshotId ?? null,
       blocks: page.verdict.blocks,
     },
-    sources: page.sources.map((source) => ({ ...source, newestAt: source.newestAt?.toISOString() ?? null })),
+    sources: page.sources.map((source) => ({
+      ...source,
+      matchProvenance: matchProvenanceBySource.get(source.code),
+      newestAt: source.newestAt?.toISOString() ?? null,
+    })),
     distinctions: page.distinctions,
     critics: page.critics,
     series: page.verdict?.blocks.rollup.series ?? [],

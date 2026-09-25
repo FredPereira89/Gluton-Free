@@ -35,6 +35,7 @@ const sourceSchema = z.strictObject({
 
 const bundleSourceSchema = sourceSchema.extend({
   kind: z.enum(["crowd", "editorial"]),
+  matchProvenance: z.enum(["pasted", "proposed_confirmed", "auto_accepted"]),
   rating: z.number().nullable(),
   reviewCount: z.number().int().nullable(),
   textCount: z.number().int().nullable(),
@@ -315,6 +316,14 @@ export const routes = {
     },
     responses: {
       202: z.union([answerListingResponseSchema, acceptedJobSchema]),
+      400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema,
+    },
+  },
+  undoListing: {
+    method: "DELETE", path: "/api/v1/restaurants/{slug}/listings/{source}", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1), source: z.enum(["google", "tripadvisor"]) }) },
+    responses: {
+      202: acceptedJobSchema,
       400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema,
     },
   },

@@ -15,6 +15,7 @@ import { problemSchema } from "./problem";
 
 vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn(), loadRestaurantBundle: vi.fn() }));
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const fixture: VerdictPage = {
   restaurant: { id: 1, slug: "o-velho-eurico", name: "O Velho Eurico", city: "Lisbon", area: "Mouraria", format: "tasca", formatProvenance: "owner", priceTier: null },
@@ -34,7 +35,7 @@ const bundleFixture: RestaurantBundle = {
     id: 1, state: "not_enough_evidence", tier: null, confidence: "low", explanation: "More Reviews needed.",
     issuedAt: "2026-09-24T12:00:00.000Z", provisional: true, blocks: fixture.verdict!.blocks,
   },
-  sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", url: "https://maps.google.com/", rating: 4.5, reviewCount: 5, textCount: 2, newestAt: null, fetchStatus: "fetched" }],
+  sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://maps.google.com/", rating: 4.5, reviewCount: 5, textCount: 2, newestAt: null, fetchStatus: "fetched" }],
   distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
 };
 

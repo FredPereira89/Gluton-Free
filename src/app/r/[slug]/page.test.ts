@@ -7,6 +7,7 @@ import { loadRestaurantBundle } from "@/web/data";
 import VerdictPageRoute from "./page";
 
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/web/data", () => ({ loadRestaurantBundle: vi.fn() }));
 
 const now = new Date("2026-09-01T00:00:00.000Z");
@@ -29,7 +30,7 @@ function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20):
     restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, format: "tasca", priceTier: null },
     verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: null, blocks: { rollup: r, quotes: [] } },
-    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", url: "https://example.com/restaurant",
+    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
       rating: 4.9, reviewCount: 20, textCount: 20, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
     distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
   };
@@ -54,7 +55,7 @@ function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBund
     restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, format: "tasca", priceTier: null },
     verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: r.peerSnapshot?.id ?? null, blocks: { rollup: r, quotes: [] } },
-    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", url: "https://example.com/restaurant",
+    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
       rating: 4.9, reviewCount, textCount: reviewCount, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
     distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
   };
@@ -172,7 +173,7 @@ describe("Sources disagree line (issue #41)", () => {
       textReviews: 42,
     };
     page.sources.push({
-      code: "tripadvisor", name: "Tripadvisor", kind: "crowd", access: "public_ok",
+      code: "tripadvisor", name: "Tripadvisor", kind: "crowd", access: "public_ok", matchProvenance: "proposed_confirmed",
       url: "https://example.com/tripadvisor", rating: 4.5, reviewCount: 20, textCount: 20,
       newestAt: publishedAt.toISOString(), fetchStatus: "fetched",
     });
@@ -225,5 +226,21 @@ describe("Restaurant Verdict red flags", () => {
     expect(html).not.toContain("What people say");
     expect(html).not.toContain("Composite");
     expect(html).toContain("4.9");
+  });
+});
+
+describe("Undo auto-accepted Listing (issue #51)", () => {
+  it("offers Undo only beside automatically accepted Listings", async () => {
+    const page = bundle(0);
+    page.sources.push({
+      code: "tripadvisor", name: "Tripadvisor", kind: "crowd", access: "public_ok", matchProvenance: "proposed_confirmed",
+      url: "https://example.com/tripadvisor", rating: 4.5, reviewCount: 20, textCount: 20,
+      newestAt: publishedAt.toISOString(), fetchStatus: "fetched",
+    });
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Undo");
+    expect(html).toContain('aria-label="Undo automatically accepted google Listing"');
+    expect(html).not.toContain('aria-label="Undo automatically accepted tripadvisor Listing"');
   });
 });

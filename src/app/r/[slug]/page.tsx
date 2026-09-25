@@ -14,6 +14,7 @@ import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
 import { OwnerQuestions } from "@/web/owner-questions";
+import { ListingUndo } from "@/web/listing-undo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -358,6 +359,11 @@ function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page
                       {s.name} ↗
                     </a>
                     <div className="small muted">{s.kind === "crowd" ? "Crowd Source" : "Editorial Source"}{reading?.quiet && " · quiet"}</div>
+                    {s.matchProvenance === "auto_accepted" && (
+                      <div className="source-undo">
+                        <ListingUndo slug={page.restaurant.slug} source={s.code} disabled={page.activeJob !== null} />
+                      </div>
+                    )}
                   </td>
                   <td>
                     <span className={`acc ${s.access === "personal_only" ? "personal" : "public"}`}>
