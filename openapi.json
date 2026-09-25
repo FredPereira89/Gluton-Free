@@ -3969,6 +3969,251 @@
           }
         ]
       }
+    },
+    "/api/v1/lookups/preview": {
+      "post": {
+        "operationId": "lookupPreview",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "restaurantName": {
+                      "type": "string"
+                    },
+                    "listings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "google",
+                              "tripadvisor"
+                            ]
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "confidence": {
+                            "type": "string",
+                            "enum": [
+                              "confident",
+                              "uncertain"
+                            ]
+                          },
+                          "autoAccept": {
+                            "type": "boolean"
+                          },
+                          "reviewCount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "evidence": {
+                            "type": "object",
+                            "properties": {
+                              "distanceMeters": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "phoneMatch": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              },
+                              "nameSimilarity": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": [
+                              "distanceMeters",
+                              "phoneMatch",
+                              "nameSimilarity"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "url",
+                          "name",
+                          "confidence",
+                          "autoAccept",
+                          "reviewCount",
+                          "evidence"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "categoryGuess": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "estimate": {
+                      "type": "object",
+                      "properties": {
+                        "textReviews": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "costUsd": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "minutes": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "textReviews",
+                        "costUsd",
+                        "minutes"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "notEnoughEvidenceWarning": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "restaurantName",
+                    "listings",
+                    "categoryGuess",
+                    "estimate",
+                    "notEnoughEvidenceWarning"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "googlePlaceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sourceUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerBearer": []
+          },
+          {
+            "ownerSession": []
+          }
+        ]
+      }
     }
   },
   "components": {

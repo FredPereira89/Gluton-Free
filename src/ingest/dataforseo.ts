@@ -68,8 +68,10 @@ export async function searchGoogleMaps(keyword: string, near: { lat: number; lng
   return { items: result?.items ?? [], cost: task.cost ?? 0 };
 }
 
+export type GoogleBusinessReference = `place_id:${string}` | `cid:${string}`;
+
 /** Resolve a Google place ID or CID to its current business facts. */
-export async function googleBusinessByReference(reference: `place_id:${string}` | `cid:${string}`, near: { lat: number; lng: number }): Promise<{ item: MapsSearchItem | null; cost: number }> {
+export async function googleBusinessByReference(reference: GoogleBusinessReference, near: { lat: number; lng: number }): Promise<{ item: MapsSearchItem | null; cost: number }> {
   const env = await call("/google/my_business_info/live", {
     body: [{ keyword: reference, location_coordinate: `${near.lat},${near.lng},200`, language_code: "pt" }],
   });
@@ -125,4 +127,39 @@ export async function getReviewTask(source: DfsSource, taskId: string): Promise<
 /** Depth to request for a Listing: every Review, rounded up to DataForSEO's billing unit of 10. */
 export function depthFor(reviewCount: number): number {
   return Math.min(4490, Math.max(10, Math.ceil((reviewCount + 20) / 10) * 10));
+}
+
+export type TripadvisorSearchItem = {
+  type?: string; title?: string | null; url_path?: string | null; category?: string | null;
+  reviews_count?: number | null;
+  rating?: { value?: number | null; votes_count?: number | null } | null;
+};
+
+/** Posts a Tripadvisor Search task on the standard queue: this endpoint has no live/synchronous form. */
+export async function postTripadvisorSearch(keyword: string): Promise<{ taskId: string; cost: number }> {
+  // A location is required; 2620 is Portugal.
+  const env = await call("/tripadvisor/search/task_post", { body: [{ keyword, location_code: 2620, language_code: "en" }] });
+  const task = env.tasks[0];
+  if (!task || task.status_code !== 20100) {
+    throw new Error(`DataForSEO Tripadvisor search task_post: ${task?.status_code} ${task?.status_message}`);
+  }
+  return { taskId: task.id, cost: task.cost };
+}
+
+/** Fetches a Tripadvisor Search task's result. Returns null while it is still queued or running. */
+export async function getTripadvisorSearch(taskId: string): Promise<{ items: TripadvisorSearchItem[]; cost: number } | null> {
+  const res = await fetch(`${BASE}/tripadvisor/search/task_get/${taskId}`, {
+    headers: { Authorization: authHeader() },
+  });
+  const env = (await res.json().catch(() => null)) as DfsEnvelope | null;
+  // Right after account verification some servers still answer 40104 for a while: poll again.
+  if (res.status === 403 && env?.status_code === 40104) return null;
+  if (!res.ok || !env) throw new Error(`DataForSEO Tripadvisor search task_get: HTTP ${res.status}`);
+  const task = env.tasks?.[0];
+  if (!task) throw new Error(`DataForSEO Tripadvisor search task_get: no task in response (${env.status_code})`);
+  // 40601 "Task Handed", 40602 "Task in Queue": not ready yet.
+  if (task.status_code === 40601 || task.status_code === 40602) return null;
+  if (task.status_code !== 20000) throw new Error(`DataForSEO Tripadvisor search task_get: ${task.status_code} ${task.status_message}`);
+  const result = task.result?.[0] as { items?: TripadvisorSearchItem[] } | undefined;
+  return { items: result?.items ?? [], cost: task.cost };
 }

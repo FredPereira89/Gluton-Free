@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { SearchResponse } from "@/lib/api-contract";
+import type { PreviewLookupResponse, SearchResponse } from "@/lib/api-contract";
 
 const warnings = {
   same_name: "Several Restaurants share this name. Check the address.",
@@ -27,6 +27,32 @@ function formatResetTime(resetAt: string): string {
   return new Date(resetAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function PreviewPanel({ loading, error, data, onClose }: {
+  loading: boolean; error: boolean; data: PreviewLookupResponse | null; onClose: () => void;
+}) {
+  return <div className="preview-panel">
+    {loading && <span className="small muted">Checking Listings…</span>}
+    {error && <span className="small muted">Preview is unavailable. Try again.</span>}
+    {data && <>
+      {data.categoryGuess && <span className="small muted">Google category: {data.categoryGuess} (not a confirmed Format)</span>}
+      {data.listings.map((listing) => <div className="preview-listing" key={listing.source}>
+        <span className={`chip conf-${listing.confidence === "confident" ? "High" : "Low"}`}>
+          {listing.source}{listing.autoAccept ? " · auto-accept" : ""}
+        </span>
+        <a className="small" href={listing.url} target="_blank" rel="noreferrer">{listing.name}</a>
+      </div>)}
+      <span className="small muted">
+        Estimate: ~{data.estimate.textReviews} text Reviews, ≈${data.estimate.costUsd.toFixed(2)}, ~{data.estimate.minutes} min
+      </span>
+      {data.notEnoughEvidenceWarning && <span className="search-warning">
+        This Restaurant will probably have Not enough evidence. Look up anyway (≈$0.02)?
+      </span>}
+      <button type="button" className="btn" disabled title="Coming soon">Start</button>
+    </>}
+    <button type="button" className="small" onClick={onClose}>Close</button>
+  </div>;
+}
+
 function ResultContent({ result }: { result: Result }) {
   return <>
     <strong>{result.name}</strong>
@@ -42,10 +68,36 @@ export default function SearchHome() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [spendCapResetAt, setSpendCapResetAt] = useState<string | null>(null);
+  const [previewFor, setPreviewFor] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PreviewLookupResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
   const location = useRef<{ lat: number; lng: number } | null | undefined>(undefined);
+  const previewRequest = useRef<string | null>(null);
+
+  async function openPreview(placeId: string) {
+    previewRequest.current = placeId;
+    setPreviewFor(placeId);
+    setPreview(null);
+    setPreviewError(false);
+    setPreviewLoading(true);
+    try {
+      const response = await fetch("/api/v1/lookups/preview", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ googlePlaceId: placeId }),
+      });
+      if (!response.ok) throw new Error("Preview failed");
+      const data = await response.json() as PreviewLookupResponse;
+      if (previewRequest.current === placeId) setPreview(data);
+    } catch {
+      if (previewRequest.current === placeId) setPreviewError(true);
+    } finally {
+      if (previewRequest.current === placeId) setPreviewLoading(false);
+    }
+  }
 
   useEffect(() => {
     const q = query.trim();
+    setPreviewFor(null);
     if (!q) {
       setResults(emptyResults);
       setLoading(false);
@@ -122,9 +174,14 @@ export default function SearchHome() {
     </div>}
     {!!results.candidates.length && <div className="search-group">
       <h2>New Restaurants</h2>
-      {results.candidates.map((result) => <article className="search-result" key={result.placeId}>
-        <ResultContent result={result} />
-      </article>)}
+      {results.candidates.map((result) => <div className="search-group" key={result.placeId}>
+        <button type="button" className="search-result" onClick={() => openPreview(result.placeId)}>
+          <ResultContent result={result} />
+          <span className="search-action">Preview →</span>
+        </button>
+        {previewFor === result.placeId
+          && <PreviewPanel loading={previewLoading} error={previewError} data={preview} onClose={() => setPreviewFor(null)} />}
+      </div>)}
     </div>}
     <Link href="/restaurants" className="small">Browse looked-up Restaurants</Link>
   </section>;

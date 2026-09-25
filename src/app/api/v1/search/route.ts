@@ -5,7 +5,7 @@ import { searchKnownRestaurants } from "@/web/data";
 import { recordSearchCost, spendCapStatus } from "@/lib/spend-cap";
 import { sameRestaurantName, searchInput } from "./input";
 
-const LISBON = { lat: 38.7223, lng: -9.1393 };
+export const LISBON = { lat: 38.7223, lng: -9.1393 };
 
 function distanceMeters(from: { lat: number; lng: number }, item: MapsSearchItem): number | null {
   if (typeof item.latitude !== "number" || typeof item.longitude !== "number") return null;

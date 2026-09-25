@@ -155,6 +155,40 @@ export function acceptedJobResponse(id: number): Response {
   });
 }
 
+export const previewLookupBodySchema = z.strictObject({
+  googlePlaceId: z.string().min(1).optional(),
+  sourceUrl: z.url().optional(),
+}).refine((value) => !!value.googlePlaceId !== !!value.sourceUrl, { message: "Provide exactly one of googlePlaceId or sourceUrl" });
+
+export const previewEvidenceSchema = z.strictObject({
+  distanceMeters: z.number().nullable(),
+  phoneMatch: z.boolean().nullable(),
+  nameSimilarity: z.number().min(0).max(1),
+});
+export const previewListingSchema = z.strictObject({
+  source: z.enum(["google", "tripadvisor"]),
+  url: z.url(),
+  name: z.string(),
+  confidence: z.enum(["confident", "uncertain"]),
+  autoAccept: z.boolean(),
+  reviewCount: z.number().int().nonnegative().nullable(),
+  evidence: previewEvidenceSchema,
+});
+export const previewLookupResponseSchema = z.strictObject({
+  restaurantName: z.string(),
+  listings: z.array(previewListingSchema),
+  // Google's raw business category (e.g. "Seafood restaurant") — cuisine-flavoured, not a Format
+  // value from the fixed list, so it's surfaced as unmapped vendor context, not a Format guess.
+  categoryGuess: z.string().nullable(),
+  estimate: z.strictObject({
+    textReviews: z.number().int().nonnegative(),
+    costUsd: z.number().nonnegative(),
+    minutes: z.number().int().positive(),
+  }),
+  notEnoughEvidenceWarning: z.boolean(),
+});
+export type PreviewLookupResponse = z.infer<typeof previewLookupResponseSchema>;
+
 export const routes = {
   health: {
     method: "GET",
@@ -204,6 +238,13 @@ export const routes = {
     auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1) }), query: idCursorQuerySchema },
     responses: { 200: verdictHistoryResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  lookupPreview: {
+    method: "POST",
+    path: "/api/v1/lookups/preview",
+    auth: "owner",
+    request: { body: previewLookupBodySchema },
+    responses: { 200: previewLookupResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 429: problemSchema, 500: problemSchema, 503: problemSchema },
   },
 } as const;
 

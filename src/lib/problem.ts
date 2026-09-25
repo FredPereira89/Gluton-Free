@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AuthError, requireOwner, type RequireOwnerOptions } from "./auth";
 
 export const problemSchema = z.strictObject({
   type: z.literal("about:blank"),
@@ -40,4 +41,14 @@ export function parseApiRequest<S extends z.ZodType>(schema: S, input: unknown):
   const result = schema.safeParse(input);
   if (!result.success) throw new ApiError(400, "invalid_request", "Invalid request");
   return result.data;
+}
+
+/** requireOwner, but rethrows as the ApiError shape route handlers expect. */
+export async function requireOwnerApi(request: Request, options?: RequireOwnerOptions): Promise<string> {
+  try {
+    return await requireOwner(request, options);
+  } catch (error) {
+    if (error instanceof AuthError) throw new ApiError(error.status, error.code, error.message);
+    throw error;
+  }
 }

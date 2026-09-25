@@ -71,9 +71,36 @@ export async function searchInput(raw: string): Promise<SearchInput> {
   return { kind: "invalid" };
 }
 
-export function sameRestaurantName(a: string, b: string): boolean {
-  const normalise = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+export function normaliseName(value: string): string {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-  const expected = normalise(a);
-  return !!expected && expected === normalise(b);
+}
+
+export function sameRestaurantName(a: string, b: string): boolean {
+  const expected = normaliseName(a);
+  return !!expected && expected === normaliseName(b);
+}
+
+function levenshtein(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diagonal = prev[0]!;
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const temp = prev[j]!;
+      prev[j] = a[i - 1] === b[j - 1] ? diagonal : 1 + Math.min(diagonal, prev[j]!, prev[j - 1]!);
+      diagonal = temp;
+    }
+  }
+  return prev[b.length]!;
+}
+
+/** 0 (nothing alike) to 1 (identical) after diacritic/punctuation-insensitive normalisation. */
+export function nameSimilarity(a: string, b: string): number {
+  const x = normaliseName(a);
+  const y = normaliseName(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  const distance = levenshtein(x, y);
+  return 1 - distance / Math.max(x.length, y.length);
 }
