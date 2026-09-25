@@ -1,4 +1,5 @@
 import { db } from "./db";
+import type { PipelineError } from "./pipeline-error";
 
 export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot" | "listing_fetch" | "rejudge";
 export const LOOKUP_STAGES = ["Listings matched", "Reviews fetched", "window extracted", "flags verified", "signals checked", "judged and explained", "notified"] as const;
@@ -42,9 +43,13 @@ export async function addLlmUsage(jobId: number, usage: LlmUsage) {
     where id = ${jobId}`;
 }
 
-export async function finishJob(jobId: number, error?: string) {
+export type LookupStage = "ingest" | "extract" | "judge";
+
+export async function finishJob(jobId: number, error?: PipelineError, failedStage?: LookupStage) {
   await db()`
-    update job set status = ${error ? "failed" : "succeeded"}, error = ${error ?? null},
+    update job set status = ${error ? "failed" : "succeeded"},
+      error_code = ${error?.code ?? null}, error_detail = ${error?.detail ?? null},
+      failed_stage = ${error ? failedStage ?? null : null},
       finished_at = now(), updated_at = now()
     where id = ${jobId}`;
 }

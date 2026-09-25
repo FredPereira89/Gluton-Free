@@ -144,7 +144,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
   const [job, openQuestions] = await Promise.all([
     db()`
       select id, kind, status, step, created_at from job
-      where restaurant_id = ${page.restaurant.id} and status in ('queued', 'running')
+      where restaurant_id = ${page.restaurant.id}
       order by id desc limit 1`.then((rows) => rows[0]),
     db()`
       select id, source_code, payload from owner_question
@@ -169,10 +169,10 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
     critics: page.critics,
     series: page.verdict?.blocks.rollup.series ?? [],
     changePoints: [],
-    activeJob: job ? {
+    activeJob: job && job.status !== "succeeded" ? {
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
     } : null,
-    ownerQuestions: job?.kind === "lookup" ? [] : openQuestions.map((q) => {
+    ownerQuestions: job?.kind === "lookup" && (job.status === "queued" || job.status === "running") ? [] : openQuestions.map((q) => {
       const candidates = questionCandidates(q.payload);
       return {
         id: Number(q.id),
