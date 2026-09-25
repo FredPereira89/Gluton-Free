@@ -37,7 +37,7 @@ function PreviewPanel({ loading, error, data, onClose, onStart, starting, startE
     {error && <span className="small muted">Preview is unavailable. Try again.</span>}
     {data && <>
       {data.categoryGuess && <span className="small muted">Google category: {data.categoryGuess} (not a confirmed Format)</span>}
-      {data.listings.map((listing) => <div className="preview-listing" key={listing.source}>
+      {data.listings.map((listing) => <div className="preview-listing" key={`${listing.source}:${listing.placeRef}`}>
         <span className={`chip conf-${listing.confidence === "confident" ? "High" : "Low"}`}>
           {listing.source}{listing.autoAccept ? " · auto-accept" : " · ask later"}
         </span>

@@ -13,6 +13,7 @@ import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
+import { OwnerQuestions } from "@/web/owner-questions";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -434,7 +435,7 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
       {page.ownerQuestions.length > 0 && (
         <div>
           <h2>Owner questions</h2>
-          <ul>{page.ownerQuestions.map((question) => <li key={question.id}>{question.prompt}</li>)}</ul>
+          <OwnerQuestions slug={page.restaurant.slug} questions={page.ownerQuestions} />
         </div>
       )}
     </section>

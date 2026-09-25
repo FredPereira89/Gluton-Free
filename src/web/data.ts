@@ -7,8 +7,7 @@ import {
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
 import type { SearchResponse } from "@/lib/api-contract";
-import { questionPrompt } from "@/lib/owner-question";
-import type { PreviewListing } from "@/app/api/v1/lookups/preview/preview";
+import { questionCandidates, questionPrompt } from "@/lib/owner-question";
 
 export async function searchKnownRestaurants(q: string, placeIds: string[]): Promise<(SearchResponse["known"][number] & { placeId: string | null })[]> {
   const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
@@ -173,9 +172,15 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
     activeJob: job ? {
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
     } : null,
-    ownerQuestions: openQuestions.map((q) => ({
-      id: Number(q.id), prompt: questionPrompt(q.source_code as string, q.payload as PreviewListing),
-    })),
+    ownerQuestions: job?.kind === "lookup" ? [] : openQuestions.map((q) => {
+      const candidates = questionCandidates(q.payload);
+      return {
+        id: Number(q.id),
+        source: q.source_code as string,
+        prompt: questionPrompt(q.source_code as string),
+        candidates: candidates.map(({ placeRef, name, url, evidence }) => ({ placeRef, name, url, evidence })),
+      };
+    }),
   });
 }
 

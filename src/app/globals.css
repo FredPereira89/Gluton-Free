@@ -200,6 +200,14 @@ body{margin:0;padding:16px 16px 64px}
 .settings-section p{color:var(--muted);font-size:13.5px}
 .settings-section strong{color:var(--ink)}
 .settings-section .btn{margin-top:2px}
+.owner-questions{display:grid;gap:12px;margin-top:8px}
+.owner-question{display:grid;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.owner-question h3{font-size:15px;font-weight:650}
+.owner-question-candidates{display:grid;gap:10px;list-style:none;padding:0;margin:0}
+.owner-question-candidate{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.owner-question-candidate a{font-weight:650}
+.owner-question-candidate p{margin-top:3px}
+.owner-question .btn-secondary{margin-top:0}
 .btn-secondary{background:var(--sunk);color:var(--ink);border:1px solid var(--line)}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .form{display:grid;gap:12px;max-width:340px}

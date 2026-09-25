@@ -3521,13 +3521,74 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
                           },
+                          "source": {
+                            "type": "string",
+                            "minLength": 1
+                          },
                           "prompt": {
                             "type": "string"
+                          },
+                          "candidates": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "placeRef": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "evidence": {
+                                  "type": "object",
+                                  "properties": {
+                                    "distanceMeters": {
+                                      "type": [
+                                        "number",
+                                        "null"
+                                      ]
+                                    },
+                                    "phoneMatch": {
+                                      "type": [
+                                        "boolean",
+                                        "null"
+                                      ]
+                                    },
+                                    "nameSimilarity": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "distanceMeters",
+                                    "phoneMatch",
+                                    "nameSimilarity"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "placeRef",
+                                "name",
+                                "url",
+                                "evidence"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
                           "id",
-                          "prompt"
+                          "source",
+                          "prompt",
+                          "candidates"
                         ],
                         "additionalProperties": false
                       }
@@ -4378,7 +4439,7 @@
                     "maxLength": 256
                   },
                   "listings": {
-                    "maxItems": 2,
+                    "maxItems": 4,
                     "type": "array",
                     "items": {
                       "type": "object",
@@ -4751,43 +4812,40 @@
       "put": {
         "operationId": "answerListing",
         "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "settled": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "settled"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
           "202": {
             "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "settled": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "settled"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "id"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -4891,20 +4949,39 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "answer": {
-                    "type": "string",
-                    "enum": [
-                      "accept",
-                      "none"
-                    ]
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "answer": {
+                        "type": "string",
+                        "const": "accept"
+                      },
+                      "placeRef": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "answer",
+                      "placeRef"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "answer": {
+                        "type": "string",
+                        "const": "none"
+                      }
+                    },
+                    "required": [
+                      "answer"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "required": [
-                  "answer"
-                ],
-                "additionalProperties": false
+                ]
               }
             }
           }

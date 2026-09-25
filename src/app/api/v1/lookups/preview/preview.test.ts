@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getTripadvisorSearch } from "@/ingest/dataforseo";
 import {
   estimateLookup, googleMapsUrl, pollTripadvisorSearch, predictNotEnoughEvidence, predictTextReviews,
-  proposeGoogleListing, proposeTripadvisorListing, tripadvisorUrl,
+  proposeGoogleListing, proposeTripadvisorListings, tripadvisorUrl,
 } from "./preview";
 
 vi.mock("@/ingest/dataforseo", async (importOriginal) => {
@@ -22,9 +22,9 @@ describe("proposeGoogleListing", () => {
   });
 });
 
-describe("proposeTripadvisorListing", () => {
+describe("proposeTripadvisorListings", () => {
   it("keeps a near-identical name uncertain without distance or phone evidence", () => {
-    const listing = proposeTripadvisorListing("Casa do Bacalhau", [
+    const [listing] = proposeTripadvisorListings("Casa do Bacalhau", [
       { title: "Casa do Bacalhau", url_path: "/Restaurant_Review-g1-d1-Reviews-Casa_do_Bacalhau.html", reviews_count: 80 },
     ]);
     expect(listing).not.toBeNull();
@@ -36,7 +36,7 @@ describe("proposeTripadvisorListing", () => {
   });
 
   it("marks a loosely similar name as uncertain and not for auto-accept", () => {
-    const listing = proposeTripadvisorListing("Casa do Bacalhau", [
+    const [listing] = proposeTripadvisorListings("Casa do Bacalhau", [
       { title: "Casa Bacalhau Grill", url_path: "/Restaurant_Review-g1-d2-Reviews.html", reviews_count: 10 },
     ]);
     expect(listing).not.toBeNull();
@@ -44,23 +44,27 @@ describe("proposeTripadvisorListing", () => {
     expect(listing!.autoAccept).toBe(false);
   });
 
-  it("picks the best of several candidates by name similarity", () => {
-    const listing = proposeTripadvisorListing("Casa do Bacalhau", [
-      { title: "O Bacalhau da Casa", url_path: "/a.html", reviews_count: 5 },
+  it("returns plausible distinct candidates ordered by name similarity", () => {
+    const listings = proposeTripadvisorListings("Casa do Bacalhau", [
+      { title: "Casa do Bacalhau PT", url_path: "/a.html", reviews_count: 5 },
       { title: "Casa do Bacalhau", url_path: "/b.html", reviews_count: 80 },
+      { title: "Casa do Bacalhau Lisboa", url_path: "/c.html", reviews_count: 10 },
+      { title: "Casa do Bacalhau Lisboa", url_path: "/c.html", reviews_count: 10 },
     ]);
-    expect(listing!.url).toBe(tripadvisorUrl("/b.html"));
+    expect(listings.map((listing) => listing.url)).toEqual([
+      tripadvisorUrl("/b.html"), tripadvisorUrl("/a.html"), tripadvisorUrl("/c.html"),
+    ]);
   });
 
-  it("returns null when nothing plausibly matches", () => {
-    const listing = proposeTripadvisorListing("Casa do Bacalhau", [
+  it("returns no candidate when nothing plausibly matches", () => {
+    const listing = proposeTripadvisorListings("Casa do Bacalhau", [
       { title: "Pizzaria Roma", url_path: "/c.html", reviews_count: 5 },
     ]);
-    expect(listing).toBeNull();
+    expect(listing).toEqual([]);
   });
 
-  it("returns null with no candidates", () => {
-    expect(proposeTripadvisorListing("Casa do Bacalhau", [])).toBeNull();
+  it("returns no candidates when search found nothing", () => {
+    expect(proposeTripadvisorListings("Casa do Bacalhau", [])).toEqual([]);
   });
 });
 

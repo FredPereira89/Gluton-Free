@@ -74,18 +74,20 @@ describe("POST /api/v1/lookups/preview", () => {
   it("keeps a Tripadvisor match uncertain without distance or phone evidence, and predicts enough evidence", async () => {
     mockVendor(businessInfo("ChIJabc", "Casa do Bacalhau", 200), [
       { title: "Casa do Bacalhau", url_path: "/Restaurant_Review-g1-d1-Reviews-Casa_do_Bacalhau.html", reviews_count: 90 },
+      { title: "Casa Bacalhau Grill", url_path: "/Restaurant_Review-g1-d2-Reviews.html", reviews_count: 20 },
     ]);
     const response = await POST(request({ googlePlaceId: "ChIJabc" }));
     expect(response.status).toBe(200);
     const body = routes.lookupPreview.responses[200].parse(await response.json());
     expect(body.restaurantName).toBe("Casa do Bacalhau");
-    expect(body.listings).toHaveLength(2);
+    expect(body.listings).toHaveLength(3);
     const google = body.listings.find((l) => l.source === "google")!;
     const tripadvisor = body.listings.find((l) => l.source === "tripadvisor")!;
     expect(google.confidence).toBe("confident");
     expect(google.autoAccept).toBe(true);
     expect(tripadvisor.confidence).toBe("uncertain");
     expect(tripadvisor.autoAccept).toBe(false);
+    expect(body.listings.filter((listing) => listing.source === "tripadvisor")).toHaveLength(2);
     expect(body.notEnoughEvidenceWarning).toBe(false);
     expect(body.categoryGuess).toBe("Restaurant");
     expect(recordSearchCost).toHaveBeenCalledWith(0.003);

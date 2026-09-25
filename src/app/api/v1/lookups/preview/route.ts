@@ -4,7 +4,7 @@ import { ApiError, parseApiRequest, requireOwnerApi, withApiErrors } from "@/lib
 import { recordSearchCost, spendCapStatus } from "@/lib/spend-cap";
 import { LISBON } from "../../search/route";
 import { searchInput } from "../../search/input";
-import { estimateLookup, pollTripadvisorSearch, predictNotEnoughEvidence, proposeGoogleListing, proposeTripadvisorListing } from "./preview";
+import { estimateLookup, pollTripadvisorSearch, predictNotEnoughEvidence, proposeGoogleListing, proposeTripadvisorListings } from "./preview";
 
 export const POST = withApiErrors(async (request: Request) => {
   await requireOwnerApi(request);
@@ -36,9 +36,9 @@ export const POST = withApiErrors(async (request: Request) => {
   const task = await postTripadvisorSearch(name);
   const { items, cost } = await pollTripadvisorSearch(task.taskId);
   await recordSearchCost(task.cost + cost);
-  const tripadvisorListing = proposeTripadvisorListing(name, items);
+  const tripadvisorListings = proposeTripadvisorListings(name, items);
 
-  const listings = tripadvisorListing ? [googleListing, tripadvisorListing] : [googleListing];
+  const listings = [googleListing, ...tripadvisorListings];
   return apiJsonResponse(routes.lookupPreview.responses[200], 200, {
     restaurantName: name,
     listings,

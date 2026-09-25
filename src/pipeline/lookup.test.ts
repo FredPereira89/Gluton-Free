@@ -263,6 +263,11 @@ describe("Lookup pipeline", () => {
         placeRef: "invented-owner-question-path", name: fixture.restaurant,
         confidence: "uncertain", autoAccept: false, reviewCount: 8,
         evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: 0.9 },
+      }, {
+        source: "tripadvisor", url: "https://www.tripadvisor.com/invented-owner-question-path-2",
+        placeRef: "invented-owner-question-path-2", name: `${fixture.restaurant} Lisboa`,
+        confidence: "uncertain", autoAccept: false, reviewCount: 5,
+        evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: 0.8 },
       }] }),
     }));
     expect(started.status).toBe(202);
@@ -274,23 +279,54 @@ describe("Lookup pipeline", () => {
 
     const { loadRestaurantBundle } = await import("@/web/data");
     const before = await loadRestaurantBundle(restaurantSlug);
-    expect(before!.ownerQuestions).toEqual([{ id: Number(question!.id), prompt: expect.stringContaining(fixture.restaurant) }]);
+    expect(before!.ownerQuestions).toMatchObject([{
+      id: Number(question!.id), source: "tripadvisor", prompt: expect.stringContaining("Tripadvisor"),
+      candidates: [
+        { placeRef: "invented-owner-question-path", name: fixture.restaurant, evidence: { nameSimilarity: 0.9 } },
+        { placeRef: "invented-owner-question-path-2", name: `${fixture.restaurant} Lisboa`, evidence: { nameSimilarity: 0.8 } },
+      ],
+    }]);
     const verdictsBefore = await sql!`select count(*)::int as n from verdict where restaurant_id = ${restaurant!.id}`;
     expect(verdictsBefore[0]!.n).toBe(1);
 
+    const [activeLookup] = await sql!`
+      insert into job (kind, restaurant_id, status, step)
+      values ('lookup', ${restaurant!.id}, 'running', 'Fetching Reviews') returning id`;
+    expect((await loadRestaurantBundle(restaurantSlug))!.ownerQuestions).toEqual([]);
+    const prematureAnswer = await PUT(
+      new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "accept", placeRef: "invented-owner-question-path-2" }),
+      }),
+      { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
+    );
+    expect(prematureAnswer.status).toBe(409);
+    expect((await prematureAnswer.json()).code).toBe("lookup_in_progress");
+    await sql!`update job set status = 'succeeded', finished_at = now() where id = ${activeLookup!.id}`;
+    expect((await loadRestaurantBundle(restaurantSlug))!.ownerQuestions).toHaveLength(1);
+
+    const invalidChoice = await PUT(
+      new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "accept", placeRef: "not-a-proposed-place" }),
+      }),
+      { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
+    );
+    expect(invalidChoice.status).toBe(400);
+    const [stillOpen] = await sql!`select status from owner_question where id = ${question!.id}`;
+    expect(stillOpen!.status).toBe("open");
+
     const accept = await PUT(
       new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
-        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "accept" }),
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "accept", placeRef: "invented-owner-question-path-2" }),
       }),
       { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
     );
     expect(accept.status).toBe(202);
     const accepted = routes.answerListing.responses[202].parse(await accept.json());
-    expect(accepted.id).toBeGreaterThan(0);
+    expect(accepted).toMatchObject({ id: expect.any(Number) });
 
     const [listing] = await sql!`
       select place_ref, match_provenance from listing where restaurant_id = ${restaurant!.id} and source_code = 'tripadvisor'`;
-    expect(listing).toMatchObject({ place_ref: "invented-owner-question-path", match_provenance: "proposed_confirmed" });
+    expect(listing).toMatchObject({ place_ref: "invented-owner-question-path-2", match_provenance: "proposed_confirmed" });
     const [settled] = await sql!`select status, settled_at from owner_question where id = ${question!.id}`;
     expect(settled).toMatchObject({ status: "answered" });
     expect(settled!.settled_at).not.toBeNull();
@@ -304,7 +340,7 @@ describe("Lookup pipeline", () => {
 
     const again = await PUT(
       new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
-        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "accept" }),
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "accept", placeRef: "invented-owner-question-path-2" }),
       }),
       { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
     );
@@ -334,7 +370,7 @@ describe("Lookup pipeline", () => {
       }),
       { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
     );
-    expect(none.status).toBe(200);
+    expect(none.status).toBe(202);
     expect(await none.json()).toEqual({ settled: true });
     const [listing] = await sql!`select 1 from listing where restaurant_id = ${restaurant!.id} and source_code = 'tripadvisor'`;
     expect(listing).toBeUndefined();
@@ -374,7 +410,7 @@ describe("Lookup pipeline", () => {
     );
 
     const responses = await Promise.all([answer(), answer()]);
-    expect(responses.map((response) => response.status).sort((a, b) => a - b)).toEqual([200, 409]);
+    expect(responses.map((response) => response.status).sort((a, b) => a - b)).toEqual([202, 409]);
     const conflict = responses.find((response) => response.status === 409)!;
     expect((await conflict.json()).code).toBe("already_settled");
   }, 30_000);

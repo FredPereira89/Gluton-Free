@@ -11,7 +11,9 @@ export function LookupProgress({ jobId }: { jobId: number }) {
 
   useEffect(() => {
     let active = true;
+    let terminalHandled = false;
     async function poll() {
+      if (terminalHandled) return;
       try {
         const response = await fetch(`/api/v1/jobs/${jobId}`, { cache: "no-store" });
         if (!response.ok) throw new Error("Job unavailable");
@@ -19,7 +21,10 @@ export function LookupProgress({ jobId }: { jobId: number }) {
         if (!active) return;
         setJob(next);
         setUnavailable(false);
-        if (next.status === "succeeded") router.refresh();
+        if (next.status === "succeeded" || next.status === "failed") {
+          terminalHandled = true;
+          router.refresh();
+        }
       } catch {
         if (active) setUnavailable(true);
       }

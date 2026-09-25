@@ -5,31 +5,50 @@ import { db } from "./db";
 import { acceptedJobResponse, answerListingResponseSchema } from "./api-contract";
 import { ApiError } from "./problem";
 
-/** Raises one Owner question per uncertain candidate (ADR-0005: a Lookup never waits for it). */
+/** Raises one Owner question per uncertain Source (ADR-0005: a Lookup never waits for it). */
 export async function raiseListingQuestions(sql: postgres.TransactionSql, restaurantId: number, askLater: PreviewListing[]) {
+  const bySource = new Map<string, PreviewListing[]>();
   for (const candidate of askLater) {
+    const candidates = bySource.get(candidate.source) ?? [];
+    candidates.push(candidate);
+    bySource.set(candidate.source, candidates);
+  }
+  for (const [source, candidates] of bySource) {
     await sql`
       insert into owner_question (restaurant_id, kind, source_code, payload)
-      values (${restaurantId}, 'listing_match', ${candidate.source}, ${sql.json(candidate as never)})
+      values (${restaurantId}, 'listing_match', ${source}, ${sql.json({ candidates } as never)})
       on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing`;
   }
 }
 
-export function questionPrompt(sourceCode: string, payload: PreviewListing): string {
-  const pct = Math.round(payload.evidence.nameSimilarity * 100);
-  return `Is "${payload.name}" on ${sourceCode} your Restaurant? (name match ${pct}%)`;
+export function questionPrompt(sourceCode: string): string {
+  const source = sourceCode === "tripadvisor" ? "Tripadvisor" : sourceCode;
+  return `Which ${source} listing belongs to this Restaurant?`;
+}
+
+export function questionCandidates(payload: unknown): PreviewListing[] {
+  if (!payload || typeof payload !== "object") return [];
+  const data = payload as { candidates?: unknown };
+  if (Array.isArray(data.candidates)) return data.candidates as PreviewListing[];
+  // Read questions created by the earlier single-candidate payload format during rollout.
+  return "placeRef" in data ? [payload as PreviewListing] : [];
 }
 
 /** Answers the most recent Owner question for that Source. Settles `none` outright; `accept` fetches the Listing and re-judges. */
 export async function answerListingQuestion(
   slug: string,
   source: "google" | "tripadvisor",
-  answer: "accept" | "none",
+  answer: { answer: "accept"; placeRef: string } | { answer: "none" },
 ): Promise<Response> {
   const sql = db();
   const [restaurant] = await sql`select id from restaurant where slug = ${slug}`;
   if (!restaurant) throw new ApiError(404, "not_found", "Restaurant not found");
   const restaurantId = Number(restaurant.id);
+  const [lookup] = await sql`
+    select id from job
+    where restaurant_id = ${restaurantId} and kind = 'lookup' and status in ('queued', 'running')
+    order by id desc limit 1`;
+  if (lookup) throw new ApiError(409, "lookup_in_progress", "The initial Lookup is still running. Try again after it finishes.");
   const [question] = await sql`
     select id, status, payload from owner_question
     where restaurant_id = ${restaurantId} and source_code = ${source} and kind = 'listing_match'
@@ -37,13 +56,13 @@ export async function answerListingQuestion(
   if (!question) throw new ApiError(404, "not_found", "No Owner question for that Source");
   if (question.status !== "open") throw new ApiError(409, "already_settled", "This Owner question was already settled");
 
-  if (answer === "none") {
+  if (answer.answer === "none") {
     const [settled] = await sql`
       update owner_question set status = 'dismissed', settled_at = now()
       where id = ${question.id} and status = 'open'
       returning id`;
     if (!settled) throw new ApiError(409, "already_settled", "This Owner question was already settled");
-    return Response.json(answerListingResponseSchema.parse({ settled: true }), { status: 200, headers: { "Cache-Control": "private, no-store" } });
+    return Response.json(answerListingResponseSchema.parse({ settled: true }), { status: 202, headers: { "Cache-Control": "private, no-store" } });
   }
 
   const { listingId, fetchJobId } = await db().begin(async (tx) => {
@@ -52,7 +71,8 @@ export async function answerListingQuestion(
       where id = ${question.id} and status = 'open'
       returning payload`;
     if (!settled) throw new ApiError(409, "already_settled", "This Owner question was already settled");
-    const candidate = settled.payload as PreviewListing;
+    const candidate = questionCandidates(settled.payload).find((item) => item.placeRef === answer.placeRef);
+    if (!candidate) throw new ApiError(400, "invalid_request", "Choose one of the proposed Listings");
     const [listing] = await tx`
       insert into listing (restaurant_id, source_code, place_ref, url, match_provenance, source_review_count)
       values (${restaurantId}, ${source}, ${candidate.placeRef}, ${candidate.url}, 'proposed_confirmed', ${candidate.reviewCount})

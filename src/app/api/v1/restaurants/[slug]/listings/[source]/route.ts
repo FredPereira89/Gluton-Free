@@ -6,6 +6,6 @@ export const PUT = withApiErrors(async (request: Request, { params }: { params: 
   await requireOwnerApi(request);
   const { slug, source } = parseApiRequest(routes.answerListing.request.params, await params);
   const body = await request.json().catch(() => { throw new ApiError(400, "invalid_request", "Invalid JSON body"); });
-  const { answer } = parseApiRequest(routes.answerListing.request.body, body);
+  const answer = parseApiRequest(routes.answerListing.request.body, body);
   return answerListingQuestion(slug, source, answer);
 });

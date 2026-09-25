@@ -42,6 +42,24 @@ const bundleSourceSchema = sourceSchema.extend({
   fetchStatus: z.enum(["not_fetched", "fetching", "fetched", "failed"]),
 });
 
+const matchEvidenceSchema = z.strictObject({
+  distanceMeters: z.number().nullable(),
+  phoneMatch: z.boolean().nullable(),
+  nameSimilarity: z.number().min(0).max(1),
+});
+export const ownerQuestionSchema = z.strictObject({
+  id: z.number().int(),
+  source: z.string().min(1),
+  prompt: z.string(),
+  candidates: z.array(z.strictObject({
+    placeRef: z.string().min(1),
+    name: z.string(),
+    url: z.url(),
+    evidence: matchEvidenceSchema,
+  })).min(1),
+});
+export type OwnerQuestion = z.infer<typeof ownerQuestionSchema>;
+
 export const restaurantBundleSchema = z.strictObject({
   restaurant: restaurantSchema,
   verdict: z.strictObject({
@@ -61,7 +79,7 @@ export const restaurantBundleSchema = z.strictObject({
   series: RollupSchema.shape.series,
   changePoints: z.array(z.strictObject({ occurredOn: z.string(), description: z.string() })),
   activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]), status: z.enum(["queued", "running"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
-  ownerQuestions: z.array(z.strictObject({ id: z.number().int(), prompt: z.string() })),
+  ownerQuestions: z.array(ownerQuestionSchema),
 });
 export const quoteTranslationResponseSchema = z.strictObject({ textEn: z.string().min(1) });
 export const quoteTranslationBodySchema = z.strictObject({ original: z.string().min(1).max(240) });
@@ -161,11 +179,7 @@ export const previewLookupBodySchema = z.strictObject({
   sourceUrl: z.url().optional(),
 }).refine((value) => !!value.googlePlaceId !== !!value.sourceUrl, { message: "Provide exactly one of googlePlaceId or sourceUrl" });
 
-export const previewEvidenceSchema = z.strictObject({
-  distanceMeters: z.number().nullable(),
-  phoneMatch: z.boolean().nullable(),
-  nameSimilarity: z.number().min(0).max(1),
-});
+export const previewEvidenceSchema = matchEvidenceSchema;
 export const previewListingSchema = z.strictObject({
   source: z.enum(["google", "tripadvisor"]),
   url: z.url(),
@@ -195,7 +209,7 @@ export type PreviewLookupResponse = z.infer<typeof previewLookupResponseSchema>;
 
 export const startLookupBodySchema = z.strictObject({
   googlePlaceId: z.string().trim().min(1).max(256),
-  listings: z.array(previewListingSchema).max(2),
+  listings: z.array(previewListingSchema).max(4),
 });
 export const startLookupResponseSchema = z.strictObject({ jobId: z.number().int().positive(), restaurantSlug: z.string().min(1) });
 export const jobResponseSchema = z.strictObject({
@@ -208,7 +222,10 @@ export const jobResponseSchema = z.strictObject({
 });
 export type JobResponse = z.infer<typeof jobResponseSchema>;
 
-export const answerListingBodySchema = z.strictObject({ answer: z.enum(["accept", "none"]) });
+export const answerListingBodySchema = z.discriminatedUnion("answer", [
+  z.strictObject({ answer: z.literal("accept"), placeRef: z.string().min(1) }),
+  z.strictObject({ answer: z.literal("none") }),
+]);
 export const answerListingResponseSchema = z.strictObject({ settled: z.literal(true) });
 
 const webPushSubscriptionSchema = z.strictObject({
@@ -297,7 +314,7 @@ export const routes = {
       body: answerListingBodySchema,
     },
     responses: {
-      200: answerListingResponseSchema, 202: acceptedJobSchema,
+      202: z.union([answerListingResponseSchema, acceptedJobSchema]),
       400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema,
     },
   },

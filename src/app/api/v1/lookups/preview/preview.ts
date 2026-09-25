@@ -34,22 +34,24 @@ export function proposeGoogleListing(name: string, placeId: string, reviewCount:
 // Tripadvisor Search has no phone or distance. A name alone cannot satisfy ADR-0005's
 // auto-accept rule, so every plausible candidate remains an Owner question.
 const MIN_PROPOSAL_NAME_SIMILARITY = 0.5;
+const MAX_TRIPADVISOR_CANDIDATES = 3;
 
-/** Picks the best-matching Tripadvisor Search result for the Google name, or null if none is plausible. */
-export function proposeTripadvisorListing(googleName: string, candidates: TripadvisorSearchItem[]): PreviewListing | null {
-  let best: { item: TripadvisorSearchItem; score: number } | null = null;
+/** Keeps the plausible Tripadvisor matches so the owner can choose after the lookup completes. */
+export function proposeTripadvisorListings(googleName: string, candidates: TripadvisorSearchItem[]): PreviewListing[] {
+  const matches: { item: TripadvisorSearchItem; score: number }[] = [];
   for (const item of candidates) {
     if (!item.title || !item.url_path) continue;
     const score = nameSimilarity(googleName, item.title);
-    if (!best || score > best.score) best = { item, score };
+    if (score >= MIN_PROPOSAL_NAME_SIMILARITY && !matches.some((match) => match.item.url_path === item.url_path)) {
+      matches.push({ item, score });
+    }
   }
-  if (!best || best.score < MIN_PROPOSAL_NAME_SIMILARITY) return null;
-  return {
-    source: "tripadvisor", url: tripadvisorUrl(best.item.url_path!), placeRef: best.item.url_path!, name: best.item.title!,
+  return matches.sort((a, b) => b.score - a.score).slice(0, MAX_TRIPADVISOR_CANDIDATES).map(({ item, score }) => ({
+    source: "tripadvisor", url: tripadvisorUrl(item.url_path!), placeRef: item.url_path!, name: item.title!,
     confidence: "uncertain", autoAccept: false,
-    reviewCount: best.item.reviews_count ?? best.item.rating?.votes_count ?? null,
-    evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: best.score },
-  };
+    reviewCount: item.reviews_count ?? item.rating?.votes_count ?? null,
+    evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: score },
+  }));
 }
 
 // Not every counted review carries text, and fewer still fall inside the review window; this
