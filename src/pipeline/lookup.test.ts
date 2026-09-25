@@ -5,20 +5,22 @@ import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
 import { fakeAnthropic, fakeVendorFetch } from "./vendor-fakes";
 
+const triggerControl = vi.hoisted(() => ({ failListingUndo: false }));
+
 vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
 }));
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, payload: never) => {
+  if (id === "owner-listing-undo" && triggerControl.failListingUndo) throw new Error("Trigger unavailable");
   const { runLookup, runListingFetch, runRejudge } = await import("./lookup");
   if (id === "owner-listing-answer") {
     const p = payload as { restaurantId: number; listingId: number; fetchJobId: number };
     await runListingFetch(p.restaurantId, p.listingId, async () => {}, { jobId: p.fetchJobId });
     await runRejudge(p.restaurantId, async () => {}, { cause: "owner_answer" });
   } else if (id === "owner-listing-undo") {
-    const p = payload as { restaurantId: number; jobId: number };
-    await runRejudge(p.restaurantId, async () => {}, { jobId: p.jobId, cause: "owner_answer" });
+    // The worker waits for the API transaction to commit before reading the detached Listing set.
   } else {
     const p = payload as { restaurantId: number; jobId: number };
     await runLookup(p.restaurantId, async () => {}, { jobId: p.jobId });
@@ -201,6 +203,20 @@ describe("Lookup pipeline", () => {
       values (${flaggedReview!.id}, 'hygiene', 'health', true, 'low', 'Invented source-specific flag', 'rejected')`;
 
     const { DELETE } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/route");
+    triggerControl.failListingUndo = true;
+    const failedStart = await DELETE(
+      new Request("http://localhost/api/v1/restaurants/fictional-undo-auto-match/listings/google", { method: "DELETE" }),
+      { params: Promise.resolve({ slug: "fictional-undo-auto-match", source: "google" }) },
+    );
+    triggerControl.failListingUndo = false;
+    expect(failedStart.status).toBe(503);
+    const [stillAttached] = await database`select id from listing where id = ${google!.id}`;
+    expect(stillAttached).toBeDefined();
+    const [reviewCountAfterFailure] = await database`select count(*)::int as n from review where listing_id = ${google!.id}`;
+    expect(reviewCountAfterFailure!.n).toBe(8);
+    const [activeRejudge] = await database`select id from job where restaurant_id = ${restaurantId} and kind = 'rejudge' and status in ('queued', 'running')`;
+    expect(activeRejudge).toBeUndefined();
+
     const response = await DELETE(
       new Request("http://localhost/api/v1/restaurants/fictional-undo-auto-match/listings/google", { method: "DELETE" }),
       { params: Promise.resolve({ slug: "fictional-undo-auto-match", source: "google" }) },
@@ -208,6 +224,8 @@ describe("Lookup pipeline", () => {
     expect(response.status).toBe(202);
     const { routes } = await import("@/lib/api-contract");
     const accepted = routes.undoListing.responses[202].parse(await response.json());
+    const { runRejudge } = await import("./lookup");
+    await runRejudge(restaurantId, async () => {}, { jobId: accepted.id, cause: "owner_answer" });
 
     const listings = await database`select source_code from listing where restaurant_id = ${restaurantId} order by source_code`;
     expect(listings.map((listing) => listing.source_code)).toEqual(["tripadvisor"]);

@@ -5,7 +5,7 @@ import { ApiError } from "./problem";
 
 /** Removes an auto-accepted Listing and queues a Verdict from the remaining Sources. */
 export async function undoAutoAcceptedListing(slug: string, source: "google" | "tripadvisor"): Promise<Response> {
-  const { restaurantId, jobId } = await db().begin(async (tx) => {
+  const jobId = await db().begin(async (tx) => {
     const [restaurant] = await tx`select id from restaurant where slug = ${slug} for update`;
     if (!restaurant) throw new ApiError(404, "not_found", "Restaurant not found");
     const restaurantId = Number(restaurant.id);
@@ -37,19 +37,18 @@ export async function undoAutoAcceptedListing(slug: string, source: "google" | "
     const [job] = await tx`
       insert into job (kind, restaurant_id, status, step)
       values ('rejudge', ${restaurantId}, 'queued', 'Listing removed') returning id`;
-    return { restaurantId, jobId: Number(job!.id) };
+    const jobId = Number(job!.id);
+    let handle: { id: string };
+    try {
+      // Submit before commit. If enqueue fails, the transaction restores the Listing and Reviews.
+      handle = await tasks.trigger("owner-listing-undo", { restaurantId, jobId }, {
+        idempotencyKey: `listing-undo-${jobId}`,
+      });
+    } catch {
+      throw new ApiError(503, "job_start_failed", "Could not start the Verdict update. Try again later.");
+    }
+    await tx`update job set trigger_run_id = ${handle.id}, updated_at = now() where id = ${jobId}`;
+    return jobId;
   });
-
-  try {
-    const handle = await tasks.trigger("owner-listing-undo", { restaurantId, jobId }, {
-      idempotencyKey: `listing-undo-${jobId}`,
-    });
-    await db()`update job set trigger_run_id = ${handle.id}, updated_at = now() where id = ${jobId}`;
-  } catch {
-    await db()`
-      update job set status = 'failed', error = 'Could not start Listing rejudge', finished_at = now(), updated_at = now()
-      where id = ${jobId}`;
-    throw new ApiError(503, "job_start_failed", "Could not start the Verdict update. Try again later.");
-  }
   return acceptedJobResponse(jobId);
 }
