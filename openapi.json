@@ -3523,83 +3523,144 @@
                     "ownerQuestions": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
-                          "source": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "prompt": {
-                            "type": "string"
-                          },
-                          "candidates": {
-                            "minItems": 1,
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "placeRef": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "name": {
-                                  "type": "string"
-                                },
-                                "url": {
-                                  "type": "string",
-                                  "format": "uri"
-                                },
-                                "evidence": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "listing_match"
+                              },
+                              "source": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "prompt": {
+                                "type": "string"
+                              },
+                              "candidates": {
+                                "minItems": 1,
+                                "type": "array",
+                                "items": {
                                   "type": "object",
                                   "properties": {
-                                    "distanceMeters": {
-                                      "type": [
-                                        "number",
-                                        "null"
-                                      ]
+                                    "placeRef": {
+                                      "type": "string",
+                                      "minLength": 1
                                     },
-                                    "phoneMatch": {
-                                      "type": [
-                                        "boolean",
-                                        "null"
-                                      ]
+                                    "name": {
+                                      "type": "string"
                                     },
-                                    "nameSimilarity": {
-                                      "type": "number",
-                                      "minimum": 0,
-                                      "maximum": 1
+                                    "url": {
+                                      "type": "string",
+                                      "format": "uri"
+                                    },
+                                    "evidence": {
+                                      "type": "object",
+                                      "properties": {
+                                        "distanceMeters": {
+                                          "type": [
+                                            "number",
+                                            "null"
+                                          ]
+                                        },
+                                        "phoneMatch": {
+                                          "type": [
+                                            "boolean",
+                                            "null"
+                                          ]
+                                        },
+                                        "nameSimilarity": {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "distanceMeters",
+                                        "phoneMatch",
+                                        "nameSimilarity"
+                                      ],
+                                      "additionalProperties": false
                                     }
                                   },
                                   "required": [
-                                    "distanceMeters",
-                                    "phoneMatch",
-                                    "nameSimilarity"
+                                    "placeRef",
+                                    "name",
+                                    "url",
+                                    "evidence"
                                   ],
                                   "additionalProperties": false
                                 }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "kind",
+                              "source",
+                              "prompt",
+                              "candidates"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
                               },
-                              "required": [
-                                "placeRef",
-                                "name",
-                                "url",
-                                "evidence"
-                              ],
-                              "additionalProperties": false
-                            }
+                              "kind": {
+                                "type": "string",
+                                "const": "format"
+                              },
+                              "source": {
+                                "type": "string",
+                                "const": "google"
+                              },
+                              "prompt": {
+                                "type": "string"
+                              },
+                              "proposedFormat": {
+                                "type": "string",
+                                "enum": [
+                                  "tasca",
+                                  "restaurante_tradicional",
+                                  "marisqueira_cervejaria",
+                                  "churrasqueira",
+                                  "casa_de_fado",
+                                  "casual_contemporary",
+                                  "international_casual",
+                                  "fine_dining",
+                                  "cafe_pastelaria",
+                                  "brunch_all_day_cafe",
+                                  "snack_street"
+                                ]
+                              },
+                              "googleCategory": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "kind",
+                              "source",
+                              "prompt",
+                              "proposedFormat",
+                              "googleCategory"
+                            ],
+                            "additionalProperties": false
                           }
-                        },
-                        "required": [
-                          "id",
-                          "source",
-                          "prompt",
-                          "candidates"
-                        ],
-                        "additionalProperties": false
+                        ]
                       }
                     }
                   },
@@ -3691,6 +3752,186 @@
             }
           }
         ],
+        "security": [
+          {
+            "ownerBearer": []
+          },
+          {
+            "ownerSession": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateRestaurantFacts",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "updated"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "tasca",
+                      "restaurante_tradicional",
+                      "marisqueira_cervejaria",
+                      "churrasqueira",
+                      "casa_de_fado",
+                      "casual_contemporary",
+                      "international_casual",
+                      "fine_dining",
+                      "cafe_pastelaria",
+                      "brunch_all_day_cafe",
+                      "snack_street"
+                    ]
+                  },
+                  "priceTier": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "€",
+                          "€€",
+                          "€€€",
+                          "€€€€"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "security": [
           {
             "ownerBearer": []
@@ -5119,6 +5360,123 @@
                 "google",
                 "tripadvisor"
               ]
+            }
+          }
+        ],
+        "security": [
+          {
+            "ownerBearer": []
+          },
+          {
+            "ownerSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/owner-questions/{id}/dismiss": {
+      "post": {
+        "operationId": "dismissFormatQuestion",
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "settled": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "settled"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
             }
           }
         ],

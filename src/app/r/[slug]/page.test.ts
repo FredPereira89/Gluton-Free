@@ -13,6 +13,17 @@ vi.mock("@/web/data", () => ({ loadRestaurantBundle: vi.fn() }));
 const now = new Date("2026-09-01T00:00:00.000Z");
 const publishedAt = new Date("2026-08-01T00:00:00.000Z");
 
+describe("Restaurant details (issue #53)", () => {
+  it("shows owner controls for Format and Price tier on the Restaurant page", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(bundle(0));
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Restaurant details");
+    expect(html).toContain("Format");
+    expect(html).toContain("Price tier");
+    expect(html).toContain("Save Restaurant details");
+  });
+});
+
 function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20): RestaurantBundle {
   const reviews: RollupReview[] = Array.from({ length: reviewCount }, (_, i) => ({
     id: i + 1, source: "google", publishedAt, stars: 5, hasText: true, subRatings: null,

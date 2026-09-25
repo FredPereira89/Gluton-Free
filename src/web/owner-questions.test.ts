@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const question: OwnerQuestion = {
   id: 9,
+  kind: "listing_match",
   source: "tripadvisor",
   prompt: "Which Tripadvisor listing belongs to this Restaurant?",
   candidates: [{
@@ -27,5 +28,20 @@ describe("OwnerQuestions", () => {
     expect(html).toContain("Phone match unavailable");
     expect(html).toContain("Use this listing");
     expect(html).toContain("Neither is the right listing");
+  });
+
+  it("shows the proposed Format and lets the owner keep it", () => {
+    const formatQuestion: OwnerQuestion = {
+      id: 10,
+      kind: "format",
+      source: "google",
+      prompt: "Google categorizes this Restaurant as a seafood restaurant; Reviews suggest tasca. Keep this proposed Format?",
+      proposedFormat: "tasca",
+      googleCategory: "Seafood restaurant",
+    };
+    const html = renderToStaticMarkup(createElement(OwnerQuestions, { slug: "casa-do-bacalhau", questions: [formatQuestion] }));
+    expect(html).toContain("Proposed Format:");
+    expect(html).toContain("Keep proposed Format");
+    expect(html).toContain("seafood restaurant");
   });
 });

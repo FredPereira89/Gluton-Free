@@ -2,6 +2,8 @@ import fixture from "./fixtures/lookup.json";
 
 const usage = { input_tokens: 100, output_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
 const sources = { google: fixture.googleReviews, tripadvisor: fixture.tripadvisorReviews };
+export const fakeRestaurantFacts = { googleCategoryDisagrees: false };
+export const fakeVendorCalls = { reviewPosts: 0 };
 
 function response(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
@@ -16,7 +18,7 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
       id: "invented-business", status_code: 20000, status_message: "Ok", cost: 0.003,
       result: [{ items: [{ type: "google_business_info", place_id: placeId, title: fixture.restaurant,
         address: "1 Imaginary Lane, Mouraria, Lisbon", address_info: { city: "Lisbon", district: "Mouraria" },
-        rating: { value: 4.5, votes_count: 16 }, price_level: "moderate" }] }],
+        rating: { value: 4.5, votes_count: 16 }, category: "Tasca restaurant", category_ids: [], price_level: "moderate" }] }],
     }] }));
   }
   if (url.hostname === "api.apify.com" && url.pathname === "/v2/datasets/invented/items") {
@@ -32,6 +34,7 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
   if (operation === "task_post" && JSON.parse(String(init?.body))[0].priority !== 2) {
     return Promise.reject(new Error("Lookup Reviews must use DataForSEO's high-priority queue"));
   }
+  if (operation === "task_post") fakeVendorCalls.reviewPosts++;
   const taskId = operation === "task_post" ? `${source}-${depth}` : operation.split("/")[1]!;
   const isPost = operation === "task_post";
   const texts = sources[source];
@@ -65,7 +68,7 @@ export const fakeAnthropic = {
     create: async (params: { messages: { content: string }[] }) => {
       if (params.messages[0]!.content.includes("<review>")) return {
         usage,
-        content: [{ type: "text", text: JSON.stringify({ format: "tasca", reviewPriceTier: "€" }) }],
+        content: [{ type: "text", text: JSON.stringify({ format: "tasca", reviewPriceTier: "€", googleCategoryDisagrees: fakeRestaurantFacts.googleCategoryDisagrees }) }],
       };
       const ids = [...params.messages[0]!.content.matchAll(/<review i="(\d+)"/g)].map((match) => Number(match[1]));
       return {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TIERS } from "@/domain/aspects";
+import { FORMATS } from "@/domain/restaurant-facts";
 import { BlocksSchema, RollupSchema } from "@/verdict/blocks";
 import { parseApiRequest, problemSchema } from "./problem";
 
@@ -48,8 +49,9 @@ const matchEvidenceSchema = z.strictObject({
   phoneMatch: z.boolean().nullable(),
   nameSimilarity: z.number().min(0).max(1),
 });
-export const ownerQuestionSchema = z.strictObject({
+const listingOwnerQuestionSchema = z.strictObject({
   id: z.number().int(),
+  kind: z.literal("listing_match"),
   source: z.string().min(1),
   prompt: z.string(),
   candidates: z.array(z.strictObject({
@@ -59,6 +61,15 @@ export const ownerQuestionSchema = z.strictObject({
     evidence: matchEvidenceSchema,
   })).min(1),
 });
+const formatOwnerQuestionSchema = z.strictObject({
+  id: z.number().int(),
+  kind: z.literal("format"),
+  source: z.literal("google"),
+  prompt: z.string(),
+  proposedFormat: z.enum(FORMATS),
+  googleCategory: z.string().nullable(),
+});
+export const ownerQuestionSchema = z.discriminatedUnion("kind", [listingOwnerQuestionSchema, formatOwnerQuestionSchema]);
 export type OwnerQuestion = z.infer<typeof ownerQuestionSchema>;
 
 export const restaurantBundleSchema = z.strictObject({
@@ -228,6 +239,11 @@ export const answerListingBodySchema = z.discriminatedUnion("answer", [
   z.strictObject({ answer: z.literal("none") }),
 ]);
 export const answerListingResponseSchema = z.strictObject({ settled: z.literal(true) });
+export const restaurantFactsUpdateBodySchema = z.strictObject({
+  format: z.enum(FORMATS).optional(),
+  priceTier: z.enum(["€", "€€", "€€€", "€€€€"]).nullable().optional(),
+}).refine((body) => body.format !== undefined || body.priceTier !== undefined);
+export const restaurantFactsUpdateResponseSchema = z.strictObject({ updated: z.literal(true) });
 
 const webPushSubscriptionSchema = z.strictObject({
   type: z.literal("web"),
@@ -276,6 +292,13 @@ export const routes = {
     auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1) }) },
     responses: { 200: restaurantBundleSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  updateRestaurantFacts: {
+    method: "PATCH",
+    path: "/api/v1/restaurants/{slug}",
+    auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: restaurantFactsUpdateBodySchema },
+    responses: { 200: restaurantFactsUpdateResponseSchema, 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   quoteTranslation: {
     method: "POST",
@@ -326,6 +349,11 @@ export const routes = {
       202: acceptedJobSchema,
       400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema,
     },
+  },
+  dismissFormatQuestion: {
+    method: "POST", path: "/api/v1/owner-questions/{id}/dismiss", auth: "owner",
+    request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
+    responses: { 202: answerListingResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   createPushSubscription: {
     method: "POST", path: "/api/v1/push-subscriptions", auth: "owner",

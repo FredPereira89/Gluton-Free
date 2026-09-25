@@ -7,7 +7,7 @@ import {
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
 import type { SearchResponse } from "@/lib/api-contract";
-import { questionCandidates, questionPrompt } from "@/lib/owner-question";
+import { formatQuestionPayloadSchema, formatQuestionPrompt, questionCandidates, questionPrompt } from "@/lib/owner-question";
 
 export async function searchKnownRestaurants(q: string, placeIds: string[]): Promise<(SearchResponse["known"][number] & { placeId: string | null })[]> {
   const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
@@ -147,7 +147,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       where restaurant_id = ${page.restaurant.id} and status in ('queued', 'running')
       order by id desc limit 1`.then((rows) => rows[0]),
     db()`
-      select id, source_code, payload from owner_question
+      select id, source_code, kind, payload from owner_question
       where restaurant_id = ${page.restaurant.id} and status = 'open'
       order by id`,
     db()`select source_code, match_provenance from listing where restaurant_id = ${page.restaurant.id}`,
@@ -179,9 +179,21 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
     } : null,
     ownerQuestions: job?.kind === "lookup" ? [] : openQuestions.map((q) => {
+      if (q.kind === "format") {
+        const payload = formatQuestionPayloadSchema.parse(q.payload);
+        return {
+          id: Number(q.id),
+          kind: "format" as const,
+          source: "google" as const,
+          prompt: formatQuestionPrompt(payload.googleCategory, payload.proposedFormat),
+          proposedFormat: payload.proposedFormat,
+          googleCategory: payload.googleCategory,
+        };
+      }
       const candidates = questionCandidates(q.payload);
       return {
         id: Number(q.id),
+        kind: "listing_match" as const,
         source: q.source_code as string,
         prompt: questionPrompt(q.source_code as string),
         candidates: candidates.map(({ placeRef, name, url, evidence }) => ({ placeRef, name, url, evidence })),
