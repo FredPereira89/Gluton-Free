@@ -6,6 +6,7 @@ export type PreviewEvidence = { distanceMeters: number | null; phoneMatch: boole
 export type PreviewListing = {
   source: "google" | "tripadvisor";
   url: string;
+  placeRef: string;
   name: string;
   confidence: "confident" | "uncertain";
   autoAccept: boolean;
@@ -25,7 +26,7 @@ export function tripadvisorUrl(urlPath: string): string {
 /** The Google Listing is resolved by exact place ID, never searched, so it is always a confident match. */
 export function proposeGoogleListing(name: string, placeId: string, reviewCount: number | null): PreviewListing {
   return {
-    source: "google", url: googleMapsUrl(placeId), name, confidence: "confident", autoAccept: true,
+    source: "google", url: googleMapsUrl(placeId), placeRef: placeId, name, confidence: "confident", autoAccept: true,
     reviewCount, evidence: { distanceMeters: 0, phoneMatch: null, nameSimilarity: 1 },
   };
 }
@@ -44,7 +45,7 @@ export function proposeTripadvisorListing(googleName: string, candidates: Tripad
   }
   if (!best || best.score < MIN_PROPOSAL_NAME_SIMILARITY) return null;
   return {
-    source: "tripadvisor", url: tripadvisorUrl(best.item.url_path!), name: best.item.title!,
+    source: "tripadvisor", url: tripadvisorUrl(best.item.url_path!), placeRef: best.item.url_path!, name: best.item.title!,
     confidence: "uncertain", autoAccept: false,
     reviewCount: best.item.reviews_count ?? best.item.rating?.votes_count ?? null,
     evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: best.score },

@@ -9,9 +9,16 @@ vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
 }));
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
-vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (_id: string, payload: { restaurantId: number; jobId: number }) => {
-  const { runLookup } = await import("./lookup");
-  await runLookup(payload.restaurantId, async () => {}, { jobId: payload.jobId });
+vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, payload: never) => {
+  const { runLookup, runListingFetch, runRejudge } = await import("./lookup");
+  if (id === "owner-listing-answer") {
+    const p = payload as { restaurantId: number; listingId: number; fetchJobId: number };
+    await runListingFetch(p.restaurantId, p.listingId, async () => {}, { jobId: p.fetchJobId });
+    await runRejudge(p.restaurantId, async () => {}, { cause: "owner_answer" });
+  } else {
+    const p = payload as { restaurantId: number; jobId: number };
+    await runLookup(p.restaurantId, async () => {}, { jobId: p.jobId });
+  }
   return { id: "invented-trigger-run" };
 }) } }));
 
@@ -181,7 +188,7 @@ describe("Lookup pipeline", () => {
     const request = () => new Request("http://localhost/api/v1/lookups", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ googlePlaceId: "invented-second-place", listings: [{
-        source: "tripadvisor", url: "https://www.tripadvisor.com/invented-second-path", name: fixture.restaurant,
+        source: "tripadvisor", url: "https://www.tripadvisor.com/invented-second-path", placeRef: "invented-second-path", name: fixture.restaurant,
         confidence: "confident", autoAccept: true, reviewCount: 8,
         evidence: { distanceMeters: 10, phoneMatch: true, nameSimilarity: 1 },
       }] }),
@@ -243,5 +250,104 @@ describe("Lookup pipeline", () => {
     await runLookup(Number(restaurant!.id), async () => {}, { from: "judge" });
     const [after] = await sql!`select format, format_provenance, price_tier, price_provenance from restaurant where id = ${restaurant!.id}`;
     expect(after).toMatchObject({ format: "fine_dining", format_provenance: "owner", price_tier: "€", price_provenance: "llm" });
+  }, 30_000);
+
+  it("raises an Owner question for an uncertain match; Accept fetches the Listing and re-judges", async () => {
+    const { POST } = await import("@/app/api/v1/lookups/route");
+    const { PUT } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/route");
+    const { routes } = await import("@/lib/api-contract");
+    const started = await POST(new Request("http://localhost/api/v1/lookups", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ googlePlaceId: "invented-owner-question-place", listings: [{
+        source: "tripadvisor", url: "https://www.tripadvisor.com/invented-owner-question-path",
+        placeRef: "invented-owner-question-path", name: fixture.restaurant,
+        confidence: "uncertain", autoAccept: false, reviewCount: 8,
+        evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: 0.9 },
+      }] }),
+    }));
+    expect(started.status).toBe(202);
+    const { restaurantSlug } = await started.json() as { restaurantSlug: string };
+    const [restaurant] = await sql!`select id from restaurant where slug = ${restaurantSlug}`;
+
+    const [question] = await sql!`select id, status, source_code from owner_question where restaurant_id = ${restaurant!.id}`;
+    expect(question).toMatchObject({ status: "open", source_code: "tripadvisor" });
+
+    const { loadRestaurantBundle } = await import("@/web/data");
+    const before = await loadRestaurantBundle(restaurantSlug);
+    expect(before!.ownerQuestions).toEqual([{ id: Number(question!.id), prompt: expect.stringContaining(fixture.restaurant) }]);
+    const verdictsBefore = await sql!`select count(*)::int as n from verdict where restaurant_id = ${restaurant!.id}`;
+    expect(verdictsBefore[0]!.n).toBe(1);
+
+    const accept = await PUT(
+      new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "accept" }),
+      }),
+      { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
+    );
+    expect(accept.status).toBe(202);
+    const accepted = routes.answerListing.responses[202].parse(await accept.json());
+    expect(accepted.id).toBeGreaterThan(0);
+
+    const [listing] = await sql!`
+      select place_ref, match_provenance from listing where restaurant_id = ${restaurant!.id} and source_code = 'tripadvisor'`;
+    expect(listing).toMatchObject({ place_ref: "invented-owner-question-path", match_provenance: "proposed_confirmed" });
+    const [settled] = await sql!`select status, settled_at from owner_question where id = ${question!.id}`;
+    expect(settled).toMatchObject({ status: "answered" });
+    expect(settled!.settled_at).not.toBeNull();
+    const verdictsAfter = await sql!`select count(*)::int as n from verdict where restaurant_id = ${restaurant!.id}`;
+    expect(verdictsAfter[0]!.n).toBe(2);
+    const reviewCount = await sql!`select count(*)::int as n from review r join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurant!.id}`;
+    expect(reviewCount[0]!.n).toBe(16);
+
+    const after = await loadRestaurantBundle(restaurantSlug);
+    expect(after!.ownerQuestions).toEqual([]);
+
+    const again = await PUT(
+      new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "accept" }),
+      }),
+      { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
+    );
+    expect(again.status).toBe(409);
+    expect((await again.json()).code).toBe("already_settled");
+  }, 30_000);
+
+  it("settles a None answer without fetching a Listing", async () => {
+    const { POST } = await import("@/app/api/v1/lookups/route");
+    const { PUT } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/route");
+    const started = await POST(new Request("http://localhost/api/v1/lookups", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ googlePlaceId: "invented-owner-none-place", listings: [{
+        source: "tripadvisor", url: "https://www.tripadvisor.com/invented-owner-none-path",
+        placeRef: "invented-owner-none-path", name: fixture.restaurant,
+        confidence: "uncertain", autoAccept: false, reviewCount: 8,
+        evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: 0.9 },
+      }] }),
+    }));
+    expect(started.status).toBe(202);
+    const { restaurantSlug } = await started.json() as { restaurantSlug: string };
+    const [restaurant] = await sql!`select id from restaurant where slug = ${restaurantSlug}`;
+
+    const none = await PUT(
+      new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "none" }),
+      }),
+      { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
+    );
+    expect(none.status).toBe(200);
+    expect(await none.json()).toEqual({ settled: true });
+    const [listing] = await sql!`select 1 from listing where restaurant_id = ${restaurant!.id} and source_code = 'tripadvisor'`;
+    expect(listing).toBeUndefined();
+    const [question] = await sql!`select status from owner_question where restaurant_id = ${restaurant!.id}`;
+    expect(question).toMatchObject({ status: "dismissed" });
+
+    const again = await PUT(
+      new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "none" }),
+      }),
+      { params: Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" }) },
+    );
+    expect(again.status).toBe(409);
+    expect((await again.json()).code).toBe("already_settled");
   }, 30_000);
 });

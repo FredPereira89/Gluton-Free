@@ -5,6 +5,7 @@ import { LISBON } from "@/app/api/v1/search/route";
 import type { z } from "zod";
 import { startLookupBodySchema } from "./api-contract";
 import { db } from "./db";
+import { raiseListingQuestions } from "./owner-question";
 import { ApiError } from "./problem";
 import { recordSearchCost, spendCapStatus } from "./spend-cap";
 
@@ -58,6 +59,7 @@ export async function startLookup(input: Input): Promise<Started> {
       const [job] = await sql`
         insert into job (kind, restaurant_id, status, step, progress, vendor_cost_usd)
         values ('lookup', ${found.restaurant_id}, 'queued', 'Listings matched', ${sql.json({ estimateMinutes, askLater } as never)}, ${resolved.cost}) returning id`;
+      await raiseListingQuestions(sql, Number(found.restaurant_id), askLater);
       return { jobId: Number(job!.id), restaurantSlug: found.slug as string, created: true, restaurantId: Number(found.restaurant_id) };
     }
     let slug = base;
@@ -75,6 +77,7 @@ export async function startLookup(input: Input): Promise<Started> {
     const [job] = await sql`
       insert into job (kind, restaurant_id, status, step, progress, vendor_cost_usd)
       values ('lookup', ${restaurantId}, 'queued', 'Listings matched', ${sql.json({ estimateMinutes, askLater } as never)}, ${resolved.cost}) returning id`;
+    await raiseListingQuestions(sql, restaurantId, askLater);
     return { jobId: Number(job!.id), restaurantSlug: slug, created: true, restaurantId };
   });
 

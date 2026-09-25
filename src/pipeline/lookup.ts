@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage } from "@/lib/job";
 import { issueVerdict } from "@/verdict/issue";
 import { PARAMS } from "@/verdict/rollup";
+import type { RejudgeCause } from "@/verdict/stability";
 
 export type Sleep = (seconds: number) => Promise<void>;
 export const localSleep: Sleep = (s) => new Promise((r) => setTimeout(r, s * 1000));
@@ -60,12 +61,14 @@ async function runVendorTasks(
 /**
  * Fetches every Review of every Listing: a depth-10 probe for the count, then the full depth.
  * With `sample`, fetches only the newest `sample` Reviews per Listing and skips the probe.
+ * With `listingId`, scopes the fetch to that one Listing (an owner-answered Listing joining late).
  */
-export async function ingestRestaurant(restaurantId: number, jobId: number, sleep: Sleep, sample?: number) {
+export async function ingestRestaurant(restaurantId: number, jobId: number, sleep: Sleep, sample?: number, listingId?: number) {
   const sql = db();
-  const rows = await sql`select id, source_code, place_ref from listing where restaurant_id = ${restaurantId} order by id`;
+  const scope = listingId ? sql`and id = ${listingId}` : sql``;
+  const rows = await sql`select id, source_code, place_ref from listing where restaurant_id = ${restaurantId} ${scope} order by id`;
   const listings: ListingRow[] = rows.map((r) => ({ id: Number(r.id), source: r.source_code as DfsSource, placeRef: r.place_ref as string }));
-  await sql`update listing set fetch_status = 'fetching', fetch_error = null where restaurant_id = ${restaurantId}`;
+  await sql`update listing set fetch_status = 'fetching', fetch_error = null where restaurant_id = ${restaurantId} ${scope}`;
   try {
     let depthOf: (l: ListingRow) => number = () => sample!;
     if (sample) {
@@ -95,7 +98,7 @@ export async function ingestRestaurant(restaurantId: number, jobId: number, slee
     return summary;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    await sql`update listing set fetch_status = 'failed', fetch_error = ${msg} where restaurant_id = ${restaurantId} and fetch_status = 'fetching'`;
+    await sql`update listing set fetch_status = 'failed', fetch_error = ${msg} where restaurant_id = ${restaurantId} and fetch_status = 'fetching' ${scope}`;
     throw e;
   }
 }
@@ -146,7 +149,7 @@ export async function extractRestaurant(restaurantId: number, jobId: number, sle
 }
 
 /** Verifies pending Red flags and issues a Verdict. */
-export async function judgeRestaurant(restaurantId: number, jobId: number) {
+export async function judgeRestaurant(restaurantId: number, jobId: number, cause: RejudgeCause = "automatic") {
   const sql = db();
   const [restaurant] = await sql`select format_provenance, price_provenance from restaurant where id = ${restaurantId}`;
   const listings = await sql`select source_code, price_level, categories from listing where restaurant_id = ${restaurantId}`;
@@ -186,7 +189,7 @@ export async function judgeRestaurant(restaurantId: number, jobId: number) {
   await setStep(jobId, "checking signals", undefined, "signals checked");
   await setStep(jobId, "issuing Verdict");
   const explainUsage = emptyUsage("explain", JUDGE_MODEL, false);
-  const verdictId = await issueVerdict(restaurantId, jobId, explainUsage, "automatic");
+  const verdictId = await issueVerdict(restaurantId, jobId, explainUsage, cause);
   await addLlmUsage(jobId, explainUsage);
   await setStep(jobId, "Verdict issued", { verdictId }, "judged and explained");
   await setStep(jobId, "notified", undefined, "notified");
@@ -211,6 +214,46 @@ export async function runLookup(
     const judged = await judgeRestaurant(restaurantId, jobId);
     await finishJob(jobId);
     return { jobId, ingest, extraction, ...judged };
+  } catch (e) {
+    await finishJob(jobId, e instanceof Error ? e.message : String(e));
+    throw e;
+  }
+}
+
+/** Fetches one owner-answered Listing on its own, ahead of the Rejudge that follows it. */
+export async function runListingFetch(
+  restaurantId: number,
+  listingId: number,
+  sleep: Sleep,
+  opts: { triggerRunId?: string; jobId?: number } = {},
+) {
+  const jobId = opts.jobId ?? await createJob("listing_fetch", restaurantId, opts.triggerRunId);
+  if (opts.jobId) await db()`update job set status = 'running', trigger_run_id = ${opts.triggerRunId ?? null}, updated_at = now() where id = ${jobId}`;
+  try {
+    await setStep(jobId, "fetching Listing");
+    const ingest = await ingestRestaurant(restaurantId, jobId, sleep, undefined, listingId);
+    await finishJob(jobId);
+    return { jobId, ingest };
+  } catch (e) {
+    await finishJob(jobId, e instanceof Error ? e.message : String(e));
+    throw e;
+  }
+}
+
+/** Extracts newly-fetched Reviews and re-issues a Verdict, bypassing the stability hold when `cause` is `owner_answer`. */
+export async function runRejudge(
+  restaurantId: number,
+  sleep: Sleep,
+  opts: { triggerRunId?: string; jobId?: number; cause?: RejudgeCause } = {},
+) {
+  const jobId = opts.jobId ?? await createJob("rejudge", restaurantId, opts.triggerRunId);
+  if (opts.jobId) await db()`update job set status = 'running', trigger_run_id = ${opts.triggerRunId ?? null}, updated_at = now() where id = ${jobId}`;
+  try {
+    await setStep(jobId, "extracting new Reviews");
+    const extraction = await extractRestaurant(restaurantId, jobId, sleep);
+    const judged = await judgeRestaurant(restaurantId, jobId, opts.cause ?? "automatic");
+    await finishJob(jobId);
+    return { jobId, extraction, ...judged };
   } catch (e) {
     await finishJob(jobId, e instanceof Error ? e.message : String(e));
     throw e;

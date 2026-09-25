@@ -1,6 +1,6 @@
 import { db } from "./db";
 
-export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot";
+export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot" | "listing_fetch" | "rejudge";
 export const LOOKUP_STAGES = ["Listings matched", "Reviews fetched", "window extracted", "flags verified", "signals checked", "judged and explained", "notified"] as const;
 export type LookupStageName = typeof LOOKUP_STAGES[number];
 
