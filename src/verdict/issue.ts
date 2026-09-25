@@ -14,6 +14,9 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
   const sql = db();
   const [restaurant] = await sql`select id, name, city, format from restaurant where id = ${restaurantId}`;
   if (!restaurant) throw new Error(`restaurant ${restaurantId} not found`);
+  const sourceRows = await sql`
+    select l.source_code from listing l join source s on s.code = l.source_code
+    where l.restaurant_id = ${restaurantId} and s.kind = 'crowd'`;
   const rows = await sql`
     select r.id, l.source_code, r.published_at, r.stars, r.text is not null as has_text, r.sub_ratings,
            a.food, a.service, a.ambience, a.value, a.wait, a.consistency, a.exceptional, a.themes,
@@ -49,7 +52,10 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
     verification: f.verification as RollupFlag["verification"],
     publishedAt: f.published_at as Date,
   }));
-  return { restaurant, input: { now, city: restaurant.city as string, format: restaurant.format as string, reviews, flags, changePointAt } };
+  return { restaurant, input: {
+    now, city: restaurant.city as string, format: restaurant.format as string,
+    reviews, sourceCodes: sourceRows.map((row) => row.source_code as string), flags, changePointAt,
+  } };
 }
 
 async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> {

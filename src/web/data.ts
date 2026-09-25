@@ -48,18 +48,20 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       from critic_piece where restaurant_id = ${id} order by published_on desc nulls last, id`,
   ]);
   const blocks = v ? BlocksSchema.parse(v.blocks) : null;
-  // Earlier append-only Verdicts predate stored Source history. Fill it on read so their pages
-  // show the same full history without changing the original Verdict row.
+  // Earlier append-only Verdicts predate stored Source history. Reconstruct only from Reviews
+  // already fetched by issuance, so their charts stay fixed without changing the Verdict row.
   if (v && blocks && !blocks.rollup.sourceHistory) {
     const rows = await sql`
       select l.source_code, rv.published_at, rv.stars
       from review rv join listing l on l.id = rv.listing_id
-      where l.restaurant_id = ${id}`;
+      where l.restaurant_id = ${id}
+        and rv.fetched_at <= ${v.created_at}
+        and rv.published_at <= ${v.created_at}`;
     blocks.rollup.sourceHistory = quarterlySourceHistory(rows.map((row) => ({
       source: row.source_code as string,
       publishedAt: row.published_at as Date,
       stars: row.stars as number | null,
-    })), v.created_at as Date);
+    })), v.created_at as Date, listings.filter((listing) => listing.kind === "crowd").map((listing) => listing.code as string));
   }
   return {
     restaurant: {

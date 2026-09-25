@@ -55,6 +55,8 @@ export type RollupInput = {
   city?: string;
   peerSnapshot?: PeerSnapshot | null;
   reviews: RollupReview[];
+  /** Listed Crowd Sources, including those with no stored Reviews yet. */
+  sourceCodes?: string[];
   flags: RollupFlag[];
   /** The newest confirmed Change point, if any (ADR 0007). Cuts every Source's window short. */
   changePointAt?: Date | null;
@@ -269,17 +271,18 @@ function weightedMedian(points: { w: number; x: number }[]): number {
   return sorted[sorted.length - 1]!.x;
 }
 
-function quarterOf(d: Date): string {
-  return `${d.getUTCFullYear()}-Q${Math.floor(d.getUTCMonth() / 3) + 1}`;
-}
+const quarterIndex = (d: Date) => d.getUTCFullYear() * 4 + Math.floor(d.getUTCMonth() / 3);
+const quarterLabel = (index: number) => `${Math.floor(index / 4)}-Q${index % 4 + 1}`;
+const quarterOf = (d: Date) => quarterLabel(quarterIndex(d));
 
 /** Full stored Review history; the Verdict's Review window does not limit chart data. */
-export function quarterlySourceHistory(reviews: Pick<RollupReview, "source" | "publishedAt" | "stars">[], now: Date): SourceHistory[] {
-  if (!reviews.length) return [];
-  const quarterIndex = (d: Date) => d.getUTCFullYear() * 4 + Math.floor(d.getUTCMonth() / 3);
-  const first = Math.min(...reviews.map((r) => quarterIndex(r.publishedAt)));
-  const last = Math.max(quarterIndex(now), ...reviews.map((r) => quarterIndex(r.publishedAt)));
-  const bySource = new Map<string, Map<number, { volume: number; ratings: number; starsTotal: number }>>();
+export function quarterlySourceHistory(reviews: Pick<RollupReview, "source" | "publishedAt" | "stars">[], now: Date, sourceCodes: string[] = []): SourceHistory[] {
+  if (!reviews.length && !sourceCodes.length) return [];
+  let first = quarterIndex(now);
+  let last = first;
+  const bySource = new Map<string, Map<number, { volume: number; ratings: number; starsTotal: number }>>(
+    sourceCodes.map((source) => [source, new Map()]),
+  );
   for (const r of reviews) {
     let quarters = bySource.get(r.source);
     if (!quarters) {
@@ -287,6 +290,8 @@ export function quarterlySourceHistory(reviews: Pick<RollupReview, "source" | "p
       bySource.set(r.source, quarters);
     }
     const index = quarterIndex(r.publishedAt);
+    first = Math.min(first, index);
+    last = Math.max(last, index);
     const bucket = quarters.get(index) ?? { volume: 0, ratings: 0, starsTotal: 0 };
     bucket.volume++;
     if (r.stars !== null) {
@@ -301,7 +306,7 @@ export function quarterlySourceHistory(reviews: Pick<RollupReview, "source" | "p
       const index = first + offset;
       const bucket = quarters.get(index);
       return {
-        quarter: `${Math.floor(index / 4)}-Q${index % 4 + 1}`,
+        quarter: quarterLabel(index),
         stars: bucket && bucket.ratings >= 5 ? bucket.starsTotal / bucket.ratings : null,
         ratings: bucket?.ratings ?? 0,
         volume: bucket?.volume ?? 0,
@@ -510,7 +515,7 @@ export function rollup(input: RollupInput): Rollup {
     themes,
     themeBase: { analysed: themeBase.length, windowMonths: themeWindow },
     series,
-    sourceHistory: quarterlySourceHistory(input.reviews, now),
+    sourceHistory: quarterlySourceHistory(input.reviews, now, input.sourceCodes),
   };
   return judgeWithSnapshot(result, input.peerSnapshot, input.city, format);
 }

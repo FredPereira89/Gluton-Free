@@ -18,7 +18,7 @@ With an 18-month half-life, Reviews older than 24 months carried little weight a
 
 - A Restaurant and its Peers get comparable n_eff, shrinkage and consistency, because none has more history than the others.
 - O Velho Eurico's full-history extraction is not needed.
-- The Verdict page's quarterly chart covers only the window. Anything older belongs to [Review recency, Restaurant changes, and trends](https://github.com/FredPereira89/Gluton-Free/issues/16).
+- The Verdict's Tier and windowed composite series use only the Review window. The Verdict page's Source stars and Review volume chart covers the full stored history, as decided in [#40](https://github.com/FredPereira89/Gluton-Free/issues/40).
 - Changing C, L or the extractor after the baseline means paying to extract every Peer again. The baseline therefore waits for the extractor to be frozen on O Velho Eurico.
 
 ## Considered Options

@@ -367,6 +367,18 @@ describe("applyReviewWindow", () => {
 });
 
 describe("quarterly Source history", () => {
+  it("includes a listed Source with no Reviews at zero volume for every quarter", () => {
+    const result = rollup({
+      now: NOW, format: "tasca", flags: [], sourceCodes: ["google", "tripadvisor"],
+      reviews: [review({ source: "google", publishedAt: new Date("2026-01-15T00:00:00Z"), stars: 4 })],
+    });
+    expect(result.sourceHistory.find((s) => s.source === "tripadvisor")?.quarters).toEqual([
+      { quarter: "2026-Q1", stars: null, ratings: 0, volume: 0 },
+      { quarter: "2026-Q2", stars: null, ratings: 0, volume: 0 },
+      { quarter: "2026-Q3", stars: null, ratings: 0, volume: 0 },
+    ]);
+  });
+
   it("keeps full-history Review volume and draws stars only from five or more ratings in a quarter", () => {
     const reviews = [
       ...many(5, () => review({ source: "google", publishedAt: new Date("2023-01-15T00:00:00Z"), stars: 4, aspects: null })),
