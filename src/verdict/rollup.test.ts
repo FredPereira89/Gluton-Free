@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { INFORMATIVE_ONLY, INPUT_WEIGHTS, INPUTS, type Aspect, type Input } from "@/domain/aspects";
 import { judgeWithSnapshot, midRank, type PeerGroupStat, type PeerSnapshot } from "./peer";
-import { applyReviewWindow, rollup, shrunk, type InputStat, type RollupFlag, type RollupReview } from "./rollup";
+import { applyReviewWindow, rollup, shrunk, tierWithRedFlags, type InputStat, type RollupFlag, type RollupReview } from "./rollup";
 
 const NOW = new Date("2026-09-01T00:00:00Z");
 const monthsAgo = (m: number) => new Date(NOW.getTime() - m * 30.4375 * 24 * 3600 * 1000);
@@ -206,7 +206,7 @@ describe("rollup", () => {
     expect(afterChange.notEnoughEvidence.reasonLine).toMatch(/^Reopened after renovation on .+; 9 Reviews since$/);
   });
 
-  it("forces Avoid on three confirmed first-hand incidents within 3 months in one group", () => {
+  it("forces Avoid on two confirmed first-hand incidents from different Reviews when the newest is within 6 months and the share reaches 1%", () => {
     const reviews = many(100, (i) => great(i));
     const flag = (r: RollupReview, m: number): RollupFlag => ({
       reviewId: r.id,
@@ -220,14 +220,14 @@ describe("rollup", () => {
       now: NOW,
       format: "tasca",
       reviews,
-      flags: [flag(reviews[0]!, 1), flag(reviews[1]!, 2), flag(reviews[2]!, 3)],
+      flags: [flag(reviews[0]!, 2), flag(reviews[1]!, 6)],
     });
     expect(r.tier).toBe("avoid");
-    expect(r.redFlags[0]!.incidents12m).toBe(3);
+    expect(r.redFlags[0]!.incidents12m).toBe(2);
     expect(r.redFlags[0]!.forcesAvoid).toBe(true);
   });
 
-  it("does not force Avoid when only two of three incidents fall within the last 3 months", () => {
+  it("does not force Avoid when the newest incident is older than 6 months", () => {
     const reviews = many(100, (i) => great(i));
     const flag = (r: RollupReview, m: number): RollupFlag => ({
       reviewId: r.id,
@@ -241,11 +241,35 @@ describe("rollup", () => {
       now: NOW,
       format: "tasca",
       reviews,
-      flags: [flag(reviews[0]!, 2), flag(reviews[1]!, 5), flag(reviews[2]!, 8)],
+      flags: [flag(reviews[0]!, 7), flag(reviews[1]!, 8)],
     });
     expect(r.tier).toBe("must_go");
-    expect(r.redFlags[0]!.incidents12m).toBe(3);
+    expect(r.redFlags[0]!.incidents12m).toBe(2);
     expect(r.redFlags[0]!.forcesAvoid).toBe(false);
+  });
+
+  it("includes incidents on the exact 12-month and 6-month calendar boundaries", () => {
+    const reviews = many(100, (i) => great(i));
+    reviews[0]!.publishedAt = new Date("2025-09-01T00:00:00.000Z");
+    reviews[1]!.publishedAt = new Date("2026-03-01T00:00:00.000Z");
+    const flags: RollupFlag[] = reviews.slice(0, 2).map((r) => ({
+      reviewId: r.id, type: "food_poisoning", group: "health", firstHand: true,
+      verification: "confirmed", publishedAt: r.publishedAt,
+    }));
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags });
+    expect(r.redFlags[0]).toMatchObject({ incidents12m: 2, forcesAvoid: true });
+    expect(r.tier).toBe("avoid");
+  });
+
+  it("applies the same forcing rule to the money group", () => {
+    const reviews = many(100, (i) => great(i));
+    const flags: RollupFlag[] = reviews.slice(0, 2).map((r) => ({
+      reviewId: r.id, type: "scam_overcharge", group: "money", firstHand: true,
+      verification: "confirmed", publishedAt: monthsAgo(2),
+    }));
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags });
+    expect(r.tier).toBe("avoid");
+    expect(r.redFlags).toMatchObject([{ group: "money", incidents12m: 2, forcesAvoid: true }]);
   });
 
   it("shows a single incident without forcing Avoid, and ignores unconfirmed ones", () => {
@@ -265,6 +289,49 @@ describe("rollup", () => {
     expect(r.redFlags).toHaveLength(1);
     expect(r.redFlags[0]!.incidents12m).toBe(1);
     expect(r.redFlags[0]!.forcesAvoid).toBe(false);
+    expect(tierWithRedFlags("life_changing", r.redFlags)).toBe("must_go");
+  });
+
+  it("counts different Reviews only, within 12 months, and keeps health and money separate", () => {
+    const reviews = many(100, (i) => great(i));
+    reviews[1]!.publishedAt = monthsAgo(13);
+    const incident = (index: number, group: "health" | "money", publishedAt: Date): RollupFlag => ({
+      reviewId: reviews[index]!.id, type: group === "health" ? "hygiene" : "scam_overcharge",
+      group, firstHand: true, verification: "confirmed", publishedAt,
+    });
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [
+      incident(0, "health", monthsAgo(1)), incident(0, "health", monthsAgo(1)),
+      incident(1, "health", monthsAgo(13)), incident(2, "money", monthsAgo(2)),
+    ] });
+    expect(r.tier).toBe("must_go");
+    expect(r.redFlags.map((g) => [g.group, g.incidents12m, g.forcesAvoid])).toEqual([
+      ["health", 1, false], ["money", 1, false],
+    ]);
+  });
+
+  it("requires incidents to reach 1% of text Reviews in the last 12 months", () => {
+    const reviews = many(201, (i) => great(i, `source-${i % 3}`));
+    const flags: RollupFlag[] = reviews.slice(0, 2).map((r) => ({
+      reviewId: r.id, type: "food_poisoning", group: "health", firstHand: true,
+      verification: "confirmed", publishedAt: monthsAgo(1),
+    }));
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags });
+    expect(r.redFlags[0]).toMatchObject({ incidents12m: 2, forcesAvoid: false });
+    expect(r.redFlags[0]!.shareOfText12m).toBeLessThan(0.01);
+  });
+
+  it("excludes hearsay, unverified incidents, and incidents before a Change point", () => {
+    const reviews = many(40, (i) => great(i));
+    reviews[0]!.publishedAt = monthsAgo(5);
+    const flag = (index: number, publishedAt: Date, firstHand = true, verification: RollupFlag["verification"] = "confirmed"): RollupFlag => ({
+      reviewId: reviews[index]!.id, type: "food_poisoning", group: "health", firstHand, verification, publishedAt,
+    });
+    const r = rollup({ now: NOW, format: "tasca", reviews, changePointAt: monthsAgo(4), flags: [
+      flag(0, monthsAgo(5)), flag(1, monthsAgo(1)), flag(2, monthsAgo(1), false),
+      flag(3, monthsAgo(1), true, "pending"), flag(4, monthsAgo(1), true, "rejected"),
+    ] });
+    expect(r.redFlags).toMatchObject([{ group: "health", incidents12m: 1, forcesAvoid: false }]);
+    expect(r.tier).toBe("must_go");
   });
 
   it("caps confidence when only one Crowd Source is present", () => {

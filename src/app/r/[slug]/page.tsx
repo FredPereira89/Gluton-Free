@@ -6,7 +6,7 @@ import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { formatPercentile } from "@/verdict/peer";
-import { PARAMS } from "@/verdict/rollup";
+import { PARAMS, type RedFlagGroup } from "@/verdict/rollup";
 import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripRow, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
 import type { RestaurantBundle } from "@/lib/api-contract";
@@ -135,6 +135,19 @@ export default async function VerdictPageRoute({ params }: Props) {
   }
 
   const sourceByCode = new Map(page.sources.map((s) => [s.code, s]));
+  const forcedFlags = r.redFlags.filter((g) => g.forcesAvoid);
+  if (forcedFlags.length) {
+    return (
+      <div className="A">
+        <section className="hero">
+          {head}
+          <TierBadge tier="avoid" size="lg" dashed={r.provisional} />
+          {forcedFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
+        </section>
+        <Sources page={page} perSource={perSource} hideScores />
+      </div>
+    );
+  }
   const pos = r.themes.filter((t) => t.polarity > 0).slice(0, 6);
   const neg = r.themes.filter((t) => t.polarity < 0).slice(0, 6);
   const maxTheme = Math.max(1, ...r.themes.map((t) => t.count));
@@ -170,22 +183,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             <Explanation text={v.explanation} />
           </p>
         )}
-        {r.redFlags.map((g) => (
-          <div className={`flag ${g.forcesAvoid ? "" : "minor"}`} role="note" key={g.group}>
-            <span className="ico" aria-hidden="true">
-              !
-            </span>
-            <b>
-              {g.group === "health" ? "Health" : "Money"}: {g.incidents12m} confirmed first-hand{" "}
-              {g.incidents12m === 1 ? "incident" : "incidents"} in the last 12 months
-            </b>
-            <span className="small">
-              {g.types.map((t) => FLAG_LABEL[t]).join(", ")}
-              {g.newestAt ? `; newest ${monthLabel(g.newestAt.slice(0, 7))}` : ""}.{" "}
-              {g.forcesAvoid ? "3 or more within the last 3 months forces Avoid." : "Shown for awareness; it does not move the Tier."}
-            </span>
-          </div>
-        ))}
+        {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
       </section>
 
       <section className="sec">
@@ -283,9 +281,36 @@ export default async function VerdictPageRoute({ params }: Props) {
   );
 }
 
+function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: Map<string, RestaurantBundle["sources"][number]> }) {
+  return (
+    <aside className={`flag ${g.forcesAvoid ? "" : "minor"}`} aria-label={`${g.group === "health" ? "Health" : "Money"} red flag`}>
+      <span className="ico" aria-hidden="true">!</span>
+      <div>
+        <b>Red flag · {g.group === "health" ? "Health" : "Money"}: {g.incidents12m} verified first-hand {g.incidents12m === 1 ? "incident" : "incidents"}</b>
+        <p className="small">
+          {g.types.map((t) => FLAG_LABEL[t]).join(", ")}; newest {g.newestAt ? monthLabel(g.newestAt.slice(0, 7)) : "unknown"}.{" "}
+          {g.forcesAvoid ? "Recurring recent incidents force Avoid." : "Does not force Avoid; blocks Life Changing."}
+        </p>
+        {(g.incidents ?? []).map((incident) => {
+          const source = sources.get(incident.source);
+          return (
+            <figure className="flag-quote" key={incident.reviewId}>
+              <blockquote>“{incident.evidence}”</blockquote>
+              <figcaption className="small muted">
+                {source ? <a href={source.url} rel="noreferrer nofollow" target="_blank">{source.name}</a> : incident.source}
+                {` · ${monthLabel(incident.publishedAt.slice(0, 7))}`}
+              </figcaption>
+            </figure>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
 type SourceWindow = { text: number; windowStart: string | null };
 
-function Sources({ page, perSource }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow> }) {
+function Sources({ page, perSource, hideScores = false }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow>; hideScores?: boolean }) {
   return (
     <section className="sec">
       <h2>Sources</h2>
@@ -297,7 +322,7 @@ function Sources({ page, perSource }: { page: RestaurantBundle; perSource?: Reco
               <th>Access</th>
               <th className="num">Reviews</th>
               <th className="num">With text</th>
-              <th className="num">Rating</th>
+              {!hideScores && <th className="num">Rating</th>}
               <th>Newest</th>
               <th className="num">Window</th>
               <th>Window since</th>
@@ -322,7 +347,7 @@ function Sources({ page, perSource }: { page: RestaurantBundle; perSource?: Reco
                   </td>
                   <td className="num">{s.reviewCount?.toLocaleString("en") ?? "—"}</td>
                   <td className="num">{s.textCount?.toLocaleString("en") ?? "—"}</td>
-                  <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>
+                  {!hideScores && <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>}
                   <td>{dateLabel(s.newestAt)}</td>
                   <td className="num">{w ? w.text.toLocaleString("en") : "—"}</td>
                   <td>{w?.windowStart ? dateLabel(w.windowStart) : "—"}</td>
@@ -333,7 +358,7 @@ function Sources({ page, perSource }: { page: RestaurantBundle; perSource?: Reco
           </tbody>
         </table>
       </div>
-      {(page.distinctions.length > 0 || page.critics.length > 0) && (
+      {!hideScores && (page.distinctions.length > 0 || page.critics.length > 0) && (
         <div className="ev-list">
           {page.distinctions.map((d) => (
             <div key={d.url}>

@@ -19,7 +19,7 @@ const DEFINITIONS: Record<string, string> = {
   food_poisoning: "someone fell ill after eating at the restaurant",
   hygiene: "dirt, pests, spoiled food, or unclean kitchen, tables or toilets",
   scam_overcharge:
-    "deliberate overcharging: billed for items not ordered and not declined, prices different from the menu, or pressure to pay more. An unwanted couvert that was placed on the table and eaten is not a scam; a mistake that was corrected is not a scam.",
+    "deliberate overcharging: billed for items not ordered or an uneaten couvert charged, prices different from the menu, or pressure to pay more. A pricey couvert that was ordered or eaten is a value complaint, not a scam; a mistake that was corrected is not a scam.",
   other_safety: "injury, violence, theft, or serious mishandling of an allergy",
 };
 

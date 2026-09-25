@@ -5,7 +5,7 @@ import { ASPECTS, INFORMATIVE_ONLY, INPUTS, INPUT_WEIGHTS, type Aspect, type Fla
 import { THEMES, type ThemeCode } from "@/domain/themes";
 import { DEFAULT_SHRINK_K, judgeWithSnapshot, type CompositeStanding, type PeerSnapshot, type Standing, type TierFloor } from "./peer";
 
-export const RULE_VERSION = "provisional-v1";
+export const RULE_VERSION = "provisional-v2-red-flags";
 
 export const PARAMS = {
   halfLifeMonths: 18,
@@ -47,6 +47,8 @@ export type RollupFlag = {
   firstHand: boolean;
   verification: "pending" | "confirmed" | "rejected";
   publishedAt: Date;
+  evidence?: string;
+  source?: string;
 };
 
 export type RollupInput = {
@@ -81,6 +83,7 @@ export type RedFlagGroup = {
   shareOfText12m: number;
   forcesAvoid: boolean;
   types: FlagType[];
+  incidents?: { reviewId: number; type: FlagType; evidence: string; source: string; publishedAt: string }[];
 };
 
 export type SourceHistory = {
@@ -223,28 +226,53 @@ function mulberry32(seed: number) {
   };
 }
 
-function redFlagGroups(input: RollupInput, textIn12m: number): RedFlagGroup[] {
+function monthsBefore(date: Date, months: number): Date {
+  const result = new Date(date);
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() - months);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
+}
+
+function redFlagGroups(input: RollupInput, reviews: RollupReview[]): RedFlagGroup[] {
+  const twelveMonthsAgo = monthsBefore(input.now, 12);
+  const sixMonthsAgo = monthsBefore(input.now, 6);
+  const textReviewIds = new Set(reviews.filter((r) => r.hasText && r.publishedAt >= twelveMonthsAgo && r.publishedAt <= input.now).map((r) => r.id));
+  const textIn12m = textReviewIds.size;
   const groups: RedFlagGroup[] = [];
   for (const group of ["health", "money"] as const) {
     const recent = input.flags.filter(
-      (f) => f.group === group && f.verification === "confirmed" && f.firstHand && ageMonths(input.now, f.publishedAt) <= 12,
+      (f) => f.group === group && f.verification === "confirmed" && f.firstHand &&
+        f.publishedAt >= twelveMonthsAgo && f.publishedAt <= input.now &&
+        (!input.changePointAt || f.publishedAt >= input.changePointAt) && textReviewIds.has(f.reviewId),
     );
-    const reviewIds = new Set(recent.map((f) => f.reviewId));
-    if (!reviewIds.size) continue;
+    const byReview = new Map<number, RollupFlag>();
+    for (const flag of recent) if (!byReview.has(flag.reviewId)) byReview.set(flag.reviewId, flag);
+    if (!byReview.size) continue;
     const newest = recent.reduce<Date | null>((m, f) => (!m || f.publishedAt > m ? f.publishedAt : m), null);
-    const share = textIn12m ? reviewIds.size / textIn12m : 1;
-    const reviewIds3m = new Set(recent.filter((f) => ageMonths(input.now, f.publishedAt) <= 3).map((f) => f.reviewId));
-    const forcesAvoid = reviewIds3m.size >= 3 && share >= 0.01;
+    const share = textIn12m ? byReview.size / textIn12m : 0;
+    const forcesAvoid = byReview.size >= 2 && newest !== null && newest >= sixMonthsAgo && share >= 0.01;
     groups.push({
       group,
-      incidents12m: reviewIds.size,
+      incidents12m: byReview.size,
       newestAt: newest?.toISOString() ?? null,
       shareOfText12m: share,
       forcesAvoid,
       types: [...new Set(recent.map((f) => f.type))],
+      incidents: [...byReview.values()].filter((f) => f.evidence && f.source).map((f) => ({
+        reviewId: f.reviewId, type: f.type, evidence: f.evidence!, source: f.source!, publishedAt: f.publishedAt.toISOString(),
+      })),
     });
   }
   return groups;
+}
+
+export function tierWithRedFlags(tier: Tier, groups: RedFlagGroup[]): Tier {
+  if (groups.some((g) => g.forcesAvoid)) return "avoid";
+  if (tier === "life_changing" && groups.length) return "must_go";
+  return tier;
 }
 
 /**
@@ -380,11 +408,11 @@ export function rollup(input: RollupInput): Rollup {
 
   // Red flags.
   const textIn12m = text.filter((r) => ageMonths(now, r.publishedAt) <= 12).length;
-  const redFlags = redFlagGroups(input, textIn12m);
+  const redFlags = redFlagGroups(input, reviews);
   const forced = redFlags.some((g) => g.forcesAvoid);
 
   const base = tierFrom(stats);
-  const tier: Tier = forced ? "avoid" : base.tier;
+  const tier = tierWithRedFlags(base.tier, redFlags);
 
   // Peer-relative Tier (issue #35): mid-rank standings, the composite ranked again among Peer
   // composites, and the resulting Tier with its floors. Falls back to the provisional θ-based
@@ -504,7 +532,7 @@ export function rollup(input: RollupInput): Rollup {
       notEnoughEvidence.reasonLine = `${event} on ${date}; ${notEnoughEvidence.textReviews} Reviews since`;
     }
   }
-  const finalTier = peers.provisional ? tier : peers.tier!;
+  const finalTier = tierWithRedFlags(peers.provisional ? tier : peers.tier!, redFlags);
   const finalFloorCap = peers.provisional ? (forced ? null : base.floorCap) : peers.floorCap;
   const result: Rollup = {
     ruleVersion: RULE_VERSION,

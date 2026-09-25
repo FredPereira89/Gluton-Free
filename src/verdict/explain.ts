@@ -78,7 +78,7 @@ function facts(name: string, formatName: string, r: Rollup): string {
   if (r.floorCap) lines.push(`Floor that capped the Tier: ${r.floorCap}`);
   if (r.redFlags.length) {
     for (const g of r.redFlags) {
-      lines.push(`Red flag (${g.group}): ${g.incidents12m} confirmed first-hand incident(s) in the last 12 months, newest ${g.newestAt?.slice(0, 7)}, types ${g.types.join(", ")}; ${g.forcesAvoid ? "3 or more within the last 3 months forces Avoid" : "shown, does not move the Tier"}.`);
+      lines.push(`Red flag (${g.group}): ${g.incidents12m} confirmed first-hand incident(s) in the last 12 months, newest ${g.newestAt?.slice(0, 7)}, types ${g.types.join(", ")}; ${g.forcesAvoid ? "recurring and recent incidents force Avoid" : "shown, does not move the Tier and blocks Life Changing"}.`);
     }
   } else {
     lines.push("Red flags: none confirmed in the last 12 months.");

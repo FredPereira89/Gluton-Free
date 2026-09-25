@@ -67,6 +67,9 @@ button{font:inherit;color:inherit}
 .flag.minor{background:var(--sunk);border-color:var(--line);border-left-color:var(--warn)}
 .flag.minor .ico{background:var(--warn)}
 .flag b{font-weight:700}
+.flag p{margin:4px 0 0}
+.flag-quote{margin:10px 0 0;padding-left:12px;border-left:2px solid currentColor}
+.flag-quote blockquote{margin:0 0 3px;line-height:1.45}
 
 /* percentile strip */
 .strip{display:grid;grid-template-columns:minmax(92px,120px) 1fr 64px;align-items:center;gap:10px;padding:7px 0}

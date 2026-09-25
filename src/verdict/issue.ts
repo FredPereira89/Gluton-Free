@@ -39,7 +39,7 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
     themes: (r.themes ?? []) as string[],
   }));
   const flagRows = await sql`
-    select f.review_id, f.type, f.flag_group, f.first_hand, f.verification, r.published_at
+    select f.review_id, f.type, f.flag_group, f.first_hand, f.verification, f.evidence, r.published_at, l.source_code
     from review_flag f
     join review r on r.id = f.review_id
     join listing l on l.id = r.listing_id
@@ -51,6 +51,8 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
     firstHand: f.first_hand as boolean,
     verification: f.verification as RollupFlag["verification"],
     publishedAt: f.published_at as Date,
+    evidence: f.evidence as string,
+    source: f.source_code as string,
   }));
   return { restaurant, input: {
     now, city: restaurant.city as string, format: restaurant.format as string,

@@ -48,6 +48,11 @@ export const RollupSchema = z.strictObject({
       shareOfText12m: z.number(),
       forcesAvoid: z.boolean(),
       types: z.array(z.enum(FLAG_TYPES)),
+      // Optional so Verdicts issued before incident evidence was stored remain readable.
+      incidents: z.array(z.strictObject({
+        reviewId: z.number().int(), type: z.enum(FLAG_TYPES), evidence: z.string(),
+        source: z.string(), publishedAt: z.iso.datetime(),
+      })).optional(),
     }),
   ),
   confidence: z.strictObject({ level: z.enum(["low", "medium", "high"]), bootstrapShare: z.number(), caps: z.array(z.string()) }),

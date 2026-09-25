@@ -760,6 +760,47 @@
                                             "other_safety"
                                           ]
                                         }
+                                      },
+                                      "incidents": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "reviewId": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "type": {
+                                              "type": "string",
+                                              "enum": [
+                                                "food_poisoning",
+                                                "hygiene",
+                                                "scam_overcharge",
+                                                "other_safety"
+                                              ]
+                                            },
+                                            "evidence": {
+                                              "type": "string"
+                                            },
+                                            "source": {
+                                              "type": "string"
+                                            },
+                                            "publishedAt": {
+                                              "type": "string",
+                                              "format": "date-time",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                            }
+                                          },
+                                          "required": [
+                                            "reviewId",
+                                            "type",
+                                            "evidence",
+                                            "source",
+                                            "publishedAt"
+                                          ],
+                                          "additionalProperties": false
+                                        }
                                       }
                                     },
                                     "required": [
@@ -1791,6 +1832,47 @@
                                                 "scam_overcharge",
                                                 "other_safety"
                                               ]
+                                            }
+                                          },
+                                          "incidents": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "reviewId": {
+                                                  "type": "integer",
+                                                  "minimum": -9007199254740991,
+                                                  "maximum": 9007199254740991
+                                                },
+                                                "type": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "food_poisoning",
+                                                    "hygiene",
+                                                    "scam_overcharge",
+                                                    "other_safety"
+                                                  ]
+                                                },
+                                                "evidence": {
+                                                  "type": "string"
+                                                },
+                                                "source": {
+                                                  "type": "string"
+                                                },
+                                                "publishedAt": {
+                                                  "type": "string",
+                                                  "format": "date-time",
+                                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                                }
+                                              },
+                                              "required": [
+                                                "reviewId",
+                                                "type",
+                                                "evidence",
+                                                "source",
+                                                "publishedAt"
+                                              ],
+                                              "additionalProperties": false
                                             }
                                           }
                                         },

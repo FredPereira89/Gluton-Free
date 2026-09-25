@@ -142,7 +142,7 @@ ${themeList}
 Report a flag only for an incident the Review describes, not for general dislike.
 - food_poisoning: someone fell ill after eating here.
 - hygiene: dirt, pests, spoiled food, unclean kitchen or toilets.
-- scam_overcharge: deliberately overcharged, items billed that were not ordered and not declined, prices different from the menu, pressure to pay more.
+- scam_overcharge: deliberately overcharged, items billed that were not ordered or an uneaten couvert charged, prices different from the menu, pressure to pay more. A pricey couvert that was ordered or eaten is a value complaint, not a Red flag.
 - other_safety: injury, violence, theft, serious allergy mishandling.
 first_hand is true only when the reviewer or their own party experienced it. severity: low (annoying), medium (real harm or money lost), high (hospital, police, large sums). evidence: the exact words from the Review, at most 200 characters.
 
