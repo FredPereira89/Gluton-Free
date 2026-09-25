@@ -90,6 +90,64 @@ function facts(name: string, formatName: string, r: Rollup): string {
   return lines.join("\n");
 }
 
+function comparison(level: "format" | "family" | "city", key: string, formatName: string): string {
+  if (level === "format") return `Format ${formatName} Peers`;
+  if (level === "family") return `Format family ${key.replaceAll("_", " ")} Peers`;
+  return `all ${key} Peers`;
+}
+
+function explanationPasses(explanation: string, formatName: string, r: Rollup): boolean {
+  const text = explanation.replaceAll("**", "").toLowerCase();
+  if (r.state === "verdict") {
+    if (!explanation.toLowerCase().includes(`**${TIER_LABEL[r.tier!].toLowerCase()}**`)) return false;
+    const deciding = r.contributions.slice(0, 2).map((c) => INPUT_LABEL[c.input].toLowerCase());
+    if (r.floorCap ? !text.includes(r.floorCap.toLowerCase()) : !deciding.some((input) => text.includes(input))) return false;
+  } else if (!text.includes("not enough evidence") || !r.notEnoughEvidence.missed.some((bar) => text.includes(bar.toLowerCase()))) {
+    return false;
+  }
+  if (!text.includes(`confidence`) || !text.includes(r.confidence.level)) return false;
+  if (r.provisional) {
+    if (!text.includes("provisional")) return false;
+  } else {
+    const levels = new Set<string>();
+    if (r.compositeStanding) levels.add(comparison(r.compositeStanding.level, r.compositeStanding.key, formatName).toLowerCase());
+    const deciding = r.floorCap ? [] : r.contributions.slice(0, 2).map((c) => c.input);
+    for (const standing of r.standings ?? []) {
+      if (deciding.includes(standing.input)) levels.add(comparison(standing.level, standing.key, formatName).toLowerCase());
+    }
+    if ([...levels].some((level) => !text.includes(level))) return false;
+  }
+  if (r.redFlags.some((flag) => !text.includes(flag.group) || !text.includes(String(flag.incidents12m)) ||
+    (flag.newestAt && !text.includes(flag.newestAt.slice(0, 7))))) return false;
+  return !/\b(distinctions?|critics?|michelin|repsol)\b/i.test(text);
+}
+
+function templateExplanation(formatName: string, r: Rollup): string {
+  const peer = r.provisional
+    ? `provisional, judged against default cut-offs for Format ${formatName}`
+    : `compared with ${comparison(r.compositeStanding!.level, r.compositeStanding!.key, formatName)} at ${formatPercentile(r.compositeStanding!.percentile)}`;
+  const first = r.state === "not_enough_evidence"
+    ? `Not enough evidence: ${r.notEnoughEvidence.missed.join("; ")}; ${peer}.`
+    : `**${TIER_LABEL[r.tier!]}** is ${peer}.`;
+  const deciding = r.state === "not_enough_evidence" || r.redFlags.some((flag) => flag.forcesAvoid) ? "" : r.floorCap
+    ? `The floor capped the Tier: ${r.floorCap}`
+    : `The deciding inputs were ${r.contributions.slice(0, 2).map(({ input }) => {
+      const stat = r.inputs.find((s) => s.input === input)!;
+      const standing = r.standings?.find((s) => s.input === input);
+      return `${INPUT_LABEL[input]} (θ ${fmt(stat.theta)}${standing ? `, ${comparison(standing.level, standing.key, formatName)} ${formatPercentile(standing.percentile)}` : ""})`;
+    }).join(" and ")}`;
+  const flags = r.redFlags.map((flag) =>
+      `${flag.group} Red flag: ${flag.incidents12m} verified incident${flag.incidents12m === 1 ? "" : "s"} in the last 12 months, newest ${flag.newestAt?.slice(0, 7) ?? "date unknown"}${flag.forcesAvoid ? ", which forces Avoid" : ""}`,
+  );
+  const second = [deciding, ...flags].filter(Boolean).join("; ");
+  const reason = (r.provisional && "provisional: judged against default cut-offs, not Peers") ||
+    r.confidence.caps.find((cap) => cap.startsWith("a Crowd Source failed")) ||
+    r.confidence.caps[0] ||
+    `Tier reproduced in ${Math.round(r.confidence.bootstrapShare * 100)}% of bootstrap resamples`;
+  const third = `Confidence: ${r.confidence.level === "high" ? "High" : r.confidence.level === "medium" ? "Medium" : "Low"}${r.confidence.level === "high" ? "" : ` because ${reason}`}.`;
+  return [first, second ? `${second}.` : "", third].filter(Boolean).join(" ");
+}
+
 export async function explainAndQuote(
   args: { name: string; formatName: string; rollup: Rollup; candidates: QuoteCandidate[] },
   usage: LlmUsage,
@@ -98,13 +156,13 @@ export async function explainAndQuote(
   const list = candidates
     .map((q, id) => `[${id}] ${q.aspect} ${q.polarity > 0 ? "positive" : "negative"} · ${q.lang ?? "?"} · ${q.stars ?? "-"}★ · ${q.publishedAt.toISOString().slice(0, 7)}\n${q.text}`)
     .join("\n\n");
-  const res = await anthropic().messages.parse({
+  const request = {
     model: JUDGE_MODEL,
     max_tokens: 4096,
-    output_config: { effort: "low", format },
+    output_config: { effort: "low" as const, format },
     messages: [
       {
-        role: "user",
+        role: "user" as const,
         content: `You write the explanation on a restaurant's Verdict page, from computed facts. Never change or re-decide the Tier; never add facts that are not below.
 
 <facts>
@@ -126,13 +184,24 @@ ${list}
 </candidates>`,
       },
     ],
-  });
-  addUsage(usage, res.usage);
-  const out = res.parsed_output;
-  if (!out) throw new Error(`explanation: no parsed output (stop_reason ${res.stop_reason})`);
+  };
+  let out: z.infer<typeof Out> | null = null;
+  let explanation = "";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await anthropic().messages.parse(attempt === 0 ? request : {
+      ...request,
+      messages: [...request.messages, { role: "user" as const, content: "The previous explanation missed a required computed fact. Regenerate it with the exact bold Tier (or Not enough evidence and its missed bar), the deciding input or floor, the comparison level (Format peers, Format family peers, or all Lisbon peers), every Red flag group with count and newest month, Confidence, and whether it is provisional. Use only the facts above." }],
+    });
+    addUsage(usage, res.usage);
+    out = res.parsed_output;
+    if (!out) throw new Error(`explanation: no parsed output (stop_reason ${res.stop_reason})`);
+    explanation = out.explanation.trim();
+    if (explanationPasses(explanation, args.formatName, r)) break;
+    if (attempt === 1) explanation = templateExplanation(args.formatName, r);
+  }
   const seen = new Set<number>();
   const quotes: ShownQuote[] = [];
-  for (const q of out.quotes) {
+  for (const q of out!.quotes) {
     const c = candidates[q.id];
     if (!c || seen.has(q.id)) continue;
     seen.add(q.id);
@@ -149,5 +218,5 @@ ${list}
       month: c.publishedAt.toISOString().slice(0, 7),
     });
   }
-  return { explanation: out.explanation.trim(), quotes };
+  return { explanation, quotes };
 }

@@ -88,16 +88,33 @@ export async function issueVerdict(restaurantId: number, jobId: number | null, u
   const sql = db();
   const { restaurant, input } = await loadRollupInput(restaurantId);
   const [previous] = await sql`
-    select blocks from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
-  const priorRollup = previous ? BlocksSchema.parse(previous.blocks).rollup : null;
+    select blocks, explanation, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+  const priorBlocks = previous ? BlocksSchema.parse(previous.blocks) : null;
+  const priorRollup = priorBlocks?.rollup ?? null;
   const r = stabilizeTier(rollup({ ...input, peerSnapshot: await loadCurrentPeerSnapshot() }), priorRollup, cause, input.now);
-  const inputsHash = createHash("sha256").update(JSON.stringify(r)).digest("hex");
+  const inputsHash = createHash("sha256").update(JSON.stringify({
+    ruleVersion: r.ruleVersion,
+    name: restaurant.name,
+    format: input.format,
+    now: input.now.toISOString().slice(0, 10),
+    reviews: [...input.reviews].sort((a, b) => a.id - b.id),
+    flags: [...input.flags].sort((a, b) => a.reviewId - b.reviewId || a.type.localeCompare(b.type)),
+    sourceCodes: [...(input.sourceCodes ?? [])].sort(),
+    failedSourceCodes: [...(input.failedSourceCodes ?? [])].sort(),
+    changePointAt: input.changePointAt,
+    peerSnapshotId: r.peerSnapshot?.id ?? null,
+    state: r.state,
+    tier: r.tier,
+    tierHeld: r.tierHeld ?? false,
+    floorCap: r.floorCap,
+  })).digest("hex");
 
-  const candidates = preselect(await quoteCandidates(restaurantId));
-  const { explanation, quotes } = await explainAndQuote(
-    { name: restaurant.name as string, formatName: FORMAT_NAME[input.format] ?? input.format, rollup: r, candidates },
-    usage,
-  );
+  const { explanation, quotes } = previous?.inputs_hash === inputsHash && typeof previous.explanation === "string" && priorBlocks
+    ? { explanation: previous.explanation as string, quotes: priorBlocks.quotes }
+    : await explainAndQuote(
+      { name: restaurant.name as string, formatName: FORMAT_NAME[input.format] ?? input.format, rollup: r, candidates: preselect(await quoteCandidates(restaurantId)) },
+      usage,
+    );
   for (const q of quotes) {
     if (q.textEn) await sql`update review_analysis set quote_en = ${q.textEn} where review_id = ${q.reviewId} and quote_en is null`;
   }

@@ -3,7 +3,7 @@ import { readdirSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
-import { fakeVendorFetch } from "./vendor-fakes";
+import { fakeAnthropic, fakeVendorFetch } from "./vendor-fakes";
 
 vi.mock("@/analysis/llm", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/analysis/llm")>();
@@ -94,6 +94,16 @@ describe("Lookup pipeline", () => {
     expect(job!.status).toBe("succeeded");
     expect(Number(job!.vendor_cost_usd)).toBe(0.04);
     expect((job!.llm_usage as { purpose: string; cost_usd: number }[]).some((entry) => entry.purpose === "extract" && entry.cost_usd > 0)).toBe(true);
+
+    const [first] = await database`select explanation, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    const parse = vi.spyOn(fakeAnthropic.messages, "parse");
+    const { issueVerdict } = await import("@/verdict/issue");
+    const { emptyUsage, JUDGE_MODEL } = await import("@/analysis/llm");
+    await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
+    const [second] = await database`select explanation, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    expect(second).toMatchObject(first!);
+    expect(parse).not.toHaveBeenCalled();
+    parse.mockRestore();
   }, 30_000);
 
   it("serves the invented Apify fixture and rejects every unknown external URL", async () => {
