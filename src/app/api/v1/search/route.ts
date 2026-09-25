@@ -2,6 +2,7 @@ import { apiJsonResponse, routes, searchQuerySchema, type SearchResponse } from 
 import { ApiError, parseApiRequest, withApiErrors } from "@/lib/problem";
 import { searchGoogleMaps, type MapsSearchItem } from "@/ingest/dataforseo";
 import { searchKnownRestaurants } from "@/web/data";
+import { recordSearchCost, spendCapStatus } from "@/lib/spend-cap";
 
 const LISBON = { lat: 38.7223, lng: -9.1393 };
 
@@ -41,8 +42,12 @@ export const GET = withApiErrors(async (request: Request) => {
   });
   if (!query.q) return apiJsonResponse(routes.search.responses[200], 200, { known: [], candidates: [] });
 
+  const cap = await spendCapStatus();
+  if (cap.atCap) throw new ApiError(429, "spend_cap_reached", "Daily vendor spend cap reached", { resetAt: cap.resetAt });
+
   const near = query.near ? { lat: Number(query.near.lat.toFixed(7)), lng: Number(query.near.lng.toFixed(7)) } : LISBON;
-  const items = await searchGoogleMaps(query.q, near);
+  const { items, cost } = await searchGoogleMaps(query.q, near);
+  await recordSearchCost(cost);
   const knownRows = await searchKnownRestaurants(query.q, items.map((item) => item.place_id).filter((id): id is string => !!id));
   const knownIds = new Set(knownRows.map((row) => row.placeId).filter(Boolean));
   const visible = items.filter((item) => item.type === "maps_search" && item.place_id && item.title && status(item) !== "permanently_closed");

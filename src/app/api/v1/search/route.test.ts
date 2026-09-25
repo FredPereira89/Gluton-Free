@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 import { routes } from "@/lib/api-contract";
 import { searchKnownRestaurants } from "@/web/data";
+import { recordSearchCost, spendCapStatus } from "@/lib/spend-cap";
 
 vi.mock("@/web/data", () => ({ searchKnownRestaurants: vi.fn() }));
+vi.mock("@/lib/spend-cap", () => ({ spendCapStatus: vi.fn(), recordSearchCost: vi.fn() }));
 
 const known = { slug: "casa-do-mar", placeId: "known-id", name: "Casa do Mar", address: "Rua A, Lisboa", distanceMeters: 100,
   stars: 4.5, reviewCount: 42, category: "Restaurant", priceTier: "€€", status: "open" } as const;
@@ -23,6 +25,8 @@ function item(placeId: string, title: string, city = "Lisbon", category = "Resta
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.mocked(searchKnownRestaurants).mockResolvedValue([known]);
+  vi.mocked(spendCapStatus).mockResolvedValue({ atCap: false, resetAt: "2026-09-26T00:00:00.000Z" });
+  vi.mocked(recordSearchCost).mockResolvedValue(undefined);
   process.env.DATAFORSEO_LOGIN = "test";
   process.env.DATAFORSEO_PASSWORD = "test";
 });
@@ -82,5 +86,29 @@ describe("GET /api/v1/search", () => {
     const response = await GET(new Request("https://app.example/api/v1/search?q=far"));
     const body = routes.search.responses[200].parse(await response.json());
     expect(body.candidates[0]?.warnings).toContain("outside_lisbon");
+  });
+
+  it("records the vendor's Maps-search cost when under the daily spend cap", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({
+      status_code: 20000, status_message: "Ok",
+      tasks: [{ status_code: 20000, status_message: "Ok", cost: 0.002, result: [{ items: [] }] }],
+    }));
+    const response = await GET(new Request("https://app.example/api/v1/search?q=casa"));
+    expect(response.status).toBe(200);
+    expect(spendCapStatus).toHaveBeenCalledTimes(1);
+    expect(recordSearchCost).toHaveBeenCalledWith(0.002);
+  });
+
+  it("returns 429 spend_cap_reached with the reset time once the daily cap is hit, without calling the vendor", async () => {
+    vi.mocked(spendCapStatus).mockResolvedValue({ atCap: true, resetAt: "2026-09-26T00:00:00.000Z" });
+    const fetch = vi.spyOn(globalThis, "fetch");
+    const response = await GET(new Request("https://app.example/api/v1/search?q=casa"));
+    expect(response.status).toBe(429);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    const body = routes.search.responses[429].parse(await response.json());
+    expect(body.code).toBe("spend_cap_reached");
+    expect(body.resetAt).toBe("2026-09-26T00:00:00.000Z");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(recordSearchCost).not.toHaveBeenCalled();
   });
 });

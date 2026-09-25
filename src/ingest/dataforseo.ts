@@ -56,7 +56,7 @@ export type MapsSearchItem = {
 };
 
 /** A live Google Maps result. Do not retain the vendor envelope or its extra fields. */
-export async function searchGoogleMaps(keyword: string, near: { lat: number; lng: number }): Promise<MapsSearchItem[]> {
+export async function searchGoogleMaps(keyword: string, near: { lat: number; lng: number }): Promise<{ items: MapsSearchItem[]; cost: number }> {
   const env = await call("/google/maps/live/advanced", {
     base: "https://api.dataforseo.com/v3/serp",
     body: [{ keyword, location_coordinate: `${near.lat},${near.lng},17z`, language_code: "pt", depth: 20 }],
@@ -64,7 +64,7 @@ export async function searchGoogleMaps(keyword: string, near: { lat: number; lng
   const task = env.tasks?.[0];
   if (!task || task.status_code !== 20000) throw new Error(`DataForSEO Maps search: ${task?.status_code ?? "missing task"}`);
   const result = task.result?.[0] as { items?: MapsSearchItem[] } | undefined;
-  return result?.items ?? [];
+  return { items: result?.items ?? [], cost: task.cost ?? 0 };
 }
 
 export type ReviewTaskParams =

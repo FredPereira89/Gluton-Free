@@ -22,6 +22,10 @@ function detail(result: Result) {
   ].filter(Boolean).join(" · ");
 }
 
+function formatResetTime(resetAt: string): string {
+  return new Date(resetAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 function ResultContent({ result }: { result: Result }) {
   return <>
     <strong>{result.name}</strong>
@@ -36,6 +40,7 @@ export default function SearchHome() {
   const [results, setResults] = useState<SearchResponse>({ known: [], candidates: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [spendCapResetAt, setSpendCapResetAt] = useState<string | null>(null);
   const location = useRef<{ lat: number; lng: number } | null | undefined>(undefined);
 
   useEffect(() => {
@@ -44,6 +49,7 @@ export default function SearchHome() {
       setResults({ known: [], candidates: [] });
       setLoading(false);
       setError(false);
+      setSpendCapResetAt(null);
       return;
     }
     let active = true;
@@ -51,6 +57,7 @@ export default function SearchHome() {
     setResults({ known: [], candidates: [] });
     setLoading(true);
     setError(false);
+    setSpendCapResetAt(null);
     const timer = setTimeout(async () => {
       if (location.current === undefined) {
         location.current = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
@@ -67,6 +74,11 @@ export default function SearchHome() {
       if (location.current) params.set("near", `${location.current.lat},${location.current.lng}`);
       try {
         const response = await fetch(`/api/v1/search?${params}`, { signal: controller.signal });
+        if (response.status === 429) {
+          const problem = await response.json().catch(() => null) as { resetAt?: string } | null;
+          if (active) setSpendCapResetAt(problem?.resetAt ?? new Date().toISOString());
+          return;
+        }
         if (!response.ok) throw new Error("Search failed");
         const data = await response.json() as SearchResponse;
         if (active) setResults(data);
@@ -86,7 +98,10 @@ export default function SearchHome() {
     <input id="restaurant-search" type="search" autoComplete="off" value={query}
       onChange={(event) => setQuery(event.target.value)} placeholder="Name of a Restaurant" />
     <div role="status" aria-live="polite" className="small muted">
-      {loading ? "Searching…" : error ? "Search is unavailable. Try again." : query.trim() && !results.known.length && !results.candidates.length ? "No Restaurants found." : ""}
+      {loading ? "Searching…"
+        : spendCapResetAt ? `Today's search budget is spent. It resets at ${formatResetTime(spendCapResetAt)}.`
+        : error ? "Search is unavailable. Try again."
+        : query.trim() && !results.known.length && !results.candidates.length ? "No Restaurants found." : ""}
     </div>
     {!!results.known.length && <div className="search-group">
       <h2>Already looked up</h2>
