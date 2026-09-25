@@ -38,13 +38,21 @@ export async function answerListingQuestion(
   if (question.status !== "open") throw new ApiError(409, "already_settled", "This Owner question was already settled");
 
   if (answer === "none") {
-    await sql`update owner_question set status = 'dismissed', settled_at = now() where id = ${question.id}`;
+    const [settled] = await sql`
+      update owner_question set status = 'dismissed', settled_at = now()
+      where id = ${question.id} and status = 'open'
+      returning id`;
+    if (!settled) throw new ApiError(409, "already_settled", "This Owner question was already settled");
     return Response.json(answerListingResponseSchema.parse({ settled: true }), { status: 200, headers: { "Cache-Control": "private, no-store" } });
   }
 
-  const candidate = question.payload as PreviewListing;
   const { listingId, fetchJobId } = await db().begin(async (tx) => {
-    await tx`update owner_question set status = 'answered', settled_at = now() where id = ${question.id}`;
+    const [settled] = await tx`
+      update owner_question set status = 'answered', settled_at = now()
+      where id = ${question.id} and status = 'open'
+      returning payload`;
+    if (!settled) throw new ApiError(409, "already_settled", "This Owner question was already settled");
+    const candidate = settled.payload as PreviewListing;
     const [listing] = await tx`
       insert into listing (restaurant_id, source_code, place_ref, url, match_provenance, source_review_count)
       values (${restaurantId}, ${source}, ${candidate.placeRef}, ${candidate.url}, 'proposed_confirmed', ${candidate.reviewCount})

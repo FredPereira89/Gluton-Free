@@ -350,4 +350,32 @@ describe("Lookup pipeline", () => {
     expect(again.status).toBe(409);
     expect((await again.json()).code).toBe("already_settled");
   }, 30_000);
+
+  it("allows only one concurrent answer to settle an Owner question", async () => {
+    const { POST } = await import("@/app/api/v1/lookups/route");
+    const { PUT } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/route");
+    const started = await POST(new Request("http://localhost/api/v1/lookups", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ googlePlaceId: "invented-owner-race-place", listings: [{
+        source: "tripadvisor", url: "https://www.tripadvisor.com/invented-owner-race-path",
+        placeRef: "invented-owner-race-path", name: fixture.restaurant,
+        confidence: "uncertain", autoAccept: false, reviewCount: 8,
+        evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: 0.9 },
+      }] }),
+    }));
+    expect(started.status).toBe(202);
+    const { restaurantSlug } = await started.json() as { restaurantSlug: string };
+    const params = Promise.resolve({ slug: restaurantSlug, source: "tripadvisor" });
+    const answer = () => PUT(
+      new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/listings/tripadvisor`, {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer: "none" }),
+      }),
+      { params },
+    );
+
+    const responses = await Promise.all([answer(), answer()]);
+    expect(responses.map((response) => response.status).sort((a, b) => a - b)).toEqual([200, 409]);
+    const conflict = responses.find((response) => response.status === 409)!;
+    expect((await conflict.json()).code).toBe("already_settled");
+  }, 30_000);
 });
