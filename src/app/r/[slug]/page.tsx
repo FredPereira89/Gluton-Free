@@ -6,12 +6,12 @@ import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, TIER_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { formatPercentile } from "@/verdict/peer";
-import { PARAMS, type RedFlagGroup, type SourceReading } from "@/verdict/rollup";
+import { PARAMS, type RedFlagGroup, type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
 import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripRow, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
-import { SourceHistoryChart } from "@/web/source-history";
+import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -402,14 +402,20 @@ function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page
 }
 
 function BundleExtras({ page }: { page: RestaurantBundle }) {
-  const history = page.verdict?.blocks.rollup.sourceHistory ?? [];
-  if (!page.activeJob && !page.series.length && !history.length && !page.changePoints.length && !page.ownerQuestions.length) return null;
+  const r = page.verdict?.blocks.rollup;
+  const history = r?.sourceHistory ?? [];
+  const showComposite = !!r && !r.provisional && r.series.some((q) => q.compositePercentile != null);
+  const disagreement = r?.disagreement;
+  if (!page.activeJob && !page.series.length && !history.length && !page.changePoints.length && !page.ownerQuestions.length && !showComposite && !disagreement) return null;
+  const names = Object.fromEntries(page.sources.map((s) => [s.code, s.name]));
   return (
     <section className="sec">
       {page.activeJob && (
         <p>Current {page.activeJob.kind} job: {page.activeJob.status}{page.activeJob.step ? ` · ${page.activeJob.step}` : ""}.</p>
       )}
-      {history.length > 0 && <SourceHistoryChart history={history} names={Object.fromEntries(page.sources.map((s) => [s.code, s.name]))} />}
+      {showComposite && <CompositeHistoryChart series={r!.series} changePointAt={r!.changePointAt} />}
+      {disagreement && <p className="small muted">{disagreementLine(disagreement, names)}</p>}
+      {history.length > 0 && <SourceHistoryChart history={history} names={names} />}
       {history.length === 0 && page.series.length > 0 && (
         <div>
           <h2>Review volume over time</h2>
@@ -430,6 +436,11 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
       )}
     </section>
   );
+}
+
+function disagreementLine(d: SourceDisagreement, names: Record<string, string>): string {
+  const readings = d.sources.map((s) => `${names[s.source] ?? s.source} reads ${TIER_LABEL[s.tier]}`).join(", ");
+  return `${readings} since ${monthLabel(d.since.slice(0, 7))} (${d.textReviews} Reviews)`;
 }
 
 function Footer({ createdAt, ruleVersion, snapshot, standings, compositeStanding }: {

@@ -1126,6 +1126,15 @@
                                           "null"
                                         ]
                                       },
+                                      "compositePercentile": {
+                                        "type": [
+                                          "number",
+                                          "null"
+                                        ]
+                                      },
+                                      "enoughReviews": {
+                                        "type": "boolean"
+                                      },
                                       "volume": {
                                         "type": "number"
                                       },
@@ -1232,6 +1241,70 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "changePointAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "disagreement": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "sources": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string"
+                                              },
+                                              "tier": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "avoid",
+                                                  "ok",
+                                                  "good",
+                                                  "must_go",
+                                                  "life_changing"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "source",
+                                              "tier"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "since": {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                        },
+                                        "textReviews": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "sources",
+                                        "since",
+                                        "textReviews"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -2320,6 +2393,15 @@
                                               "null"
                                             ]
                                           },
+                                          "compositePercentile": {
+                                            "type": [
+                                              "number",
+                                              "null"
+                                            ]
+                                          },
+                                          "enoughReviews": {
+                                            "type": "boolean"
+                                          },
                                           "volume": {
                                             "type": "number"
                                           },
@@ -2426,6 +2508,70 @@
                                         ],
                                         "additionalProperties": false
                                       }
+                                    },
+                                    "changePointAt": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "disagreement": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "sources": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "source": {
+                                                    "type": "string"
+                                                  },
+                                                  "tier": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "avoid",
+                                                      "ok",
+                                                      "good",
+                                                      "must_go",
+                                                      "life_changing"
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "source",
+                                                  "tier"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "since": {
+                                              "type": "string",
+                                              "format": "date-time",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                            },
+                                            "textReviews": {
+                                              "type": "number"
+                                            }
+                                          },
+                                          "required": [
+                                            "sources",
+                                            "since",
+                                            "textReviews"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -2730,6 +2876,15 @@
                               "number",
                               "null"
                             ]
+                          },
+                          "compositePercentile": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "enoughReviews": {
+                            "type": "boolean"
                           },
                           "volume": {
                             "type": "number"

@@ -85,7 +85,15 @@ export const RollupSchema = z.strictObject({
     }),
   ),
   themeBase: z.strictObject({ analysed: z.number(), windowMonths: z.number() }),
-  series: z.array(z.strictObject({ quarter: z.string(), composite: z.number().nullable(), volume: z.number(), textVolume: z.number() })),
+  series: z.array(z.strictObject({
+    quarter: z.string(),
+    composite: z.number().nullable(),
+    // Optional so Verdicts issued before the composite layer (issue #41) remain readable.
+    compositePercentile: z.number().nullable().optional(),
+    enoughReviews: z.boolean().optional(),
+    volume: z.number(),
+    textVolume: z.number(),
+  })),
   // Optional for Verdicts issued before full Source history was recorded.
   sourceHistory: z.array(z.strictObject({
     source: z.string(),
@@ -98,6 +106,14 @@ export const RollupSchema = z.strictObject({
     textReviews12m: z.number(),
     quiet: z.boolean(),
   })).optional(),
+  // Optional so Verdicts issued before Change points were surfaced (issue #41; storage lands in #58) remain readable.
+  changePointAt: z.iso.datetime().nullable().optional(),
+  // Optional so Verdicts issued before the disagreement line (issue #41) remain readable.
+  disagreement: z.strictObject({
+    sources: z.array(z.strictObject({ source: z.string(), tier: z.enum(TIERS) })),
+    since: z.iso.datetime(),
+    textReviews: z.number(),
+  }).nullable().optional(),
 });
 
 export const ShownQuoteSchema = z.strictObject({

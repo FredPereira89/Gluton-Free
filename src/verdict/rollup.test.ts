@@ -805,3 +805,100 @@ describe("Confidence and per-Source readings (issue #38)", () => {
     expect(tripadvisor?.textReviews12m).toBe(3);
   });
 });
+
+describe("Over-time chart: composite layer (issue #41)", () => {
+  // Same linear -2..+2 sortedTheta trick as the Confidence describe block above: with k = 0 and a
+  // zero formatMean, a quarter's own shrunk theta drives its peer-relative percentile almost
+  // undamped, so a quarter of low-theta Reviews lands near P0 and a quarter of high-theta Reviews
+  // near P100.
+  function linearGroup(input: Input): PeerGroupStat {
+    return {
+      city: "Lisbon", level: "format", key: "tasca", input,
+      sortedTheta: Array.from({ length: 100 }, (_, i) => -2 + (i / 99) * 4),
+      formatMean: 0, k: 0,
+      composite: input === "food" ? Array.from({ length: 100 }, (_, i) => i) : [],
+      exceptionalPrior: { alpha: 1, beta: 1 }, peerCount: 100,
+    };
+  }
+  const snapshot: PeerSnapshot = { id: 9, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups: INPUTS.map(linearGroup) };
+
+  const highAt = (publishedAt: Date) => review({ publishedAt, stars: 5, aspects: { food: 2, service: 2, ambience: 2, value: 2, wait: 2, consistency: 2 } });
+  const lowAt = (publishedAt: Date) => review({ publishedAt, stars: 1, aspects: { food: -2, service: -2, ambience: -2, value: -2, wait: -2, consistency: -2 } });
+
+  it("ranks each quarter's composite against the current Peer snapshot", () => {
+    const reviews = [
+      ...many(10, () => lowAt(new Date("2026-01-15T00:00:00Z"))),
+      ...many(10, () => highAt(new Date("2026-07-15T00:00:00Z"))),
+    ];
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    const q1 = r.series.find((s) => s.quarter === "2026-Q1")!;
+    const q3 = r.series.find((s) => s.quarter === "2026-Q3")!;
+    expect(q1.compositePercentile).not.toBeNull();
+    expect(q3.compositePercentile).not.toBeNull();
+    expect(q1.compositePercentile!).toBeLessThan(10);
+    expect(q3.compositePercentile!).toBeGreaterThan(90);
+  });
+
+  it("marks a quarter with at least 8 text Reviews as having enough, and fewer as not", () => {
+    const reviews = [
+      ...many(8, () => highAt(new Date("2026-01-15T00:00:00Z"))),
+      ...many(7, () => highAt(new Date("2026-04-15T00:00:00Z"))),
+    ];
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    expect(r.series.find((s) => s.quarter === "2026-Q1")?.enoughReviews).toBe(true);
+    expect(r.series.find((s) => s.quarter === "2026-Q2")?.enoughReviews).toBe(false);
+  });
+
+  it("keeps the composite window-only: quarters outside the Review window never appear in the series", () => {
+    const reviews = [
+      ...many(10, () => highAt(monthsAgo(30))), // outside the 24-month Review window, and older than the newer batch's own window
+      ...many(10, () => highAt(new Date("2026-08-15T00:00:00Z"))),
+    ];
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    expect(r.series).toHaveLength(1);
+    expect(r.series[0]).toMatchObject({ quarter: "2026-Q3" });
+    expect(r.series[0]?.compositePercentile).not.toBeNull();
+  });
+
+  it("omits the composite layer while the Verdict is provisional", () => {
+    const reviews = many(20, () => highAt(new Date("2026-07-15T00:00:00Z")));
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [] }); // no Peer snapshot: stays provisional
+    expect(r.provisional).toBe(true);
+    expect(r.series.length).toBeGreaterThan(0);
+    expect(r.series.every((s) => s.compositePercentile === null)).toBe(true);
+  });
+});
+
+describe("Sources disagree line (issue #41)", () => {
+  const strong = (source: string, publishedAt: Date, sign: 1 | -1) =>
+    review({ source, publishedAt, stars: sign > 0 ? 5 : 1, aspects: { food: 2 * sign, service: 2 * sign, ambience: 2 * sign, value: 2 * sign, wait: 2 * sign, consistency: 2 * sign } });
+
+  it("appears only when per-Source readings differ, naming the Sources, the later window start and the combined Review count", () => {
+    const reviews = [
+      ...many(20, () => strong("google", monthsAgo(3), 1)),
+      ...many(20, () => strong("tripadvisor", monthsAgo(1), -1)),
+    ];
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
+    const google = r.sourceReadings.find((s) => s.source === "google")!;
+    const tripadvisor = r.sourceReadings.find((s) => s.source === "tripadvisor")!;
+    expect(google.tier).not.toBe(tripadvisor.tier);
+    expect(r.disagreement).toEqual({
+      sources: [{ source: "google", tier: google.tier }, { source: "tripadvisor", tier: tripadvisor.tier }],
+      since: monthsAgo(1).toISOString(),
+      textReviews: 40,
+    });
+  });
+
+  it("is null when every non-quiet Source's reading agrees", () => {
+    const reviews = [...many(20, () => strong("google", monthsAgo(1), 1)), ...many(20, () => strong("tripadvisor", monthsAgo(1), 1))];
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
+    expect(r.disagreement).toBeNull();
+  });
+
+  it("is null when a diverging Source is quiet, even though its Tier reading differs", () => {
+    const reviews = [...many(20, () => strong("google", monthsAgo(1), 1)), ...many(5, () => strong("tripadvisor", monthsAgo(1), -1))];
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
+    expect(r.sourceReadings.find((s) => s.source === "tripadvisor")?.quiet).toBe(true);
+    expect(r.disagreement).toBeNull();
+  });
+});

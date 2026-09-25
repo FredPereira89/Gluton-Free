@@ -124,6 +124,71 @@ describe("Confidence and per-Source readings (issue #38)", () => {
   });
 });
 
+describe("Over-time chart: composite layer (issue #41)", () => {
+  it("renders a filled marker for a quarter with enough Reviews and a hollow marker for one with too few", async () => {
+    const page = bundleWithPeers(40, 40);
+    page.verdict!.blocks.rollup.series = [
+      { quarter: "2026-Q1", composite: 0.5, compositePercentile: 72, enoughReviews: true, volume: 10, textVolume: 10 },
+      { quarter: "2026-Q2", composite: 0.3, compositePercentile: 55, enoughReviews: false, volume: 4, textVolume: 4 },
+    ];
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("chart-composite-dot-hollow");
+    expect(html).toContain("P72");
+    expect(html).toContain("few Reviews");
+  });
+
+  it("marks the quarter a Change point occurred in", async () => {
+    const page = bundleWithPeers(40, 40);
+    page.verdict!.blocks.rollup.series = [
+      { quarter: "2026-Q1", composite: 0.5, compositePercentile: 72, enoughReviews: true, volume: 10, textVolume: 10 },
+      { quarter: "2026-Q2", composite: 0.3, compositePercentile: 60, enoughReviews: true, volume: 10, textVolume: 10 },
+    ];
+    page.verdict!.blocks.rollup.changePointAt = "2026-05-15T00:00:00.000Z";
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("chart-changepoint");
+    expect(html).toContain("Change point");
+  });
+
+  it("omits the composite layer on Provisional Verdicts even when compositePercentile values are present", async () => {
+    const page = bundle(0);
+    page.verdict!.blocks.rollup.series = [
+      { quarter: "2026-Q1", composite: 0.5, compositePercentile: 72, enoughReviews: true, volume: 10, textVolume: 10 },
+    ];
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).not.toContain("Composite percentile over time");
+    expect(html).not.toContain("chart-composite-dot");
+  });
+});
+
+describe("Sources disagree line (issue #41)", () => {
+  it("renders the disagreement sentence naming Sources, Tiers, since date and Review count", async () => {
+    const page = bundle(0);
+    page.verdict!.blocks.rollup.disagreement = {
+      sources: [{ source: "google", tier: "good" }, { source: "tripadvisor", tier: "ok" }],
+      since: "2025-05-01T00:00:00.000Z",
+      textReviews: 42,
+    };
+    page.sources.push({
+      code: "tripadvisor", name: "Tripadvisor", kind: "crowd", access: "public_ok",
+      url: "https://example.com/tripadvisor", rating: 4.5, reviewCount: 20, textCount: 20,
+      newestAt: publishedAt.toISOString(), fetchStatus: "fetched",
+    });
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Google reads Good, Tripadvisor reads OK since May 2025 (42 Reviews)");
+  });
+
+  it("omits the disagreement line when Sources agree", async () => {
+    const page = bundle(0);
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).not.toContain("reads");
+  });
+});
+
 describe("Restaurant Verdict red flags", () => {
   it("shows a quiet callout and its evidence for one incident while retaining the standings", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(bundle(1));

@@ -1,6 +1,72 @@
-import type { SourceHistory } from "@/verdict/rollup";
+import type { Blocks } from "@/verdict/blocks";
+import { quarterOf, type SourceHistory } from "@/verdict/rollup";
 
 type Props = { history: SourceHistory[]; names: Record<string, string> };
+
+type CompositeProps = { series: Blocks["rollup"]["series"]; changePointAt: string | null | undefined };
+
+const round = (x: number) => Math.round(x);
+
+/** Every nth index (plus the last), so long series don't crowd the x-axis with labels. */
+function tickIndices(length: number): (i: number) => boolean {
+  const every = Math.max(1, Math.ceil(length / 12));
+  return (i) => i % every === 0 || i === length - 1;
+}
+
+export function CompositeHistoryChart({ series, changePointAt }: CompositeProps) {
+  const points = series.filter((q) => q.compositePercentile != null);
+  if (!points.length) return null;
+  const width = Math.max(600, series.length * 30);
+  const left = 46;
+  const right = width - 14;
+  const step = series.length > 1 ? (right - left) / (series.length - 1) : 0;
+  const x = (i: number) => left + i * step;
+  const y = (pct: number) => 20 + (100 - pct) * 0.82;
+  const changePointQuarter = changePointAt ? quarterOf(new Date(changePointAt)) : null;
+  const changePointIndex = changePointQuarter ? series.findIndex((q) => q.quarter === changePointQuarter) : -1;
+  return (
+    <div className="composite-history">
+      <h2>Composite percentile over time</h2>
+      <p className="small muted">Composite percentile per quarter inside the Review window, ranked against today&rsquo;s Peers. A hollow marker means fewer than 8 text Reviews that quarter.</p>
+      <div className="history-scroll">
+        <svg viewBox={`0 0 ${width} 110`} width={width} height="110" role="img" aria-label="Composite percentile by quarter">
+          {[0, 50, 100].map((pct) => (
+            <g key={pct}>
+              <line x1={left} x2={right} y1={y(pct)} y2={y(pct)} className="chart-grid" />
+              <text x="22" y={y(pct) + 4} className="chart-tick">{pct}</text>
+            </g>
+          ))}
+          {changePointIndex >= 0 && (
+            <g>
+              <line x1={x(changePointIndex)} x2={x(changePointIndex)} y1="20" y2="102" className="chart-changepoint" />
+              <text x={x(changePointIndex)} y="14" textAnchor="middle" className="chart-tick">Change point</text>
+            </g>
+          )}
+          {series.slice(1).map((q, i) => {
+            const previous = series[i]!;
+            return previous.compositePercentile != null && q.compositePercentile != null
+              ? <line key={q.quarter} x1={x(i)} y1={y(previous.compositePercentile)} x2={x(i + 1)} y2={y(q.compositePercentile)} className="chart-composite" />
+              : null;
+          })}
+          {series.map((q, i) => q.compositePercentile == null ? null : (
+            <circle
+              key={q.quarter}
+              data-quarter={q.quarter}
+              cx={x(i)}
+              cy={y(q.compositePercentile)}
+              r="4"
+              className={q.enoughReviews ? "chart-composite-dot" : "chart-composite-dot-hollow"}
+            >
+              <title>{`${q.quarter}: P${round(q.compositePercentile)} vs today's Peers${q.enoughReviews ? "" : " · few Reviews"}`}</title>
+            </circle>
+          ))}
+          {series.map((q, i) => tickIndices(series.length)(i)
+            ? <text key={q.quarter} x={x(i)} y="109" textAnchor="middle" className="chart-tick">{q.quarter}</text> : null)}
+        </svg>
+      </div>
+    </div>
+  );
+}
 
 export function SourceHistoryChart({ history, names }: Props) {
   if (!history.length) return null;
@@ -43,7 +109,7 @@ export function SourceHistoryChart({ history, names }: Props) {
                 {quarters.map((q, i) => <rect key={q.quarter} x={x(i) - 8} y={232 - volumeHeight(q.volume)} width="16" height={volumeHeight(q.volume)} className="chart-volume">
                   <title>{`${q.quarter}: ${q.volume} Reviews`}</title>
                 </rect>)}
-                {quarters.map((q, i) => i % Math.max(1, Math.ceil(quarters.length / 12)) === 0 || i === quarters.length - 1
+                {quarters.map((q, i) => tickIndices(quarters.length)(i)
                   ? <text key={q.quarter} x={x(i)} y="245" textAnchor="middle" className="chart-tick">{q.quarter}</text> : null)}
               </svg>
             </div>

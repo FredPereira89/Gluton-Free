@@ -3,7 +3,7 @@
 // Pure: no I/O, deterministic (the bootstrap uses a seeded generator).
 import { ASPECTS, INFORMATIVE_ONLY, INPUTS, INPUT_WEIGHTS, type Aspect, type FlagType, type Input, type Tier } from "@/domain/aspects";
 import { THEMES, type ThemeCode } from "@/domain/themes";
-import { DEFAULT_SHRINK_K, formatPercentile, judgeWithSnapshot, type CompositeStanding, type PeerSnapshot, type Standing, type TierFloor } from "./peer";
+import { compositePercentileFor, DEFAULT_SHRINK_K, formatPercentile, judgeWithSnapshot, type CompositeStanding, type PeerSnapshot, type Standing, type TierFloor } from "./peer";
 
 /**
  * Successes/trials for the exceptional-language test (issue #36): "exceptional" Reviews for food
@@ -114,6 +114,18 @@ export type SourceReading = {
   quiet: boolean;
 };
 
+/**
+ * Named Sources whose per-Source Tier readings disagree (issue #41), for a line like "Google reads
+ * Good, Tripadvisor reads OK since May 2025 (42 Reviews)". Only counts non-quiet Sources with a
+ * Tier reading; `since` is the later of their window starts, `textReviews` the sum of their window
+ * text Review counts.
+ */
+export type SourceDisagreement = {
+  sources: { source: string; tier: Tier }[];
+  since: string;
+  textReviews: number;
+};
+
 export type Rollup = {
   ruleVersion: string;
   provisional: boolean;
@@ -159,9 +171,22 @@ export type Rollup = {
   };
   themes: { code: ThemeCode; aspect: Aspect; polarity: 1 | -1; count: number; share: number }[];
   themeBase: { analysed: number; windowMonths: number };
-  series: { quarter: string; composite: number | null; volume: number; textVolume: number }[];
+  series: {
+    quarter: string;
+    composite: number | null;
+    /** The quarter's composite ranked against the current Peer snapshot (issue #41); null while provisional. */
+    compositePercentile: number | null;
+    /** At least 8 text Reviews in the quarter; fewer draws a hollow "few Reviews" marker. */
+    enoughReviews: boolean;
+    volume: number;
+    textVolume: number;
+  }[];
   sourceHistory: SourceHistory[];
   sourceReadings: SourceReading[];
+  /** The newest confirmed Change point, if any (ADR 0007); mirrors the input, always null until issue #58. */
+  changePointAt: string | null;
+  /** Null unless at least two non-quiet Sources' Tier readings differ (issue #41). */
+  disagreement: SourceDisagreement | null;
 };
 
 const MONTH_MS = 30.4375 * 24 * 3600 * 1000;
@@ -331,7 +356,7 @@ function weightedMedian(points: { w: number; x: number }[]): number {
 
 const quarterIndex = (d: Date) => d.getUTCFullYear() * 4 + Math.floor(d.getUTCMonth() / 3);
 const quarterLabel = (index: number) => `${Math.floor(index / 4)}-Q${index % 4 + 1}`;
-const quarterOf = (d: Date) => quarterLabel(quarterIndex(d));
+export const quarterOf = (d: Date) => quarterLabel(quarterIndex(d));
 
 /** Full stored Review history; the Verdict's Review window does not limit chart data. */
 export function quarterlySourceHistory(reviews: Pick<RollupReview, "source" | "publishedAt" | "stars">[], now: Date, sourceCodes: string[] = []): SourceHistory[] {
@@ -567,14 +592,25 @@ export function rollup(input: RollupInput): Rollup {
     const q = quarterOf(r.publishedAt);
     byQ.set(q, [...(byQ.get(q) ?? []), r]);
   }
+  // The composite layer (issue #41): each quarter judged on its own Reviews only (no recency decay),
+  // ranked against today's Peer snapshot ("vs today's Peers") rather than a snapshot from that
+  // quarter. Omitted entirely while the Verdict is provisional.
   const series = [...byQ.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([quarter, rs]) => ({
-      quarter,
-      composite: rs.some((r) => r.aspects) ? compositeOf(inputStats(rs, now, format, false)) : null,
-      volume: rs.length,
-      textVolume: rs.filter((r) => r.hasText).length,
-    }));
+    .map(([quarter, rs]) => {
+      const quarterStats = rs.some((r) => r.aspects) ? inputStats(rs, now, format, false) : null;
+      const compositePercentile = !peers.provisional && quarterStats
+        ? compositePercentileFor(quarterStats, format, input.city, input.peerSnapshot)
+        : null;
+      return {
+        quarter,
+        composite: quarterStats ? compositeOf(quarterStats) : null,
+        compositePercentile,
+        enoughReviews: rs.filter((r) => r.hasText).length >= 8,
+        volume: rs.length,
+        textVolume: rs.filter((r) => r.hasText).length,
+      };
+    });
 
   const perSource: Rollup["counts"]["perSource"] = {};
   for (const s of sources) {
@@ -589,6 +625,24 @@ export function rollup(input: RollupInput): Rollup {
       windowStart: windowStart?.toISOString() ?? null,
     };
   }
+
+  // Sources disagree line (issue #41): named Sources whose per-Source Tier readings differ, built
+  // from the same non-quiet readings the Confidence cap above draws on.
+  const disagreeingReadings = sourceReadings.filter((s) => !s.quiet && s.tier !== null);
+  const disagreement: SourceDisagreement | null =
+    new Set(disagreeingReadings.map((s) => s.tier)).size > 1
+      ? {
+          sources: disagreeingReadings.map((s) => ({ source: s.source, tier: s.tier! })),
+          since: disagreeingReadings.reduce<string>(
+            (latest, s) => {
+              const start = perSource[s.source]?.windowStart;
+              return start && start > latest ? start : latest;
+            },
+            "",
+          ),
+          textReviews: disagreeingReadings.reduce((sum, s) => sum + (perSource[s.source]?.text ?? 0), 0),
+        }
+      : null;
 
   const state = missed.length && !forced ? "not_enough_evidence" : "verdict";
   if (state === "not_enough_evidence" && input.changePointAt) {
@@ -633,6 +687,8 @@ export function rollup(input: RollupInput): Rollup {
     series,
     sourceHistory: quarterlySourceHistory(input.reviews, now, input.sourceCodes),
     sourceReadings,
+    changePointAt: input.changePointAt?.toISOString() ?? null,
+    disagreement,
   };
   return result;
 }

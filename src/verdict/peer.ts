@@ -181,6 +181,48 @@ function tierFromPercentiles(
   return withNote({ tier: "ok", floorCap: `Must Go floor not met: ${mustGoFailed.join(", ")}; Good floor not met: ${goodFailed.join(", ")}`, tierFloors: [] });
 }
 
+type Standings = { standings: Standing[]; anchor: PeerGroupStat; compositePercentile: number; counted: Input[] };
+
+/**
+ * Mid-rank standings per input plus the composite (weighted mean of input percentiles, ranked
+ * again among Peer composites) — the shared core of `judgeWithSnapshot` and `compositePercentileFor`.
+ * Returns null under the same completeness gate (issue #34): missing snapshot, city, or any
+ * counted input's Peer group.
+ */
+function standingsFor(stats: InputStat[], format: string, city: string | undefined, snapshot: PeerSnapshot | null | undefined): Standings | null {
+  if (!snapshot || !city || city.toLowerCase() !== "lisbon") return null;
+  const selected = new Map<Input, PeerGroupStat>();
+  const standings: Standing[] = [];
+  for (const stat of stats) {
+    const group = groupFor(snapshot, city, format, stat.input);
+    if (!group) continue;
+    selected.set(stat.input, group);
+    // The provisional theta encodes the weighted sum with its zero prior and k=10.
+    const weightedSum = stat.theta * (stat.sumW + DEFAULT_SHRINK_K);
+    const theta = (weightedSum + group.k * group.formatMean) / (stat.sumW + group.k);
+    standings.push({ input: stat.input, theta, percentile: midRank(group.sortedTheta, theta), level: group.level, key: group.key, peerCount: group.peerCount });
+  }
+  const counted = INPUTS.filter((i) => !(INFORMATIVE_ONLY[format] ?? []).includes(i));
+  if (counted.some((i) => !selected.has(i))) return null;
+
+  const percentileOf = (i: Input) => standings.find((s) => s.input === i)!.percentile;
+  const weightOf = (i: Input) => stats.find((s) => s.input === i)!.weight;
+  const inputComposite = counted.reduce((sum, i) => sum + weightOf(i) * percentileOf(i), 0);
+
+  const anchor = selected.get("food") ?? selected.get(counted[0]!)!;
+  const compositePercentile = midRank(anchor.composite, inputComposite);
+  return { standings, anchor, compositePercentile, counted };
+}
+
+/**
+ * The composite percentile alone, ranked against the given Peer snapshot — for judging a subset
+ * of Reviews (a quarter, issue #41) against the *current* snapshot without banding a Tier. Null
+ * under the same completeness gate `judgeWithSnapshot` falls back to provisional on.
+ */
+export function compositePercentileFor(stats: InputStat[], format: string, city: string | undefined, snapshot: PeerSnapshot | null | undefined): number | null {
+  return standingsFor(stats, format, city, snapshot)?.compositePercentile ?? null;
+}
+
 /**
  * Judges a Restaurant against its Peer snapshot: mid-rank standings per input, the composite
  * (weighted mean of input percentiles, ranked again among Peer composites), and the resulting
@@ -196,28 +238,12 @@ export function judgeWithSnapshot(
   exceptional: { successes: number; trials: number },
 ): PeerVerdict {
   const none: PeerVerdict = { peerSnapshot: null, standings: [], compositeStanding: null, provisional: true, tier: null, floorCap: null, tierFloors: [], ceilingNote: null };
-  if (!snapshot || !city || city.toLowerCase() !== "lisbon") return none;
-  const selected = new Map<Input, PeerGroupStat>();
-  const standings: Standing[] = [];
-  for (const stat of stats) {
-    const group = groupFor(snapshot, city, format, stat.input);
-    if (!group) continue;
-    selected.set(stat.input, group);
-    // The provisional theta encodes the weighted sum with its zero prior and k=10.
-    const weightedSum = stat.theta * (stat.sumW + DEFAULT_SHRINK_K);
-    const theta = (weightedSum + group.k * group.formatMean) / (stat.sumW + group.k);
-    standings.push({ input: stat.input, theta, percentile: midRank(group.sortedTheta, theta), level: group.level, key: group.key, peerCount: group.peerCount });
-  }
-  const counted = INPUTS.filter((i) => !(INFORMATIVE_ONLY[format] ?? []).includes(i));
-  if (counted.some((i) => !selected.has(i))) return none;
+  const result = standingsFor(stats, format, city, snapshot);
+  if (!snapshot || !result) return none;
+  const { standings, anchor, compositePercentile, counted } = result;
 
   const percentileOf = (i: Input) => standings.find((s) => s.input === i)!.percentile;
   const peerThetaOf = (i: Input) => standings.find((s) => s.input === i)!.theta;
-  const weightOf = (i: Input) => stats.find((s) => s.input === i)!.weight;
-  const inputComposite = counted.reduce((sum, i) => sum + weightOf(i) * percentileOf(i), 0);
-
-  const anchor = selected.get("food") ?? selected.get(counted[0]!)!;
-  const compositePercentile = midRank(anchor.composite, inputComposite);
   const gates: LifeChangingGates = {
     anchorPeerCount: anchor.peerCount,
     exceptionalPosteriorProb: exceptionalPosterior(exceptional.successes, exceptional.trials, anchor.exceptionalPrior),

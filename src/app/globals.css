@@ -159,6 +159,11 @@ table.src th.num{text-align:right}
 .chart-volume{fill:var(--t-good)}
 .chart-label{fill:var(--muted);font:600 11px var(--sans)}
 .chart-tick{fill:var(--muted);font:10px var(--mono)}
+.composite-history{margin-top:8px}
+.chart-composite{stroke:var(--accent);stroke-width:2.5}
+.chart-composite-dot{fill:var(--accent);stroke:var(--surface);stroke-width:1.5}
+.chart-composite-dot-hollow{fill:var(--surface);stroke:var(--accent);stroke-width:2}
+.chart-changepoint{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:4 3}
 .history-source details summary{cursor:pointer;color:var(--accent);font-weight:600}
 
 /* ---------- app shell ---------- */
