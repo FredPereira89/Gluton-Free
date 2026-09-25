@@ -68,6 +68,19 @@ describe("explainAndQuote", () => {
     expect(parse).toHaveBeenCalledTimes(2);
   });
 
+  it("rejects a fabricated Red flag count before keeping the explanation", async () => {
+    const { explainAndQuote } = await import("./explain");
+    const r = computed();
+    r.tier = "avoid";
+    r.redFlags = [{ group: "health", incidents12m: 2, newestAt: "2026-08-01T00:00:00Z", shareOfText12m: 0.125, forcesAvoid: true, types: ["hygiene"] }];
+    parse.mockResolvedValueOnce(answer("**Avoid** is provisional, led by Food. A health Red flag has 12 incidents, newest 2026-08. Confidence is Low."));
+    const passing = "**Avoid** is provisional, led by Food. A health Red flag has 2 incidents, newest 2026-08. Confidence is Low.";
+    parse.mockResolvedValueOnce(answer(passing));
+    const result = await explainAndQuote({ name: "Test", formatName: "tasca", rollup: r, candidates: [] }, emptyUsage("explain", JUDGE_MODEL, false));
+    expect(result.explanation).toBe(passing);
+    expect(parse).toHaveBeenCalledTimes(2);
+  });
+
   it("templates forced Avoid and Not enough evidence with a missed bar", async () => {
     const { explainAndQuote } = await import("./explain");
     parse.mockResolvedValue(answer("Invalid."));
@@ -78,6 +91,9 @@ describe("explainAndQuote", () => {
     expect(avoid.explanation).toMatch(/\*\*Avoid\*\*.*provisional/i);
     expect(avoid.explanation).toMatch(/health.*2.*2026-08/i);
     expect(avoid.explanation).toMatch(/forces Avoid/i);
+    forced.tierHeld = true;
+    const held = await explainAndQuote({ name: "Test", formatName: "tasca", rollup: forced, candidates: [] }, emptyUsage("explain", JUDGE_MODEL, false));
+    expect(held.explanation).toMatch(/previous Tier was held/i);
     const thin = computed();
     thin.state = "not_enough_evidence";
     thin.tier = null;

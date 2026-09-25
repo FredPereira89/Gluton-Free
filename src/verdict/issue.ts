@@ -3,7 +3,7 @@ import type { Aspect, FlagType } from "@/domain/aspects";
 import { db } from "@/lib/db";
 import type { LlmUsage } from "@/lib/job";
 import { BlocksSchema } from "./blocks";
-import { explainAndQuote, preselect, type QuoteCandidate } from "./explain";
+import { explainAndQuote, explanationFacts, preselect, type QuoteCandidate } from "./explain";
 import { rollup, type RollupFlag, type RollupReview } from "./rollup";
 import { loadCurrentPeerSnapshot } from "./snapshot-store";
 import { stabilizeTier, type RejudgeCause } from "./stability";
@@ -92,27 +92,18 @@ export async function issueVerdict(restaurantId: number, jobId: number | null, u
   const priorBlocks = previous ? BlocksSchema.parse(previous.blocks) : null;
   const priorRollup = priorBlocks?.rollup ?? null;
   const r = stabilizeTier(rollup({ ...input, peerSnapshot: await loadCurrentPeerSnapshot() }), priorRollup, cause, input.now);
+  const formatName = FORMAT_NAME[input.format] ?? input.format;
+  const candidates = preselect(await quoteCandidates(restaurantId));
   const inputsHash = createHash("sha256").update(JSON.stringify({
-    ruleVersion: r.ruleVersion,
-    name: restaurant.name,
-    format: input.format,
-    now: input.now.toISOString().slice(0, 10),
-    reviews: [...input.reviews].sort((a, b) => a.id - b.id),
-    flags: [...input.flags].sort((a, b) => a.reviewId - b.reviewId || a.type.localeCompare(b.type)),
-    sourceCodes: [...(input.sourceCodes ?? [])].sort(),
-    failedSourceCodes: [...(input.failedSourceCodes ?? [])].sort(),
-    changePointAt: input.changePointAt,
-    peerSnapshotId: r.peerSnapshot?.id ?? null,
-    state: r.state,
-    tier: r.tier,
-    tierHeld: r.tierHeld ?? false,
-    floorCap: r.floorCap,
+    facts: explanationFacts(restaurant.name as string, formatName, r),
+    candidates: candidates.map(({ reviewId, aspect, polarity, text, lang, stars, source, publishedAt }) =>
+      ({ reviewId, aspect, polarity, text, lang, stars, source, publishedAt })),
   })).digest("hex");
 
   const { explanation, quotes } = previous?.inputs_hash === inputsHash && typeof previous.explanation === "string" && priorBlocks
     ? { explanation: previous.explanation as string, quotes: priorBlocks.quotes }
     : await explainAndQuote(
-      { name: restaurant.name as string, formatName: FORMAT_NAME[input.format] ?? input.format, rollup: r, candidates: preselect(await quoteCandidates(restaurantId)) },
+      { name: restaurant.name as string, formatName, rollup: r, candidates },
       usage,
     );
   for (const q of quotes) {

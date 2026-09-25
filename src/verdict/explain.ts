@@ -58,7 +58,7 @@ const format = zodOutputFormat(Out);
 
 const fmt = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(2)}`;
 
-function facts(name: string, formatName: string, r: Rollup): string {
+export function explanationFacts(name: string, formatName: string, r: Rollup): string {
   const lines: string[] = [];
   lines.push(`Restaurant: ${name} (Format: ${formatName})`);
   if (r.state === "not_enough_evidence") {
@@ -105,9 +105,11 @@ function explanationPasses(explanation: string, formatName: string, r: Rollup): 
   } else if (!text.includes("not enough evidence") || !r.notEnoughEvidence.missed.some((bar) => text.includes(bar.toLowerCase()))) {
     return false;
   }
-  if (!text.includes(`confidence`) || !text.includes(r.confidence.level)) return false;
+  if (!new RegExp(`\\bconfidence\\s*(?::|is)?\\s*${r.confidence.level}\\b`, "i").test(text)) return false;
   if (r.provisional) {
     if (!text.includes("provisional")) return false;
+  } else if (text.includes("provisional") && !text.includes("not provisional")) {
+    return false;
   } else {
     const levels = new Set<string>();
     if (r.compositeStanding) levels.add(comparison(r.compositeStanding.level, r.compositeStanding.key, formatName).toLowerCase());
@@ -117,8 +119,12 @@ function explanationPasses(explanation: string, formatName: string, r: Rollup): 
     }
     if ([...levels].some((level) => !text.includes(level))) return false;
   }
-  if (r.redFlags.some((flag) => !text.includes(flag.group) || !text.includes(String(flag.incidents12m)) ||
-    (flag.newestAt && !text.includes(flag.newestAt.slice(0, 7))))) return false;
+  if (r.redFlags.some((flag) => {
+    const groupClause = text.split(/[.!?;]/).find((clause) => clause.includes(flag.group));
+    const count = new RegExp(`\\b${flag.incidents12m}\\s+(?:verified\\s+)?(?:first-hand\\s+)?(?:incidents?|reports?)\\b`);
+    return !groupClause || !count.test(groupClause) || (flag.newestAt && !groupClause.includes(flag.newestAt.slice(0, 7)));
+  })) return false;
+  if (r.tierHeld && !/\b(held|remains|retained)\b/.test(text)) return false;
   return !/\b(distinctions?|critics?|michelin|repsol)\b/i.test(text);
 }
 
@@ -139,7 +145,7 @@ function templateExplanation(formatName: string, r: Rollup): string {
   const flags = r.redFlags.map((flag) =>
       `${flag.group} Red flag: ${flag.incidents12m} verified incident${flag.incidents12m === 1 ? "" : "s"} in the last 12 months, newest ${flag.newestAt?.slice(0, 7) ?? "date unknown"}${flag.forcesAvoid ? ", which forces Avoid" : ""}`,
   );
-  const second = [deciding, ...flags].filter(Boolean).join("; ");
+  const second = [deciding, ...(r.tierHeld ? ["the previous Tier was held by the stability margin"] : []), ...flags].filter(Boolean).join("; ");
   const reason = (r.provisional && "provisional: judged against default cut-offs, not Peers") ||
     r.confidence.caps.find((cap) => cap.startsWith("a Crowd Source failed")) ||
     r.confidence.caps[0] ||
@@ -166,7 +172,7 @@ export async function explainAndQuote(
         content: `You write the explanation on a restaurant's Verdict page, from computed facts. Never change or re-decide the Tier; never add facts that are not below.
 
 <facts>
-${facts(args.name, args.formatName, r)}
+${explanationFacts(args.name, args.formatName, r)}
 </facts>
 
 Write 2–3 plain sentences, no bullet points, no markdown except wrapping the Tier name in **bold** once. They must state, in this order:
@@ -190,7 +196,7 @@ ${list}
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await anthropic().messages.parse(attempt === 0 ? request : {
       ...request,
-      messages: [...request.messages, { role: "user" as const, content: "The previous explanation missed a required computed fact. Regenerate it with the exact bold Tier (or Not enough evidence and its missed bar), the deciding input or floor, the comparison level (Format peers, Format family peers, or all Lisbon peers), every Red flag group with count and newest month, Confidence, and whether it is provisional. Use only the facts above." }],
+      messages: [...request.messages, { role: "user" as const, content: "The previous explanation missed a required computed fact. Regenerate it with the exact bold Tier (or Not enough evidence and its missed bar), the deciding input or floor, the comparison level from the facts, every Red flag group with its exact count and newest month, Confidence, and whether it is provisional. Use only the facts above." }],
     });
     addUsage(usage, res.usage);
     out = res.parsed_output;

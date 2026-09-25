@@ -103,6 +103,21 @@ describe("Lookup pipeline", () => {
     const [second] = await database`select explanation, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
     expect(second).toMatchObject(first!);
     expect(parse).not.toHaveBeenCalled();
+
+    const [review] = await database`select r.id from review r join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurantId} order by r.id limit 1`;
+    await database`insert into review_flag (review_id, type, flag_group, first_hand, severity, evidence, verification)
+      values (${review!.id}, 'hygiene', 'health', true, 'medium', 'Invented hygiene report', 'confirmed')`;
+    await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
+    const [changed] = await database`select explanation, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    expect(changed!.inputs_hash).not.toBe(second!.inputs_hash);
+    expect(changed!.explanation).toMatch(/health Red flag: 1 verified incident/);
+    expect(parse).toHaveBeenCalledTimes(2);
+
+    await database`update review_analysis set quote = 'A revised invented quote about the food.', quote_aspect = 'food', quote_polarity = 1 where review_id = ${review!.id}`;
+    await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
+    const [withQuote] = await database`select inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    expect(withQuote!.inputs_hash).not.toBe(changed!.inputs_hash);
+    expect(parse).toHaveBeenCalledTimes(4);
     parse.mockRestore();
   }, 30_000);
 
