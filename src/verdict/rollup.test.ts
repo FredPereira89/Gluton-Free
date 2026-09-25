@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { INPUTS, type Aspect, type Input } from "@/domain/aspects";
-import { midRank } from "./peer";
-import { applyReviewWindow, rollup, shrunk, type RollupFlag, type RollupReview } from "./rollup";
+import { INFORMATIVE_ONLY, INPUT_WEIGHTS, INPUTS, type Aspect, type Input } from "@/domain/aspects";
+import { judgeWithSnapshot, midRank, type PeerGroupStat, type PeerSnapshot } from "./peer";
+import { applyReviewWindow, rollup, shrunk, type InputStat, type RollupFlag, type RollupReview } from "./rollup";
 
 const NOW = new Date("2026-09-01T00:00:00Z");
 const monthsAgo = (m: number) => new Date(NOW.getTime() - m * 30.4375 * 24 * 3600 * 1000);
@@ -46,18 +46,21 @@ describe("rollup", () => {
     const groups = INPUTS.map((input) => ({
       city: "Lisbon", level: "format" as const, key: "tasca", input,
       sortedTheta: Array.from({ length: 30 }, (_, i) => i < 15 ? 0 : 1),
-      formatMean: 1, k: 10, composite: Array.from({ length: 30 }, (_, i) => i / 30),
+      formatMean: 1, k: 10, composite: Array.from({ length: 30 }, (_, i) => i * (100 / 30)),
       exceptionalPrior: { alpha: 1, beta: 1 }, peerCount: 30,
     }));
     const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews: many(15, () => review({ publishedAt: NOW, stars: 3, aspects: { food: 0 } })), flags: [],
       peerSnapshot: { id: 7, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups },
     });
-    expect(r.provisional).toBe(true);
+    // Complete Peer standings settle the Tier, so it is no longer provisional (issue #35).
+    expect(r.provisional).toBe(false);
     expect(r.inputs.find((s) => s.input === "food")!.theta).toBe(0);
     expect(r.standings?.find((s) => s.input === "food")).toMatchObject({ theta: 0.4, percentile: 50, level: "format", peerCount: 30 });
     expect(r.peerSnapshot?.id).toBe(7);
-    const defaultVerdict = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews: many(15, () => review({ publishedAt: NOW, stars: 3, aspects: { food: 0 } })), flags: [] });
-    expect(r.tier).toBe(defaultVerdict.tier);
+    // food and overall sit at P50, the other counted inputs at P75: the composite (P63) lands
+    // in the Good band, with both its floors met.
+    expect(r.tier).toBe("good");
+    expect(r.floorCap).toBeNull();
   });
 
   it("falls back per input from Format to family to all Lisbon at 30 qualified Peers", () => {
@@ -72,8 +75,9 @@ describe("rollup", () => {
     });
     expect(r.standings?.find((s) => s.input === "food")?.level).toBe("family");
     expect(r.standings?.find((s) => s.input === "service")?.level).toBe("city");
-    expect(r.provisional).toBe(true);
+    expect(r.provisional).toBe(false);
     expect(r.standings?.find((s) => s.input === "overall")?.level).toBe("city");
+    expect(r.tier).toBe("must_go");
   });
 
   it("keeps a Restaurant outside the snapshot city provisional", () => {
@@ -273,6 +277,131 @@ describe("rollup", () => {
     const a = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
     const b = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
     expect(a).toEqual(b);
+  });
+});
+
+describe("Peer-relative Tiers and floors (issue #35)", () => {
+  // A huge k pulls the peer-shrunk θ to `theta` regardless of the stat fed in, and sortedTheta
+  // clusters far below/above that point so midRank reads back exactly `percentile`. The same
+  // trick on the food group's own `composite` array lets a test pin the final composite
+  // percentile directly, independent of the (still realistic, 0-100 scale) per-input weights.
+  function peerGroup(input: Input, format: string, percentile: number, theta = 0): PeerGroupStat {
+    return {
+      city: "Lisbon", level: "format", key: format, input,
+      sortedTheta: Array.from({ length: 100 }, (_, i) => (i < percentile ? theta - 1000 : theta + 1000)),
+      formatMean: theta, k: 1e9, composite: [],
+      exceptionalPrior: { alpha: 1, beta: 1 }, peerCount: 100,
+    };
+  }
+
+  function statsFor(format: string): InputStat[] {
+    const skip = new Set(INFORMATIVE_ONLY[format] ?? []);
+    const counted = INPUTS.filter((i) => !skip.has(i));
+    const total = counted.reduce((s, i) => s + INPUT_WEIGHTS[i], 0);
+    return INPUTS.map((input) => ({
+      input, counted: counted.includes(input), weight: counted.includes(input) ? INPUT_WEIGHTS[input] / total : 0,
+      theta: 0, nEff: 1, n: 1, sumW: 10,
+    }));
+  }
+
+  function judge(
+    format: string,
+    percentiles: Partial<Record<Input, number>>,
+    compositePercentile: number,
+    opts: { thetas?: Partial<Record<Input, number>>; forced?: boolean } = {},
+  ) {
+    const groups = INPUTS.map((input) => {
+      const group = peerGroup(input, format, percentiles[input] ?? 50, opts.thetas?.[input] ?? 0);
+      // The composite is ranked again against the anchor input's (food) own Peer composites.
+      if (input === "food") group.composite = Array.from({ length: 100 }, (_, i) => (i < compositePercentile ? -1000 : 1000));
+      return group;
+    });
+    const snapshot: PeerSnapshot = { id: 1, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups };
+    return judgeWithSnapshot(statsFor(format), format, "Lisbon", snapshot, opts.forced ?? false);
+  }
+
+  it("Avoids when the composite is below P10 and peer θ on food is negative", () => {
+    const r = judge("tasca", { food: 5, service: 5, overall: 5, value: 5, wait: 5 }, 5, { thetas: { food: -1 } });
+    expect(r.tier).toBe("avoid");
+  });
+
+  it("does not Avoid below P10 when no counted θ on food or Overall is negative", () => {
+    const r = judge("tasca", { food: 5, service: 5, overall: 5, value: 5, wait: 5 }, 5);
+    expect(r.tier).toBe("ok");
+  });
+
+  it("does not Avoid at exactly P10 even with a negative peer θ on food", () => {
+    const r = judge("tasca", { food: 30, service: 30, overall: 30, value: 30, wait: 30 }, 10, { thetas: { food: -1 } });
+    expect(r.tier).toBe("ok");
+  });
+
+  it("bands a mid-range composite as OK with no floor", () => {
+    const r = judge("tasca", { food: 30, service: 30, overall: 30, value: 30, wait: 30 }, 30);
+    expect(r.tier).toBe("ok");
+    expect(r.floorCap).toBeNull();
+  });
+
+  it("bands Good at exactly P45 when both floors are met", () => {
+    const r = judge("tasca", { food: 50, service: 50, overall: 50, value: 50, wait: 50 }, 45);
+    expect(r.tier).toBe("good");
+    expect(r.floorCap).toBeNull();
+    expect(r.tierFloors).toEqual([{ input: "food", percentile: 40 }, { input: "service", percentile: 25 }]);
+  });
+
+  it("drops a Good-band composite to OK when the food floor fails", () => {
+    const r = judge("tasca", { food: 30, service: 50, overall: 50, value: 50, wait: 50 }, 60);
+    expect(r.tier).toBe("ok");
+    expect(r.floorCap).toMatch(/Good floor not met: food below P40/);
+  });
+
+  it("drops a Good-band composite to OK when the service floor fails", () => {
+    const r = judge("tasca", { food: 50, service: 10, overall: 50, value: 50, wait: 50 }, 60);
+    expect(r.tier).toBe("ok");
+    expect(r.floorCap).toMatch(/service below P25/);
+  });
+
+  it("bands Must Go at exactly P85 when every floor is met", () => {
+    const r = judge("tasca", { food: 80, service: 80, overall: 50, value: 80, wait: 80 }, 85);
+    expect(r.tier).toBe("must_go");
+    expect(r.floorCap).toBeNull();
+    expect(r.tierFloors).toEqual([
+      { input: "food", percentile: 75 }, { input: "service", percentile: 50 },
+      { input: "value", percentile: 25 }, { input: "wait", percentile: 25 },
+    ]);
+  });
+
+  it("drops a Must-Go composite to Good when the food floor (P75) fails", () => {
+    const r = judge("tasca", { food: 50, service: 80, overall: 50, value: 80, wait: 80 }, 90);
+    expect(r.tier).toBe("good");
+    expect(r.floorCap).toMatch(/Must Go floor not met: food below P75/);
+  });
+
+  it("drops a Must-Go composite to Good when a counted Aspect other than food or service is below P25", () => {
+    const r = judge("tasca", { food: 80, service: 80, overall: 50, value: 10, wait: 80 }, 90);
+    expect(r.tier).toBe("good");
+    expect(r.floorCap).toMatch(/Must Go floor not met: value below P25/);
+  });
+
+  it("never applies a floor to Overall", () => {
+    const r = judge("tasca", { food: 80, service: 80, overall: 0, value: 80, wait: 80 }, 90);
+    expect(r.tier).toBe("must_go");
+    expect(r.floorCap).toBeNull();
+  });
+
+  it("rescales informative-only Aspects per Format: ambience is dropped at a tasca but counted, and floored, elsewhere", () => {
+    const percentiles = { food: 80, service: 80, overall: 50, value: 80, wait: 80, ambience: 0 };
+    const atTasca = judge("tasca", percentiles, 90);
+    const atRestaurant = judge("restaurant", percentiles, 90);
+    expect(atTasca.tier).toBe("must_go");
+    expect(atRestaurant.tier).toBe("good");
+    expect(atRestaurant.floorCap).toMatch(/ambience below P25/);
+  });
+
+  it("overrides an otherwise Must-Go peer Tier with a forced red-flag Avoid", () => {
+    const r = judge("tasca", { food: 80, service: 80, overall: 50, value: 80, wait: 80 }, 90, { forced: true });
+    expect(r.tier).toBe("avoid");
+    expect(r.floorCap).toBeNull();
+    expect(r.tierFloors).toEqual([]);
   });
 });
 

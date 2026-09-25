@@ -3,7 +3,7 @@
 // Pure: no I/O, deterministic (the bootstrap uses a seeded generator).
 import { ASPECTS, INFORMATIVE_ONLY, INPUTS, INPUT_WEIGHTS, type Aspect, type FlagType, type Input, type Tier } from "@/domain/aspects";
 import { THEMES, type ThemeCode } from "@/domain/themes";
-import { DEFAULT_SHRINK_K, judgeWithSnapshot, type PeerSnapshot, type Standing } from "./peer";
+import { DEFAULT_SHRINK_K, judgeWithSnapshot, type CompositeStanding, type PeerSnapshot, type Standing, type TierFloor } from "./peer";
 
 export const RULE_VERSION = "provisional-v1";
 
@@ -93,12 +93,14 @@ export type Rollup = {
   provisional: boolean;
   peerSnapshot?: { id: number; month: string; publishedAt: string } | null;
   standings?: Standing[];
+  compositeStanding?: CompositeStanding | null;
   state: "verdict" | "not_enough_evidence";
   tier: Tier | null;
   composite: number;
   inputs: InputStat[];
   contributions: { input: Input; value: number }[];
   floorCap: string | null;
+  tierFloors?: TierFloor[];
   notEnoughEvidence: {
     textReviews: number;
     foodMentions: number;
@@ -384,7 +386,12 @@ export function rollup(input: RollupInput): Rollup {
   const base = tierFrom(stats);
   const tier: Tier = forced ? "avoid" : base.tier;
 
-  // Confidence: bootstrap over Reviews, then the caps. Provisional always ends Low.
+  // Peer-relative Tier (issue #35): mid-rank standings, the composite ranked again among Peer
+  // composites, and the resulting Tier with its floors. Falls back to the provisional θ-based
+  // Tier above when the snapshot is missing or incomplete for a counted input.
+  const peers = judgeWithSnapshot(stats, format, input.city, input.peerSnapshot, forced);
+
+  // Confidence: bootstrap over Reviews, then the caps. A still-provisional Verdict always ends Low.
   const rand = mulberry32(42);
   let same = 0;
   for (let b = 0; b < PARAMS.bootstrap; b++) {
@@ -417,8 +424,10 @@ export function rollup(input: RollupInput): Rollup {
     caps.push(`text and stars disagree (text: ${band(textComposite)}, stars: ${starsBand})`);
     level = Math.max(0, level - 1);
   }
-  caps.push("provisional: judged against default cut-offs, not Peers");
-  level = 0;
+  if (peers.provisional) {
+    caps.push("provisional: judged against default cut-offs, not Peers");
+    level = 0;
+  }
 
   // Consistency spread (informational: derived, not extracted — issue #32): the recency-weighted
   // spread of per-Review stance, shrunk toward a robust, median-anchored spread below about
@@ -495,18 +504,24 @@ export function rollup(input: RollupInput): Rollup {
       notEnoughEvidence.reasonLine = `${event} on ${date}; ${notEnoughEvidence.textReviews} Reviews since`;
     }
   }
+  const finalTier = peers.provisional ? tier : peers.tier!;
+  const finalFloorCap = peers.provisional ? (forced ? null : base.floorCap) : peers.floorCap;
   const result: Rollup = {
     ruleVersion: RULE_VERSION,
-    provisional: true,
+    provisional: peers.provisional,
+    peerSnapshot: peers.peerSnapshot,
+    standings: peers.standings,
+    compositeStanding: peers.compositeStanding,
     state,
-    tier: state === "verdict" ? tier : null,
+    tier: state === "verdict" ? finalTier : null,
     composite,
     inputs: stats,
     contributions: stats
       .filter((s) => s.counted)
       .map((s) => ({ input: s.input, value: s.weight * s.theta }))
       .sort((a, b) => b.value - a.value),
-    floorCap: forced ? null : base.floorCap,
+    floorCap: finalFloorCap,
+    tierFloors: peers.provisional ? [] : peers.tierFloors,
     notEnoughEvidence,
     redFlags,
     confidence: { level: levels[level]!, bootstrapShare: share, caps },
@@ -517,5 +532,5 @@ export function rollup(input: RollupInput): Rollup {
     series,
     sourceHistory: quarterlySourceHistory(input.reviews, now, input.sourceCodes),
   };
-  return judgeWithSnapshot(result, input.peerSnapshot, input.city, format);
+  return result;
 }

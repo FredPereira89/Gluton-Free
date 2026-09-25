@@ -1,5 +1,5 @@
-import { INFORMATIVE_ONLY, INPUTS, type Input } from "@/domain/aspects";
-import type { Rollup } from "./rollup";
+import { INFORMATIVE_ONLY, INPUTS, type Input, type Tier } from "@/domain/aspects";
+import type { InputStat } from "./rollup";
 
 export type PeerLevel = "format" | "family" | "city";
 export type PeerGroupStat = {
@@ -16,6 +16,18 @@ export type PeerGroupStat = {
 };
 export type PeerSnapshot = { id: number; month: string; publishedAt: string; groups: PeerGroupStat[] };
 export type Standing = { input: Input; theta: number; percentile: number; level: PeerLevel; key: string; peerCount: number };
+export type CompositeStanding = { percentile: number; level: PeerLevel; key: string; peerCount: number };
+export type TierFloor = { input: Input; percentile: number };
+
+export type PeerVerdict = {
+  peerSnapshot: { id: number; month: string; publishedAt: string } | null;
+  standings: Standing[];
+  compositeStanding: CompositeStanding | null;
+  provisional: boolean;
+  tier: Tier | null;
+  floorCap: string | null;
+  tierFloors: TierFloor[];
+};
 
 const FORMAT_FAMILY: Record<string, string> = {
   tasca: "traditional_portuguese", restaurante_tradicional: "traditional_portuguese",
@@ -28,6 +40,18 @@ const FORMAT_FAMILY: Record<string, string> = {
 const MIN_PEERS = 30;
 export const DEFAULT_SHRINK_K = 10;
 const keyOf = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+// Tier boundaries and floors (ADR 0002, issue #35). Percentiles are mid-ranks on a 0-100 scale.
+const AVOID_PCT = 10;
+const OK_PCT = 45;
+const GOOD_PCT = 85;
+const GOOD_FOOD_FLOOR = 40;
+const GOOD_SERVICE_FLOOR = 25;
+const MUSTGO_FOOD_FLOOR = 75;
+const MUSTGO_SERVICE_FLOOR = 50;
+const MUSTGO_ASPECT_FLOOR = 25;
+
+export const formatPercentile = (percentile: number): string => `P${Math.round(percentile)}`;
 
 export function midRank(sorted: number[], value: number): number {
   if (!sorted.length) return 0;
@@ -53,11 +77,63 @@ function groupFor(snapshot: PeerSnapshot, city: string, format: string, input: I
   }
 }
 
-export function judgeWithSnapshot(rollup: Rollup, snapshot: PeerSnapshot | null | undefined, city: string | undefined, format: string): Rollup {
-  if (!snapshot || !city || city.toLowerCase() !== "lisbon") return { ...rollup, peerSnapshot: null, standings: [] };
+const GOOD_FLOOR_TABLE: TierFloor[] = [{ input: "food", percentile: GOOD_FOOD_FLOOR }, { input: "service", percentile: GOOD_SERVICE_FLOOR }];
+
+function mustGoFloorTable(counted: Input[]): TierFloor[] {
+  const floors: TierFloor[] = [{ input: "food", percentile: MUSTGO_FOOD_FLOOR }, { input: "service", percentile: MUSTGO_SERVICE_FLOOR }];
+  for (const i of counted) if (i !== "food" && i !== "service" && i !== "overall") floors.push({ input: i, percentile: MUSTGO_ASPECT_FLOOR });
+  return floors;
+}
+
+function floorFailures(floors: TierFloor[], pct: (i: Input) => number): string[] {
+  return floors.filter((f) => pct(f.input) < f.percentile).map((f) => `${f.input} below P${f.percentile}`);
+}
+
+/**
+ * Bands the composite percentile into a Tier, applying floors (never Overall) and the drop-down
+ * rule: a floor failure drops to the highest Tier whose own floors are met.
+ */
+function tierFromPercentiles(
+  compositePercentile: number,
+  counted: Input[],
+  pct: (i: Input) => number,
+  peerTheta: (i: Input) => number,
+): { tier: Tier; floorCap: string | null; tierFloors: TierFloor[] } {
+  if (compositePercentile < AVOID_PCT && (peerTheta("food") < 0 || peerTheta("overall") < 0)) {
+    return { tier: "avoid", floorCap: null, tierFloors: [] };
+  }
+  if (compositePercentile < OK_PCT) return { tier: "ok", floorCap: null, tierFloors: [] };
+  if (compositePercentile < GOOD_PCT) {
+    const failed = floorFailures(GOOD_FLOOR_TABLE, pct);
+    if (!failed.length) return { tier: "good", floorCap: null, tierFloors: GOOD_FLOOR_TABLE };
+    return { tier: "ok", floorCap: `Good floor not met: ${failed.join(", ")}`, tierFloors: [] };
+  }
+  const mustGoTable = mustGoFloorTable(counted);
+  const mustGoFailed = floorFailures(mustGoTable, pct);
+  if (!mustGoFailed.length) return { tier: "must_go", floorCap: null, tierFloors: mustGoTable };
+  const goodFailed = floorFailures(GOOD_FLOOR_TABLE, pct);
+  if (!goodFailed.length) return { tier: "good", floorCap: `Must Go floor not met: ${mustGoFailed.join(", ")}`, tierFloors: GOOD_FLOOR_TABLE };
+  return { tier: "ok", floorCap: `Must Go floor not met: ${mustGoFailed.join(", ")}; Good floor not met: ${goodFailed.join(", ")}`, tierFloors: [] };
+}
+
+/**
+ * Judges a Restaurant against its Peer snapshot: mid-rank standings per input, the composite
+ * (weighted mean of input percentiles, ranked again among Peer composites), and the resulting
+ * Tier with its floors. Falls back to fully provisional when the snapshot, city, or any counted
+ * input's Peer group is missing (issue #34's completeness gate).
+ */
+export function judgeWithSnapshot(
+  stats: InputStat[],
+  format: string,
+  city: string | undefined,
+  snapshot: PeerSnapshot | null | undefined,
+  forcedAvoid: boolean,
+): PeerVerdict {
+  const none: PeerVerdict = { peerSnapshot: null, standings: [], compositeStanding: null, provisional: true, tier: null, floorCap: null, tierFloors: [] };
+  if (!snapshot || !city || city.toLowerCase() !== "lisbon") return none;
   const selected = new Map<Input, PeerGroupStat>();
   const standings: Standing[] = [];
-  for (const stat of rollup.inputs) {
+  for (const stat of stats) {
     const group = groupFor(snapshot, city, format, stat.input);
     if (!group) continue;
     selected.set(stat.input, group);
@@ -67,11 +143,24 @@ export function judgeWithSnapshot(rollup: Rollup, snapshot: PeerSnapshot | null 
     standings.push({ input: stat.input, theta, percentile: midRank(group.sortedTheta, theta), level: group.level, key: group.key, peerCount: group.peerCount });
   }
   const counted = INPUTS.filter((i) => !(INFORMATIVE_ONLY[format] ?? []).includes(i));
-  if (counted.some((i) => !selected.has(i))) return { ...rollup, peerSnapshot: null, standings: [] };
+  if (counted.some((i) => !selected.has(i))) return none;
+
+  const percentileOf = (i: Input) => standings.find((s) => s.input === i)!.percentile;
+  const peerThetaOf = (i: Input) => standings.find((s) => s.input === i)!.theta;
+  const weightOf = (i: Input) => stats.find((s) => s.input === i)!.weight;
+  const inputComposite = counted.reduce((sum, i) => sum + weightOf(i) * percentileOf(i), 0);
+
+  const anchor = selected.get("food") ?? selected.get(counted[0]!)!;
+  const compositePercentile = midRank(anchor.composite, inputComposite);
+  const banded = tierFromPercentiles(compositePercentile, counted, percentileOf, peerThetaOf);
 
   return {
-    ...rollup,
     peerSnapshot: { id: snapshot.id, month: snapshot.month, publishedAt: snapshot.publishedAt },
     standings,
+    compositeStanding: { percentile: compositePercentile, level: anchor.level, key: anchor.key, peerCount: anchor.peerCount },
+    provisional: false,
+    tier: forcedAvoid ? "avoid" : banded.tier,
+    floorCap: forcedAvoid ? null : banded.floorCap,
+    tierFloors: forcedAvoid ? [] : banded.tierFloors,
   };
 }

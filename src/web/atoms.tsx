@@ -2,6 +2,7 @@
 import { Fragment, type ReactNode } from "react";
 import { INPUT_LABEL, TIERS, TIER_LABEL, type Tier } from "@/domain/aspects";
 import type { Blocks } from "@/verdict/blocks";
+import { formatPercentile } from "@/verdict/peer";
 
 const TIER_CLASS: Record<Tier, string> = { avoid: "t-avoid", ok: "t-ok", good: "t-good", must_go: "t-must", life_changing: "t-life" };
 
@@ -86,22 +87,24 @@ export function StripAxis() {
   );
 }
 
-export function PeerStripRow({ s, standing, formatName }: { s: Stat; standing: NonNullable<Blocks["rollup"]["standings"]>[number] | undefined; formatName: string }) {
+export function PeerStripRow({ s, standing, floor, formatName }: { s: Stat; standing: NonNullable<Blocks["rollup"]["standings"]>[number] | undefined; floor?: number; formatName: string }) {
   const label = INPUT_LABEL[s.input];
   const groupName = standing?.level === "format" ? `${formatName}s` : standing?.level === "family"
     ? `${standing.key.replaceAll("_", " ")} Restaurants` : "Lisbon Restaurants";
   const pct = standing ? Math.round(standing.percentile) : null;
   const description = !s.counted ? "not counted" : pct === null ? "Peers still being gathered"
     : `better than ${pct}% of ${groupName}`;
+  const floorLabel = floor !== undefined ? `; floor at P${floor}` : "";
   return (
     <div className={`strip ${s.counted ? "" : "info"}`}>
       <div className="lab">{label}<small>{description}</small></div>
-      <div className="track" role="img" aria-label={`${label}: ${description}; median at P50`}>
+      <div className="track" role="img" aria-label={`${label}: ${description}; median at P50${floorLabel}`}>
         <div className="rail" />
         <div className="med" style={{ left: "50%" }} />
+        {floor !== undefined && <div className="floor" style={{ left: `${floor}%` }} />}
         {pct !== null && <div className="dot" style={{ left: `${standing!.percentile}%` }} />}
       </div>
-      <div className="val">{pct === null ? "—" : `P${pct}`}</div>
+      <div className="val">{pct === null ? "—" : formatPercentile(standing!.percentile)}</div>
     </div>
   );
 }

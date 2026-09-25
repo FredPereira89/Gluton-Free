@@ -198,8 +198,8 @@ describe("handler responses", () => {
     expect(markup).toMatch(/better than \d+% of tascas/);
     expect(markup).toContain("not counted");
     expect(markup).toContain("P50");
-    expect(markup).toContain("Peer snapshot #7 (Sept 2026)");
-    expect(markup).toContain("Tier uses default cut-offs; standings use Peer snapshot");
+    expect(markup).toContain("ranked against Peer snapshot #7 (Sept 2026)");
+    expect(markup).toMatch(/composite at P\d+ among Peer composites/);
   });
 
   it("serves a strict Restaurant bundle with private conditional caching", async () => {

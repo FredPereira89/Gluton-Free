@@ -440,6 +440,44 @@
                                     "additionalProperties": false
                                   }
                                 },
+                                "compositeStanding": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "percentile": {
+                                          "type": "number"
+                                        },
+                                        "level": {
+                                          "type": "string",
+                                          "enum": [
+                                            "format",
+                                            "family",
+                                            "city"
+                                          ]
+                                        },
+                                        "key": {
+                                          "type": "string"
+                                        },
+                                        "peerCount": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "percentile",
+                                        "level",
+                                        "key",
+                                        "peerCount"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "state": {
                                   "type": "string",
                                   "enum": [
@@ -546,6 +584,33 @@
                                     "string",
                                     "null"
                                   ]
+                                },
+                                "tierFloors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "input": {
+                                        "type": "string",
+                                        "enum": [
+                                          "food",
+                                          "service",
+                                          "overall",
+                                          "value",
+                                          "ambience",
+                                          "wait"
+                                        ]
+                                      },
+                                      "percentile": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "input",
+                                      "percentile"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 },
                                 "notEnoughEvidence": {
                                   "type": "object",
@@ -1407,6 +1472,44 @@
                                         "additionalProperties": false
                                       }
                                     },
+                                    "compositeStanding": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "percentile": {
+                                              "type": "number"
+                                            },
+                                            "level": {
+                                              "type": "string",
+                                              "enum": [
+                                                "format",
+                                                "family",
+                                                "city"
+                                              ]
+                                            },
+                                            "key": {
+                                              "type": "string"
+                                            },
+                                            "peerCount": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991
+                                            }
+                                          },
+                                          "required": [
+                                            "percentile",
+                                            "level",
+                                            "key",
+                                            "peerCount"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
                                     "state": {
                                       "type": "string",
                                       "enum": [
@@ -1513,6 +1616,33 @@
                                         "string",
                                         "null"
                                       ]
+                                    },
+                                    "tierFloors": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "input": {
+                                            "type": "string",
+                                            "enum": [
+                                              "food",
+                                              "service",
+                                              "overall",
+                                              "value",
+                                              "ambience",
+                                              "wait"
+                                            ]
+                                          },
+                                          "percentile": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "input",
+                                          "percentile"
+                                        ],
+                                        "additionalProperties": false
+                                      }
                                     },
                                     "notEnoughEvidence": {
                                       "type": "object",

@@ -6,6 +6,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { INPUT_LABEL, TIER_LABEL, type Aspect } from "@/domain/aspects";
 import type { LlmUsage } from "@/lib/job";
 import { addUsage, anthropic, JUDGE_MODEL } from "@/analysis/llm";
+import { formatPercentile } from "./peer";
 import type { Rollup } from "./rollup";
 
 export type QuoteCandidate = {
@@ -65,10 +66,10 @@ function facts(name: string, formatName: string, r: Rollup): string {
   } else {
     lines.push(`Tier: ${TIER_LABEL[r.tier!]}`);
   }
-  lines.push(r.peerSnapshot
-    ? `Provisional: yes. The Tier uses default cut-offs; standings use Peer snapshot #${r.peerSnapshot.id} (${r.peerSnapshot.month}). Per-input Peer levels: ${r.standings?.map((s) => `${INPUT_LABEL[s.input]} ${s.level} ${s.key} (${s.peerCount} Peers, P${Math.round(s.percentile)})`).join("; ")}.`
-    : `Provisional: yes. Judged against default cut-offs on the −2..+2 Review scale, not against Peers (other ${formatName}s have not been gathered yet). Life Changing is not available while provisional.`);
-  lines.push(`Composite: ${fmt(r.composite)} (Good from +0.80, Must Go from +1.30)`);
+  lines.push(r.provisional
+    ? `Provisional: yes. Judged against default cut-offs on the −2..+2 Review scale, not against Peers (other ${formatName}s have not been gathered yet). Life Changing is not available while provisional.`
+    : `Provisional: no. Ranked against Peer snapshot #${r.peerSnapshot!.id} (${r.peerSnapshot!.month}). Per-input Peer levels: ${r.standings?.map((s) => `${INPUT_LABEL[s.input]} ${s.level} ${s.key} (${s.peerCount} Peers, ${formatPercentile(s.percentile)})`).join("; ")}. Composite stands at ${formatPercentile(r.compositeStanding!.percentile)} among Peer composites (Avoid below P10 with a negative θ on food or Overall, OK P10–P45, Good P45–P85, Must Go P85 and up).`);
+  lines.push(`Composite: ${fmt(r.composite)} on the −2..+2 scale${r.provisional ? " (Good from +0.80, Must Go from +1.30)" : ""}`);
   lines.push("Inputs (θ on −2..+2, weight in the composite, effective number of Reviews):");
   for (const s of r.inputs) {
     lines.push(`- ${INPUT_LABEL[s.input]}: θ ${fmt(s.theta)}, ${s.counted ? `weight ${Math.round(s.weight * 100)}%` : `not counted at a ${formatName}`}, n_eff ${s.nEff.toFixed(0)}`);
@@ -109,7 +110,7 @@ ${facts(args.name, args.formatName, r)}
 </facts>
 
 Write 2–3 plain sentences, no bullet points, no markdown except wrapping the Tier name in **bold** once. They must state, in this order:
-1. the Tier and that it is provisional; when a Peer snapshot exists, name it and the levels used for the deciding inputs' standings;
+1. the Tier and whether it is provisional or ranked against Peers; when a Peer snapshot exists, name it, the levels used for the deciding inputs' standings, and the composite's Peer percentile;
 2. the one or two inputs that decided it (use their θ values, e.g. "food (θ +1.21)"), or the floor that capped it;
 3. any Red flag: its group, how many incidents, how recent (skip if none);
 4. the Confidence level and its main reason.

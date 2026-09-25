@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
+import { formatPercentile } from "@/verdict/peer";
 import { PARAMS } from "@/verdict/rollup";
 import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripRow, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
@@ -128,7 +129,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         </section>
         <Sources page={page} perSource={perSource} />
         <BundleExtras page={page} />
-        <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} />
+        <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
       </div>
     );
   }
@@ -192,11 +193,12 @@ export default async function VerdictPageRoute({ params }: Props) {
           <h2>{r.peerSnapshot ? onePeerGroup ? `Where it stands among ${foodStanding?.peerCount ?? 0} ${peerGroupLabel}` : "Where it stands among Peers" : "Where it stands"}</h2>
           <span className="small muted">
             Composite <span className="mono">{signed(r.composite)}</span>
+            {r.compositeStanding && <> · <span className="mono">{formatPercentile(r.compositeStanding.percentile)}</span> among Peer composites</>}
           </span>
         </div>
         <div>
           {r.inputs.map((s) => r.peerSnapshot
-            ? <PeerStripRow key={s.input} s={s} standing={r.standings?.find((p) => p.input === s.input)} formatName={formatName} />
+            ? <PeerStripRow key={s.input} s={s} standing={r.standings?.find((p) => p.input === s.input)} floor={r.tierFloors?.find((f) => f.input === s.input)?.percentile} formatName={formatName} />
             : <StripRow key={s.input} s={s} formatName={formatName} />)}
           {r.peerSnapshot ? <PeerStripAxis /> : <StripAxis />}
         </div>
@@ -276,7 +278,7 @@ export default async function VerdictPageRoute({ params }: Props) {
 
       <Sources page={page} perSource={perSource} />
       <BundleExtras page={page} />
-      <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} />
+      <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
     </div>
   );
 }
@@ -389,10 +391,14 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
   );
 }
 
-function Footer({ createdAt, ruleVersion, snapshot, standings }: { createdAt: string; ruleVersion: string; snapshot?: { id: number; month: string } | null; standings?: { input: string; level: string; key: string }[] }) {
+function Footer({ createdAt, ruleVersion, snapshot, standings, compositeStanding }: {
+  createdAt: string; ruleVersion: string; snapshot?: { id: number; month: string } | null;
+  standings?: { input: string; level: string; key: string }[]; compositeStanding?: { percentile: number } | null;
+}) {
   return (
     <p className="footnote">
-      {snapshot ? `Provisional Verdict issued ${dateLabel(createdAt)} under rule ${ruleVersion}: Tier uses default cut-offs; standings use Peer snapshot #${snapshot.id} (${monthLabel(snapshot.month)}). Levels: ${standings?.map((s) => `${INPUT_LABEL[s.input as keyof typeof INPUT_LABEL]}—${s.level} ${s.key}`).join("; ")}. Reviewers are never identified.`
+      {snapshot
+        ? `Verdict issued ${dateLabel(createdAt)} under rule ${ruleVersion}: ranked against Peer snapshot #${snapshot.id} (${monthLabel(snapshot.month)})${compositeStanding ? `, composite at ${formatPercentile(compositeStanding.percentile)} among Peer composites` : ""}. Levels: ${standings?.map((s) => `${INPUT_LABEL[s.input as keyof typeof INPUT_LABEL]}—${s.level} ${s.key}`).join("; ")}. Reviewers are never identified.`
         : `Provisional Verdict issued ${dateLabel(createdAt)} under rule ${ruleVersion}: judged against default cut-offs, not against other Restaurants of the same Format. Life Changing is not available while provisional. Reviewers are never identified.`}
     </p>
   );
