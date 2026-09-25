@@ -21,7 +21,7 @@ The gates were calibrated to the same Tier shares. They amount to ranking by the
 
 ## Consequences
 
-- Most Tier changes come from a Restaurant's rank among its Peers moving. The only exception is a recurring, recent Red flag, which forces Avoid.
+- Most Tier changes come from a Restaurant's rank among its Peers moving. A recurring, recent Red flag forces Avoid. A single verified Red flag caps Life Changing at Must Go, as specified in issue #37.
 - A Restaurant that is weak on a lightly weighted Aspect can still reach Must Go, unless that Aspect falls below P25.
 - Before freezing the weights and floors, re-run the comparison on the real Lisbon baseline.
 

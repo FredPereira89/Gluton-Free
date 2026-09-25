@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import type { LlmUsage } from "@/lib/job";
 import { addUsage, anthropic, JUDGE_MODEL } from "./llm";
 
-export const VERIFIER_VERSION = `${JUDGE_MODEL}|verify-v1`;
+export const VERIFIER_VERSION = `${JUDGE_MODEL}|verify-v2`;
 
 const Out = z.object({
   confirmed: z.boolean().describe("true if the Review really describes this kind of incident"),

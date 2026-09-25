@@ -83,7 +83,7 @@ export type RedFlagGroup = {
   shareOfText12m: number;
   forcesAvoid: boolean;
   types: FlagType[];
-  incidents?: { reviewId: number; type: FlagType; evidence: string; source: string; publishedAt: string }[];
+  incidents?: { reviewId: number; type: FlagType; evidence: string; source: string; publishedAt: string; stars?: number | null }[];
 };
 
 export type SourceHistory = {
@@ -236,10 +236,13 @@ function monthsBefore(date: Date, months: number): Date {
   return result;
 }
 
-function redFlagGroups(input: RollupInput, reviews: RollupReview[]): RedFlagGroup[] {
+function redFlagGroups(input: RollupInput): RedFlagGroup[] {
   const twelveMonthsAgo = monthsBefore(input.now, 12);
   const sixMonthsAgo = monthsBefore(input.now, 6);
-  const textReviewIds = new Set(reviews.filter((r) => r.hasText && r.publishedAt >= twelveMonthsAgo && r.publishedAt <= input.now).map((r) => r.id));
+  const textReviews = input.reviews.filter((r) => r.hasText && r.publishedAt >= twelveMonthsAgo && r.publishedAt <= input.now &&
+    (!input.changePointAt || r.publishedAt >= input.changePointAt));
+  const textReviewIds = new Set(textReviews.map((r) => r.id));
+  const reviewById = new Map(textReviews.map((r) => [r.id, r]));
   const textIn12m = textReviewIds.size;
   const groups: RedFlagGroup[] = [];
   for (const group of ["health", "money"] as const) {
@@ -262,7 +265,8 @@ function redFlagGroups(input: RollupInput, reviews: RollupReview[]): RedFlagGrou
       forcesAvoid,
       types: [...new Set(recent.map((f) => f.type))],
       incidents: [...byReview.values()].filter((f) => f.evidence && f.source).map((f) => ({
-        reviewId: f.reviewId, type: f.type, evidence: f.evidence!, source: f.source!, publishedAt: f.publishedAt.toISOString(),
+        reviewId: f.reviewId, type: f.type, evidence: f.evidence!, source: f.source!,
+        publishedAt: f.publishedAt.toISOString(), stars: reviewById.get(f.reviewId)!.stars,
       })),
     });
   }
@@ -408,7 +412,7 @@ export function rollup(input: RollupInput): Rollup {
 
   // Red flags.
   const textIn12m = text.filter((r) => ageMonths(now, r.publishedAt) <= 12).length;
-  const redFlags = redFlagGroups(input, reviews);
+  const redFlags = redFlagGroups(input);
   const forced = redFlags.some((g) => g.forcesAvoid);
 
   const base = tierFrom(stats);

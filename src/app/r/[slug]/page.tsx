@@ -80,6 +80,7 @@ export default async function VerdictPageRoute({ params }: Props) {
 
   const r = v.blocks.rollup;
   const perSource = r.counts.perSource;
+  const sourceByCode = new Map(page.sources.map((s) => [s.code, s]));
 
   if (r.state === "not_enough_evidence") {
     const nee = r.notEnoughEvidence;
@@ -115,6 +116,7 @@ export default async function VerdictPageRoute({ params }: Props) {
               <Explanation text={v.explanation} />
             </p>
           )}
+          {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
           <div>
             {bars.map((b) => (
               <div className="check" key={b.t}>
@@ -134,7 +136,6 @@ export default async function VerdictPageRoute({ params }: Props) {
     );
   }
 
-  const sourceByCode = new Map(page.sources.map((s) => [s.code, s]));
   const forcedFlags = r.redFlags.filter((g) => g.forcesAvoid);
   if (forcedFlags.length) {
     return (
@@ -142,9 +143,9 @@ export default async function VerdictPageRoute({ params }: Props) {
         <section className="hero">
           {head}
           <TierBadge tier="avoid" size="lg" dashed={r.provisional} />
-          {forcedFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
+          {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         </section>
-        <Sources page={page} perSource={perSource} hideScores />
+        <Sources page={page} perSource={perSource} hideExtras />
       </div>
     );
   }
@@ -299,6 +300,7 @@ function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: M
               <figcaption className="small muted">
                 {source ? <a href={source.url} rel="noreferrer nofollow" target="_blank">{source.name}</a> : incident.source}
                 {` · ${monthLabel(incident.publishedAt.slice(0, 7))}`}
+                {incident.stars !== null && incident.stars !== undefined && <span className="stars" aria-label={`${incident.stars} stars`}>{` · ${"★".repeat(incident.stars)}${"☆".repeat(5 - incident.stars)}`}</span>}
               </figcaption>
             </figure>
           );
@@ -310,7 +312,7 @@ function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: M
 
 type SourceWindow = { text: number; windowStart: string | null };
 
-function Sources({ page, perSource, hideScores = false }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow>; hideScores?: boolean }) {
+function Sources({ page, perSource, hideExtras = false }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow>; hideExtras?: boolean }) {
   return (
     <section className="sec">
       <h2>Sources</h2>
@@ -322,7 +324,7 @@ function Sources({ page, perSource, hideScores = false }: { page: RestaurantBund
               <th>Access</th>
               <th className="num">Reviews</th>
               <th className="num">With text</th>
-              {!hideScores && <th className="num">Rating</th>}
+              <th className="num">Rating</th>
               <th>Newest</th>
               <th className="num">Window</th>
               <th>Window since</th>
@@ -347,7 +349,7 @@ function Sources({ page, perSource, hideScores = false }: { page: RestaurantBund
                   </td>
                   <td className="num">{s.reviewCount?.toLocaleString("en") ?? "—"}</td>
                   <td className="num">{s.textCount?.toLocaleString("en") ?? "—"}</td>
-                  {!hideScores && <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>}
+                  <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>
                   <td>{dateLabel(s.newestAt)}</td>
                   <td className="num">{w ? w.text.toLocaleString("en") : "—"}</td>
                   <td>{w?.windowStart ? dateLabel(w.windowStart) : "—"}</td>
@@ -358,7 +360,7 @@ function Sources({ page, perSource, hideScores = false }: { page: RestaurantBund
           </tbody>
         </table>
       </div>
-      {!hideScores && (page.distinctions.length > 0 || page.critics.length > 0) && (
+      {!hideExtras && (page.distinctions.length > 0 || page.critics.length > 0) && (
         <div className="ev-list">
           {page.distinctions.map((d) => (
             <div key={d.url}>

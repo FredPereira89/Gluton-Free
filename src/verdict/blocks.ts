@@ -51,7 +51,7 @@ export const RollupSchema = z.strictObject({
       // Optional so Verdicts issued before incident evidence was stored remain readable.
       incidents: z.array(z.strictObject({
         reviewId: z.number().int(), type: z.enum(FLAG_TYPES), evidence: z.string(),
-        source: z.string(), publishedAt: z.iso.datetime(),
+        source: z.string(), publishedAt: z.iso.datetime(), stars: z.number().nullable().optional(),
       })).optional(),
     }),
   ),

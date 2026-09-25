@@ -8,7 +8,7 @@ import { THEMES, THEME_CODES, THEME_VOCAB_VERSION, type ThemeCode } from "@/doma
 import type { LlmUsage } from "@/lib/job";
 import { addUsage, anthropic, EXTRACT_MODEL } from "./llm";
 
-export const EXTRACTOR_VERSION = `${EXTRACT_MODEL}|extract-v2|${THEME_VOCAB_VERSION}`;
+export const EXTRACTOR_VERSION = `${EXTRACT_MODEL}|extract-v3|${THEME_VOCAB_VERSION}`;
 export const CHUNK = 20;
 
 const score = z.number().int().nullable();

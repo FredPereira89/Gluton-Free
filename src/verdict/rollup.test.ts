@@ -310,7 +310,7 @@ describe("rollup", () => {
   });
 
   it("requires incidents to reach 1% of text Reviews in the last 12 months", () => {
-    const reviews = many(201, (i) => great(i, `source-${i % 3}`));
+    const reviews = many(201, (i) => great(i));
     const flags: RollupFlag[] = reviews.slice(0, 2).map((r) => ({
       reviewId: r.id, type: "food_poisoning", group: "health", firstHand: true,
       verification: "confirmed", publishedAt: monthsAgo(1),
@@ -318,6 +318,18 @@ describe("rollup", () => {
     const r = rollup({ now: NOW, format: "tasca", reviews, flags });
     expect(r.redFlags[0]).toMatchObject({ incidents12m: 2, forcesAvoid: false });
     expect(r.redFlags[0]!.shareOfText12m).toBeLessThan(0.01);
+  });
+
+  it("counts a 12-month incident even if its Review is older than the scoring window cap", () => {
+    const reviews = many(101, (i) => great(i, "google"));
+    reviews[0]!.publishedAt = monthsAgo(10);
+    const flags: RollupFlag[] = [reviews[0]!, reviews[1]!].map((r) => ({
+      reviewId: r.id, type: "hygiene", group: "health", firstHand: true,
+      verification: "confirmed", publishedAt: r.publishedAt,
+    }));
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags });
+    expect(r.redFlags[0]).toMatchObject({ incidents12m: 2, forcesAvoid: true });
+    expect(r.redFlags[0]!.shareOfText12m).toBeCloseTo(2 / 101);
   });
 
   it("excludes hearsay, unverified incidents, and incidents before a Change point", () => {
