@@ -205,6 +205,18 @@ export const jobResponseSchema = z.strictObject({
 });
 export type JobResponse = z.infer<typeof jobResponseSchema>;
 
+const webPushSubscriptionSchema = z.strictObject({
+  type: z.literal("web"),
+  endpoint: z.url({ protocol: /^https$/ }).max(4096),
+  keys: z.strictObject({
+    p256dh: z.string().regex(/^[A-Za-z0-9_-]{20,128}$/),
+    auth: z.string().regex(/^[A-Za-z0-9_-]{20,128}$/),
+  }),
+});
+export const pushSubscriptionBodySchema = z.discriminatedUnion("type", [webPushSubscriptionSchema]);
+export const pushSubscriptionResponseSchema = z.strictObject({ id: z.number().int().positive().safe() });
+export const deletePushSubscriptionResponseSchema = z.strictObject({ deleted: z.literal(true) });
+
 export const routes = {
   health: {
     method: "GET",
@@ -271,6 +283,16 @@ export const routes = {
     method: "GET", path: "/api/v1/jobs/{id}", auth: "owner",
     request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
     responses: { 200: jobResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  createPushSubscription: {
+    method: "POST", path: "/api/v1/push-subscriptions", auth: "owner",
+    request: { body: pushSubscriptionBodySchema },
+    responses: { 201: pushSubscriptionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  deletePushSubscription: {
+    method: "DELETE", path: "/api/v1/push-subscriptions/{id}", auth: "owner",
+    request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
+    responses: { 200: deletePushSubscriptionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
 } as const;
 
