@@ -8,6 +8,7 @@ import { fakeAnthropic, fakeVendorFetch } from "./vendor-fakes";
 vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
 }));
+vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (_id: string, payload: { restaurantId: number; jobId: number }) => {
   const { runLookup } = await import("./lookup");
   await runLookup(payload.restaurantId, async () => {}, { jobId: payload.jobId });
@@ -210,5 +211,33 @@ describe("Lookup pipeline", () => {
     } finally {
       fixture.googleReviews.splice(originalGoogle.length);
     }
+  }, 30_000);
+
+  it("reads Format from Reviews before issuing the Verdict and shows its proposal", async () => {
+    const { POST } = await import("@/app/api/v1/lookups/route");
+    const response = await POST(new Request("http://localhost/api/v1/lookups", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ googlePlaceId: "invented-format-place", listings: [] }),
+    }));
+    expect(response.status).toBe(202);
+    const { restaurantSlug } = await response.json() as { restaurantSlug: string };
+    const [restaurant] = await sql!`select id, format, format_provenance, price_tier, price_provenance from restaurant where slug = ${restaurantSlug}`;
+    expect(restaurant).toMatchObject({ format: "tasca", format_provenance: "llm", price_tier: "€€", price_provenance: "source" });
+    const [verdict] = await sql!`select id from verdict where restaurant_id = ${restaurant!.id}`;
+    expect(verdict).toBeDefined();
+    const { loadRestaurantBundle } = await import("@/web/data");
+    const page = await loadRestaurantBundle(restaurantSlug);
+    expect(page?.restaurant.formatProvenance).toBe("llm");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { default: VerdictPageRoute } = await import("@/app/r/[slug]/page");
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: restaurantSlug }) }));
+    expect(html).toContain("Tasca (proposed)");
+
+    await sql!`update restaurant set format = 'fine_dining', format_provenance = 'owner' where id = ${restaurant!.id}`;
+    await sql!`update listing set price_level = null where restaurant_id = ${restaurant!.id}`;
+    const { runLookup } = await import("./lookup");
+    await runLookup(Number(restaurant!.id), async () => {}, { from: "judge" });
+    const [after] = await sql!`select format, format_provenance, price_tier, price_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(after).toMatchObject({ format: "fine_dining", format_provenance: "owner", price_tier: "€", price_provenance: "llm" });
   }, 30_000);
 });

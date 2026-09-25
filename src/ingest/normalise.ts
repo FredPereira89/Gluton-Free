@@ -26,6 +26,7 @@ export type ListingFacts = {
   placeRef: string | null;
   rating: number | null;
   reviewCount: number | null;
+  priceLevel: string | null;
 };
 
 export type Normalised = { facts: ListingFacts; reviews: NormalisedReview[]; droppedThirdParty: number };
@@ -94,6 +95,7 @@ const googleResult = z.object({
   place_id: str,
   reviews_count: num,
   rating,
+  price_level: str,
   items: z.array(googleItem).nullish(),
 });
 
@@ -139,6 +141,7 @@ export function normaliseGoogle(raw: unknown): Normalised {
       placeRef: r.place_id ?? null,
       rating: r.rating?.value ?? null,
       reviewCount: r.reviews_count ?? null,
+      priceLevel: r.price_level ?? null,
     },
     reviews,
     droppedThirdParty,
@@ -165,6 +168,7 @@ const taResult = z.object({
   location: str,
   reviews_count: num,
   rating,
+  price_level: str,
   items: z.array(taItem).nullish(),
 });
 
@@ -198,6 +202,7 @@ export function normaliseTripadvisor(raw: unknown): Normalised {
       placeRef: r.url_path ?? null,
       rating: r.rating?.value ?? null,
       reviewCount: r.reviews_count ?? null,
+      priceLevel: r.price_level ?? null,
     },
     reviews,
     droppedThirdParty: 0,

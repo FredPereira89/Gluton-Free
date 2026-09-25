@@ -16,7 +16,7 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
       id: "invented-business", status_code: 20000, status_message: "Ok", cost: 0.003,
       result: [{ items: [{ type: "google_business_info", place_id: placeId, title: fixture.restaurant,
         address: "1 Imaginary Lane, Mouraria, Lisbon", address_info: { city: "Lisbon", district: "Mouraria" },
-        rating: { value: 4.5, votes_count: 16 } }] }],
+        rating: { value: 4.5, votes_count: 16 }, price_level: "moderate" }] }],
     }] }));
   }
   if (url.hostname === "api.apify.com" && url.pathname === "/v2/datasets/invented/items") {
@@ -63,6 +63,10 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
 export const fakeAnthropic = {
   messages: {
     create: async (params: { messages: { content: string }[] }) => {
+      if (params.messages[0]!.content.includes("<review>")) return {
+        usage,
+        content: [{ type: "text", text: JSON.stringify({ format: "tasca", reviewPriceTier: "€" }) }],
+      };
       const ids = [...params.messages[0]!.content.matchAll(/<review i="(\d+)"/g)].map((match) => Number(match[1]));
       return {
         usage,

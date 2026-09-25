@@ -41,7 +41,7 @@ export type SourceRow = {
 };
 
 export type VerdictPage = {
-  restaurant: { id: number; slug: string; name: string; city: string; area: string | null; format: string; priceTier: string | null };
+  restaurant: { id: number; slug: string; name: string; city: string; area: string | null; format: string; formatProvenance: "llm" | "owner" | "baseline_auto"; priceTier: string | null };
   sources: SourceRow[];
   verdict: { id: number; state: string; tier: string | null; confidence: string | null; explanation: string | null; createdAt: Date; blocks: Blocks; peerSnapshotId?: number | null } | null;
   distinctions: { guide: string; level: string; editionYear: number | null; url: string }[];
@@ -50,7 +50,7 @@ export type VerdictPage = {
 
 export async function loadVerdictPage(slug: string): Promise<VerdictPage | null> {
   const sql = db();
-  const [r] = await sql`select id, slug, name, city, area, format, price_tier from restaurant where slug = ${slug}`;
+  const [r] = await sql`select id, slug, name, city, area, format, format_provenance, price_tier from restaurant where slug = ${slug}`;
   if (!r) return null;
   const id = Number(r.id);
   const [listings, [v], distinctions, critics] = await Promise.all([
@@ -105,6 +105,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       city: r.city,
       area: r.area,
       format: r.format,
+      formatProvenance: r.format_provenance,
       priceTier: r.price_tier,
     },
     sources: listings.map((l) => ({

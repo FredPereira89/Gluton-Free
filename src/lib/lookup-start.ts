@@ -70,8 +70,8 @@ export async function startLookup(input: Input): Promise<Started> {
       values (${slug}, ${name}, ${city}, ${area}, ${business.address ?? null}, ${business.latitude ?? null}, ${business.longitude ?? null}, 'casual', 'baseline_auto') returning id`;
     const restaurantId = Number(restaurant!.id);
     await sql`
-      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance, source_rating, source_review_count)
-      values (${restaurantId}, 'google', ${input.googlePlaceId}, ${googleUrl}, 'auto_accepted', ${business.rating?.value ?? null}, ${business.rating?.votes_count ?? null})`;
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance, source_rating, source_review_count, price_level)
+      values (${restaurantId}, 'google', ${input.googlePlaceId}, ${googleUrl}, 'auto_accepted', ${business.rating?.value ?? null}, ${business.rating?.votes_count ?? null}, ${business.price_level ?? null})`;
     const [job] = await sql`
       insert into job (kind, restaurant_id, status, step, progress, vendor_cost_usd)
       values ('lookup', ${restaurantId}, 'queued', 'Listings matched', ${sql.json({ estimateMinutes, askLater } as never)}, ${resolved.cost}) returning id`;

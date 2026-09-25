@@ -17,7 +17,7 @@ vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn(), loadRestaurantBundle: v
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 
 const fixture: VerdictPage = {
-  restaurant: { id: 1, slug: "o-velho-eurico", name: "O Velho Eurico", city: "Lisbon", area: "Mouraria", format: "tasca", priceTier: null },
+  restaurant: { id: 1, slug: "o-velho-eurico", name: "O Velho Eurico", city: "Lisbon", area: "Mouraria", format: "tasca", formatProvenance: "owner", priceTier: null },
   sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", url: "https://maps.google.com/", rating: 4.5, reviewCount: 5, textCount: 2, newestAt: null, fetchStatus: "ok" }],
   verdict: {
     id: 1, state: "not_enough_evidence", tier: null, confidence: "low", explanation: "More Reviews needed.",

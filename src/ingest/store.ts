@@ -32,6 +32,7 @@ export async function storeListingFetch(listingId: number, n: Normalised): Promi
     update listing set
       source_rating = ${n.facts.rating},
       source_review_count = ${n.facts.reviewCount},
+      price_level = coalesce(${n.facts.priceLevel}, price_level),
       source_text_count = (select count(*) from review where listing_id = ${listingId} and text is not null),
       newest_review_at = (select max(published_at) from review where listing_id = ${listingId}),
       fetch_status = 'fetched', fetch_error = null, last_fetched_at = now()

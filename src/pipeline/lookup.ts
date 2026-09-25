@@ -2,8 +2,10 @@
 // issue a Verdict. Waiting is injected so the same code runs locally (setTimeout) and in
 // Trigger.dev (checkpointed wait.for, which costs no compute while it waits).
 import { batchEnded, collectBatch, extractSync, submitBatch, type ExtractInput, type Extracted } from "@/analysis/extract";
+import { readRestaurantFacts } from "@/analysis/restaurant-facts";
 import { emptyUsage, EXTRACT_MODEL, JUDGE_MODEL } from "@/analysis/llm";
 import { pendingExtraction, saveAnalyses } from "@/analysis/store";
+import { choosePriceTier } from "@/domain/restaurant-facts";
 import { verifyPendingFlags } from "@/analysis/verify";
 import { depthFor, getReviewTask, postReviewTask, type DfsSource, type ReviewTaskParams } from "@/ingest/dataforseo";
 import { normaliseGoogle, normaliseTripadvisor } from "@/ingest/normalise";
@@ -144,6 +146,27 @@ export async function extractRestaurant(restaurantId: number, jobId: number, sle
 
 /** Verifies pending Red flags and issues a Verdict. */
 export async function judgeRestaurant(restaurantId: number, jobId: number) {
+  const sql = db();
+  const [restaurant] = await sql`select format_provenance, price_provenance from restaurant where id = ${restaurantId}`;
+  const listings = await sql`select source_code, price_level from listing where restaurant_id = ${restaurantId}`;
+  const reviews = await sql`
+    select r.text from review r join listing l on l.id = r.listing_id
+    where l.restaurant_id = ${restaurantId} and r.text is not null
+      and r.published_at >= now() - interval '24 months'
+    order by r.published_at desc limit 60`;
+  const sourcePrices = listings.map((l) => ({ source: l.source_code as string, priceLevel: l.price_level as string | null }));
+  const needReading = restaurant?.format_provenance !== "owner"
+    || (choosePriceTier(sourcePrices, null) === null && restaurant?.price_provenance !== "owner");
+  const factsUsage = emptyUsage("restaurant-facts", EXTRACT_MODEL, false);
+  const reading = needReading ? await readRestaurantFacts(reviews.map((r) => r.text as string), factsUsage) : null;
+  if (factsUsage.requests) await addLlmUsage(jobId, factsUsage);
+  if (reading) await sql`
+    update restaurant set format = ${reading.format}, format_provenance = 'llm', format_changed_at = now()
+    where id = ${restaurantId} and format_provenance <> 'owner'`;
+  const price = choosePriceTier(sourcePrices, reading?.reviewPriceTier ?? null);
+  if (price) await sql`
+    update restaurant set price_tier = ${price.tier}, price_provenance = ${price.provenance}
+    where id = ${restaurantId} and price_provenance is distinct from 'owner'`;
   await setStep(jobId, "verifying Red flags");
   const verifyUsage: LlmUsage = emptyUsage("verify-flags", JUDGE_MODEL, false);
   const flags = await verifyPendingFlags(restaurantId, verifyUsage);

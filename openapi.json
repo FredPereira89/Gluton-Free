@@ -772,6 +772,14 @@
                         "format": {
                           "type": "string"
                         },
+                        "formatProvenance": {
+                          "type": "string",
+                          "enum": [
+                            "llm",
+                            "owner",
+                            "baseline_auto"
+                          ]
+                        },
                         "priceTier": {
                           "anyOf": [
                             {
@@ -2030,6 +2038,14 @@
                         },
                         "format": {
                           "type": "string"
+                        },
+                        "formatProvenance": {
+                          "type": "string",
+                          "enum": [
+                            "llm",
+                            "owner",
+                            "baseline_auto"
+                          ]
                         },
                         "priceTier": {
                           "anyOf": [

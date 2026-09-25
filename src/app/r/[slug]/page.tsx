@@ -60,7 +60,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   );
   const baseChips = (
     <>
-      <span className="chip">{cap(formatName)}</span>
+      <span className="chip">{cap(formatName)}{R.formatProvenance === "llm" ? " (proposed)" : ""}</span>
       {R.priceTier && <span className="chip">{R.priceTier}</span>}
     </>
   );

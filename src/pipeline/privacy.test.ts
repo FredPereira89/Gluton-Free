@@ -15,7 +15,7 @@ vi.mock("@/analysis/llm", async (importOriginal) => {
         create: async (params: Parameters<typeof fakeAnthropic.messages.create>[0]) => {
           const response = await fakeAnthropic.messages.create(params);
           const output = JSON.parse(response.content[0]!.text);
-          for (const review of output.reviews) review.names = ["Invented Staff Text PII"];
+          for (const review of output.reviews ?? []) review.names = ["Invented Staff Text PII"];
           return { ...response, content: [{ type: "text", text: JSON.stringify(output) }] };
         },
       },
