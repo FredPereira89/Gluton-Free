@@ -7,6 +7,9 @@ function response(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
 }
 
+/** Armed by a test to make the next Reviews task_post fail with a DataForSEO envelope-level error, as if the account ran out of balance. */
+export const vendorFailureState: { armed: boolean } = { armed: false };
+
 export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   if (url.hostname === "api.dataforseo.com" && url.pathname === "/v3/business_data/google/my_business_info/live") {
@@ -28,6 +31,15 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
   }
   const source = match[1] as keyof typeof sources;
   const operation = match[2]!;
+  if (operation === "task_post" && vendorFailureState.armed) {
+    vendorFailureState.armed = false;
+    return Promise.resolve(response({
+      status_code: 40200,
+      status_message: "Not enough funds: balance is 0.03 USD, this task costs 0.12 USD",
+      cost: 0,
+      tasks: [],
+    }));
+  }
   const depth = operation === "task_post" ? (JSON.parse(String(init?.body))[0].depth as number) : 0;
   if (operation === "task_post" && JSON.parse(String(init?.body))[0].priority !== 2) {
     return Promise.reject(new Error("Lookup Reviews must use DataForSEO's high-priority queue"));

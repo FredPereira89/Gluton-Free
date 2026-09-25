@@ -11,7 +11,9 @@ import { depthFor, getReviewTask, postReviewTask, type DfsSource, type ReviewTas
 import { normaliseGoogle, normaliseTripadvisor } from "@/ingest/normalise";
 import { storeListingFetch } from "@/ingest/store";
 import { db } from "@/lib/db";
-import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage } from "@/lib/job";
+import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage, type LookupStage } from "@/lib/job";
+import { raiseFailedLookupQuestion } from "@/lib/owner-question";
+import { toPipelineError } from "@/lib/pipeline-error";
 import { issueVerdict } from "@/verdict/issue";
 import { PARAMS } from "@/verdict/rollup";
 import type { RejudgeCause } from "@/verdict/stability";
@@ -196,8 +198,6 @@ export async function judgeRestaurant(restaurantId: number, jobId: number, cause
   return { flags, verdictId };
 }
 
-export type LookupStage = "ingest" | "extract" | "judge";
-
 /** The whole lookup, as one Job. `from` lets a re-run skip stages that already completed. */
 export async function runLookup(
   restaurantId: number,
@@ -207,15 +207,20 @@ export async function runLookup(
   const jobId = opts.jobId ?? await createJob("lookup", restaurantId, opts.triggerRunId);
   if (opts.jobId) await db()`update job set status = 'running', trigger_run_id = ${opts.triggerRunId ?? null}, updated_at = now() where id = ${jobId}`;
   const from = opts.from ?? "ingest";
+  let stage: LookupStage = from;
   try {
     await setStep(jobId, "Listings matched", undefined, "Listings matched");
     const ingest = from === "ingest" ? await ingestRestaurant(restaurantId, jobId, sleep, opts.sample) : null;
+    stage = "extract";
     const extraction = from !== "judge" ? await extractRestaurant(restaurantId, jobId, sleep, opts.extractLimit) : null;
+    stage = "judge";
     const judged = await judgeRestaurant(restaurantId, jobId);
     await finishJob(jobId);
     return { jobId, ingest, extraction, ...judged };
   } catch (e) {
-    await finishJob(jobId, e instanceof Error ? e.message : String(e));
+    const error = toPipelineError(e);
+    await finishJob(jobId, error, stage);
+    await raiseFailedLookupQuestion(db(), restaurantId, jobId, error);
     throw e;
   }
 }
@@ -235,7 +240,7 @@ export async function runListingFetch(
     await finishJob(jobId);
     return { jobId, ingest };
   } catch (e) {
-    await finishJob(jobId, e instanceof Error ? e.message : String(e));
+    await finishJob(jobId, toPipelineError(e));
     throw e;
   }
 }
@@ -255,7 +260,7 @@ export async function runRejudge(
     await finishJob(jobId);
     return { jobId, extraction, ...judged };
   } catch (e) {
-    await finishJob(jobId, e instanceof Error ? e.message : String(e));
+    await finishJob(jobId, toPipelineError(e));
     throw e;
   }
 }

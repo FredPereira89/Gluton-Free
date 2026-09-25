@@ -3,6 +3,8 @@ import type postgres from "postgres";
 import type { PreviewListing } from "@/app/api/v1/lookups/preview/preview";
 import { db } from "./db";
 import { acceptedJobResponse, answerListingResponseSchema } from "./api-contract";
+import { markJobStartFailed } from "./job";
+import type { PipelineError } from "./pipeline-error";
 import { ApiError } from "./problem";
 
 /** Raises one Owner question per uncertain Source (ADR-0005: a Lookup never waits for it). */
@@ -19,6 +21,14 @@ export async function raiseListingQuestions(sql: postgres.TransactionSql, restau
       values (${restaurantId}, 'listing_match', ${source}, ${sql.json({ candidates } as never)})
       on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing`;
   }
+}
+
+/** Raises the Owner question for a failed Lookup (ADR-0005: a Lookup never waits for it). */
+export async function raiseFailedLookupQuestion(sql: postgres.Sql, restaurantId: number, jobId: number, error: PipelineError) {
+  await sql`
+    insert into owner_question (restaurant_id, kind, payload)
+    values (${restaurantId}, 'failed_lookup', ${sql.json({ jobId, code: error.code, detail: error.detail } as never)})
+    on conflict (restaurant_id) where status = 'open' and kind = 'failed_lookup' do nothing`;
 }
 
 export function questionPrompt(sourceCode: string): string {
@@ -88,7 +98,7 @@ export async function answerListingQuestion(
     });
     await sql`update job set trigger_run_id = ${handle.id}, updated_at = now() where id = ${fetchJobId}`;
   } catch (error) {
-    await sql`update job set status = 'failed', error = 'Could not start listing fetch', finished_at = now(), updated_at = now() where id = ${fetchJobId}`;
+    await markJobStartFailed(fetchJobId, "Could not start listing fetch");
     throw error;
   }
   return acceptedJobResponse(fetchJobId);

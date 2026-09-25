@@ -5,6 +5,7 @@ import { emptyUsage, EXTRACT_MODEL } from "../src/analysis/llm";
 import { saveAnalyses } from "../src/analysis/store";
 import { closeDb, db } from "../src/lib/db";
 import { addLlmUsage, createJob, finishJob, setStep } from "../src/lib/job";
+import { toPipelineError } from "../src/lib/pipeline-error";
 
 const slug = process.argv[2];
 if (!slug || process.argv.length !== 3) {
@@ -61,7 +62,7 @@ async function main() {
     await finishJob(jobId);
     console.log(JSON.stringify({ jobId, extractorVersion: EXTRACTOR_VERSION, total, extracted, failed: total - extracted }));
   } catch (error) {
-    await finishJob(jobId, error instanceof Error ? error.message : String(error));
+    await finishJob(jobId, toPipelineError(error));
     throw error;
   }
 }

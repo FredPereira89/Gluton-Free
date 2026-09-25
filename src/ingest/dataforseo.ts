@@ -1,8 +1,25 @@
 // DataForSEO Business Data API: Google and Tripadvisor Reviews (high-priority queue).
 // Responses carry reviewer identity; callers must map them through the whitelist in
 // normalise.ts in memory and never log or persist them.
+import { PipelineError } from "@/lib/pipeline-error";
 
 const BASE = "https://api.dataforseo.com/v3/business_data";
+
+/** Classifies a raw DataForSEO status message into a `code` + `detail` pair, never leaking the vendor payload. */
+function vendorFailure(rawMessage: string): PipelineError {
+  if (/fund|balance/i.test(rawMessage)) {
+    const amounts = rawMessage.match(/([\d.]+)\s*USD[^0-9]+?([\d.]+)\s*USD/i);
+    if (amounts) {
+      const [, balance, needed] = amounts;
+      return new PipelineError(
+        "vendor_balance_low",
+        `DataForSEO balance $${balance}, this lookup needs about $${needed}. Top up then retry.`,
+      );
+    }
+    return new PipelineError("vendor_balance_low", "DataForSEO balance is too low for this lookup. Top up then retry.");
+  }
+  return new PipelineError("vendor_error", "The Reviews vendor could not complete this request. Retry in a few minutes.");
+}
 
 export type DfsSource = "google" | "tripadvisor";
 
@@ -39,8 +56,8 @@ async function call(path: string, init?: { body?: unknown; base?: string }): Pro
       await new Promise((r) => setTimeout(r, 10_000));
       continue;
     }
-    if (!res.ok || !env) throw new Error(`DataForSEO ${path}: HTTP ${res.status}${env ? ` ${env.status_code} ${env.status_message}` : ""}`);
-    if (env.status_code !== 20000) throw new Error(`DataForSEO ${path}: ${env.status_code} ${env.status_message}`);
+    if (!res.ok || !env) throw vendorFailure(`DataForSEO ${path}: HTTP ${res.status}${env ? ` ${env.status_code} ${env.status_message}` : ""}`);
+    if (env.status_code !== 20000) throw vendorFailure(`DataForSEO ${path}: ${env.status_code} ${env.status_message}`);
     return env;
   }
 }

@@ -3,7 +3,8 @@
 // --sample=N fetches only the newest N Reviews per Listing; --extract=N extracts only the newest N
 // unanalysed text Reviews. Both are for a quick end-to-end check.
 import { closeDb, db } from "../src/lib/db";
-import { localSleep, runLookup, type LookupStage } from "../src/pipeline/lookup";
+import type { LookupStage } from "../src/lib/job";
+import { localSleep, runLookup } from "../src/pipeline/lookup";
 
 const args = process.argv.slice(2);
 const sampleArg = args.find((a) => a.startsWith("--sample="));
