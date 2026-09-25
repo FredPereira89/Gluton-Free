@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { INPUTS } from "@/domain/aspects";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { rollup, type RollupFlag, type RollupReview } from "@/verdict/rollup";
-import { loadRestaurantBundle } from "@/web/data";
+import { loadRestaurantBundle, markVerdictSeen } from "@/web/data";
 import VerdictPageRoute from "./page";
 
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
-vi.mock("@/web/data", () => ({ loadRestaurantBundle: vi.fn() }));
+vi.mock("@/web/data", () => ({ loadRestaurantBundle: vi.fn(), markVerdictSeen: vi.fn() }));
 
 const now = new Date("2026-09-01T00:00:00.000Z");
 const publishedAt = new Date("2026-08-01T00:00:00.000Z");
@@ -225,5 +225,21 @@ describe("Restaurant Verdict red flags", () => {
     expect(html).not.toContain("What people say");
     expect(html).not.toContain("Composite");
     expect(html).toContain("4.9");
+  });
+});
+
+describe("Marking a Verdict seen (issue #52)", () => {
+  it("marks the Verdict seen once it opens, clearing Ready (new)", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(bundle(0));
+    await renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(markVerdictSeen).toHaveBeenCalledWith("sample", 1);
+  });
+
+  it("does nothing when there is no Verdict yet", async () => {
+    const page = bundle(0);
+    page.verdict = null;
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    await renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(markVerdictSeen).not.toHaveBeenCalled();
   });
 });

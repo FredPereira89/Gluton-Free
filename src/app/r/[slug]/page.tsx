@@ -8,7 +8,7 @@ import { THEMES } from "@/domain/themes";
 import { formatPercentile } from "@/verdict/peer";
 import { PARAMS, type RedFlagGroup, type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
 import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripRow, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
-import { loadRestaurantBundle } from "@/web/data";
+import { loadRestaurantBundle, markVerdictSeen } from "@/web/data";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
@@ -38,6 +38,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   const page = await loadRestaurantBundle(slug);
   if (!page) notFound();
   const { restaurant: R, verdict: v } = page;
+  if (v) await markVerdictSeen(slug, v.id);
   const formatName = FORMAT_NAME[R.format] ?? R.format;
   const crowd = page.sources.filter((s) => s.kind === "crowd");
 

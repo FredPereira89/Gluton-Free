@@ -60,6 +60,8 @@ export const ownerQuestionSchema = z.strictObject({
 });
 export type OwnerQuestion = z.infer<typeof ownerQuestionSchema>;
 
+const jobKindSchema = z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]);
+
 export const restaurantBundleSchema = z.strictObject({
   restaurant: restaurantSchema,
   verdict: z.strictObject({
@@ -78,7 +80,7 @@ export const restaurantBundleSchema = z.strictObject({
   critics: z.array(z.strictObject({ publication: z.string(), title: z.string(), url: z.url(), publishedOn: z.string().nullable() })),
   series: RollupSchema.shape.series,
   changePoints: z.array(z.strictObject({ occurredOn: z.string(), description: z.string() })),
-  activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]), status: z.enum(["queued", "running"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
+  activeJob: z.strictObject({ id: z.number().int(), kind: jobKindSchema, status: z.enum(["queued", "running"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
   ownerQuestions: z.array(ownerQuestionSchema),
 });
 export const quoteTranslationResponseSchema = z.strictObject({ textEn: z.string().min(1) });
@@ -240,6 +242,35 @@ export const pushSubscriptionBodySchema = z.discriminatedUnion("type", [webPushS
 export const pushSubscriptionResponseSchema = z.strictObject({ id: z.number().int().positive().safe() });
 export const deletePushSubscriptionResponseSchema = z.strictObject({ deleted: z.literal(true) });
 
+export const activityRunningItemSchema = z.strictObject({
+  slug: z.string(),
+  name: z.string(),
+  jobKind: jobKindSchema,
+  status: z.enum(["queued", "running"]),
+  step: z.string().nullable(),
+});
+export const activityReadyItemSchema = z.strictObject({
+  slug: z.string(),
+  name: z.string(),
+  verdictId: z.number().int(),
+  tier: z.enum(TIERS).nullable(),
+  provisional: z.boolean(),
+});
+export const activityQuestionItemSchema = z.strictObject({
+  slug: z.string(),
+  name: z.string(),
+  count: z.number().int().positive(),
+});
+export const activityResponseSchema = z.strictObject({
+  running: z.array(activityRunningItemSchema),
+  ready: z.array(activityReadyItemSchema),
+  questions: z.array(activityQuestionItemSchema),
+});
+export type ActivityResponse = z.infer<typeof activityResponseSchema>;
+
+export const markSeenBodySchema = z.strictObject({ verdictId: z.number().int().positive() });
+export const markSeenResponseSchema = z.strictObject({ seen: z.literal(true) });
+
 export const routes = {
   health: {
     method: "GET",
@@ -327,6 +358,16 @@ export const routes = {
     method: "DELETE", path: "/api/v1/push-subscriptions/{id}", auth: "owner",
     request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
     responses: { 200: deletePushSubscriptionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  activity: {
+    method: "GET", path: "/api/v1/activity", auth: "owner",
+    request: {},
+    responses: { 200: activityResponseSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  markSeen: {
+    method: "PUT", path: "/api/v1/restaurants/{slug}/seen", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: markSeenBodySchema },
+    responses: { 200: markSeenResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
 } as const;
 

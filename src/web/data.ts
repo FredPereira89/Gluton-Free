@@ -1,8 +1,8 @@
 // Read side of the Verdict page and API. Blocks are re-validated on read.
 import { db } from "@/lib/db";
 import {
-  MAX_BIGINT_ID, restaurantBundleSchema,
-  type IdPagination, type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
+  activityResponseSchema, MAX_BIGINT_ID, restaurantBundleSchema,
+  type ActivityResponse, type IdPagination, type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
 } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
@@ -182,6 +182,47 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       };
     }),
   });
+}
+
+// The home screen's Activity list: Running jobs, unseen Verdicts and open Owner questions.
+// Owner questions stay hidden while the initial lookup is still running, mirroring loadRestaurantBundle.
+export async function loadActivity(): Promise<ActivityResponse> {
+  const sql = db();
+  const [running, ready, questions] = await Promise.all([
+    sql`
+      select r.slug, r.name, j.kind, j.status, j.step
+      from job j join restaurant r on r.id = j.restaurant_id
+      where j.status in ('queued', 'running')
+      order by j.id desc`,
+    sql`
+      select r.slug, r.name, v.id as verdict_id, v.tier, v.provisional
+      from restaurant r
+      join lateral (select id, tier, provisional from verdict where restaurant_id = r.id order by id desc limit 1) v on true
+      where v.id is distinct from r.seen_verdict_id
+      order by v.id desc`,
+    sql`
+      select r.slug, r.name, count(*)::int as count
+      from owner_question q join restaurant r on r.id = q.restaurant_id
+      where q.status = 'open'
+        and not exists (select 1 from job j where j.restaurant_id = r.id and j.kind = 'lookup' and j.status in ('queued', 'running'))
+      group by r.slug, r.name
+      order by r.name`,
+  ]);
+  return activityResponseSchema.parse({
+    running: running.map((row) => ({ slug: row.slug, name: row.name, jobKind: row.kind, status: row.status, step: row.step })),
+    ready: ready.map((row) => ({ slug: row.slug, name: row.name, verdictId: Number(row.verdict_id), tier: row.tier, provisional: row.provisional })),
+    questions: questions.map((row) => ({ slug: row.slug, name: row.name, count: row.count })),
+  });
+}
+
+// Sets restaurant.seen_verdict_id once the owner has opened this Verdict, clearing "Ready (new)".
+// False when the slug or verdictId don't match an existing Restaurant/Verdict pair.
+export async function markVerdictSeen(slug: string, verdictId: number): Promise<boolean> {
+  const [row] = await db()`
+    update restaurant r set seen_verdict_id = ${verdictId}
+    where r.slug = ${slug} and exists (select 1 from verdict v where v.id = ${verdictId} and v.restaurant_id = r.id)
+    returning r.id`;
+  return !!row;
 }
 
 export async function listRestaurants({ cursor, limit }: IdPagination): Promise<RestaurantListResponse> {

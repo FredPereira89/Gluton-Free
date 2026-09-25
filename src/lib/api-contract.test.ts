@@ -9,11 +9,11 @@ import { GET as verdict } from "@/app/api/v1/restaurants/[slug]/verdict/route";
 import { GET as restaurantBundle } from "@/app/api/v1/restaurants/[slug]/route";
 import { POST as translateQuote } from "@/app/api/v1/restaurants/[slug]/quotes/[reviewId]/translation/route";
 import { rollup, type RollupReview } from "@/verdict/rollup";
-import { loadRestaurantBundle, loadVerdictPage, type VerdictPage } from "@/web/data";
+import { loadRestaurantBundle, loadVerdictPage, markVerdictSeen, type VerdictPage } from "@/web/data";
 import { acceptedJobResponse, acceptedJobSchema, paginatedSchema, parsePagination, routes, type RestaurantBundle } from "./api-contract";
 import { problemSchema } from "./problem";
 
-vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn(), loadRestaurantBundle: vi.fn() }));
+vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn(), loadRestaurantBundle: vi.fn(), markVerdictSeen: vi.fn() }));
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 
 const fixture: VerdictPage = {
