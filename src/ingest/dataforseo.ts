@@ -26,9 +26,9 @@ type DfsEnvelope = {
   }[];
 };
 
-async function call(path: string, init?: { body?: unknown }): Promise<DfsEnvelope> {
+async function call(path: string, init?: { body?: unknown; base?: string }): Promise<DfsEnvelope> {
   for (let attempt = 1; ; attempt++) {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${init?.base ?? BASE}${path}`, {
       method: init?.body ? "POST" : "GET",
       headers: { Authorization: authHeader(), "Content-Type": "application/json" },
       body: init?.body ? JSON.stringify(init.body) : undefined,
@@ -43,6 +43,28 @@ async function call(path: string, init?: { body?: unknown }): Promise<DfsEnvelop
     if (env.status_code !== 20000) throw new Error(`DataForSEO ${path}: ${env.status_code} ${env.status_message}`);
     return env;
   }
+}
+
+export type MapsSearchItem = {
+  type?: string; place_id?: string | null; title?: string | null; address?: string | null;
+  address_info?: { city?: string | null } | null;
+  latitude?: number | null; longitude?: number | null; category?: string | null;
+  category_ids?: string[] | null;
+  rating?: { value?: number | null; votes_count?: number | null } | null;
+  price_level?: string | null;
+  work_hours?: { current_status?: string | null } | null;
+};
+
+/** A live Google Maps result. Do not retain the vendor envelope or its extra fields. */
+export async function searchGoogleMaps(keyword: string, near: { lat: number; lng: number }): Promise<MapsSearchItem[]> {
+  const env = await call("/google/maps/live/advanced", {
+    base: "https://api.dataforseo.com/v3/serp",
+    body: [{ keyword, location_coordinate: `${near.lat},${near.lng},17z`, language_code: "pt", depth: 20 }],
+  });
+  const task = env.tasks?.[0];
+  if (!task || task.status_code !== 20000) throw new Error(`DataForSEO Maps search: ${task?.status_code ?? "missing task"}`);
+  const result = task.result?.[0] as { items?: MapsSearchItem[] } | undefined;
+  return result?.items ?? [];
 }
 
 export type ReviewTaskParams =

@@ -215,6 +215,305 @@
         ]
       }
     },
+    "/api/v1/search": {
+      "get": {
+        "operationId": "search",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "known": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "distanceMeters": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "stars": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "reviewCount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "category": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "priceTier": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "€",
+                                  "€€",
+                                  "€€€",
+                                  "€€€€"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "open",
+                              "closed",
+                              "temporarily_closed",
+                              "unknown"
+                            ]
+                          },
+                          "slug": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "address",
+                          "distanceMeters",
+                          "stars",
+                          "reviewCount",
+                          "category",
+                          "priceTier",
+                          "status",
+                          "slug"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "candidates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "distanceMeters": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "stars": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "reviewCount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "category": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "priceTier": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "€",
+                                  "€€",
+                                  "€€€",
+                                  "€€€€"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "open",
+                              "closed",
+                              "temporarily_closed",
+                              "unknown"
+                            ]
+                          },
+                          "placeId": {
+                            "type": "string"
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "same_name",
+                                "outside_lisbon",
+                                "maybe_not_restaurant"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "address",
+                          "distanceMeters",
+                          "stars",
+                          "reviewCount",
+                          "category",
+                          "priceTier",
+                          "status",
+                          "placeId",
+                          "warnings"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "known",
+                    "candidates"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "near",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "ownerBearer": []
+          },
+          {
+            "ownerSession": []
+          }
+        ]
+      }
+    },
     "/api/v1/restaurants/{slug}/verdict": {
       "get": {
         "operationId": "verdict",

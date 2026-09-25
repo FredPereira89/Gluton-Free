@@ -6,6 +6,27 @@ import {
 } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
+import type { SearchResponse } from "@/lib/api-contract";
+
+export async function searchKnownRestaurants(q: string, placeIds: string[]): Promise<(SearchResponse["known"][number] & { placeId: string | null })[]> {
+  const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
+  const rows = await db()`
+    select r.slug, r.name, r.address, r.status, r.price_tier, l.place_ref,
+           l.source_rating, l.source_review_count, l.categories
+    from restaurant r
+    left join listing l on l.restaurant_id = r.id and l.source_code = 'google'
+    where (r.name ilike ${pattern} escape '\\' or l.place_ref = any(${placeIds}::text[]))
+      and r.status <> 'permanently_closed'
+      and exists (select 1 from job j where j.restaurant_id = r.id and j.kind = 'lookup')
+    order by (l.place_ref = any(${placeIds}::text[])) desc, r.name, r.id limit 50`;
+  return rows.map((row) => ({
+    slug: row.slug, name: row.name, address: row.address, distanceMeters: null,
+    stars: row.source_rating === null ? null : Number(row.source_rating),
+    reviewCount: row.source_review_count, category: row.categories?.[0] ?? null,
+    priceTier: row.price_tier, status: row.status === "temporarily_closed" ? "temporarily_closed" : "open",
+    placeId: row.place_ref,
+  }));
+}
 
 export type SourceRow = {
   code: string;

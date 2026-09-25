@@ -100,6 +100,23 @@ export const restaurantListItemSchema = z.strictObject({
 });
 export const restaurantListResponseSchema = paginatedSchema(restaurantListItemSchema);
 export type RestaurantListResponse = z.infer<typeof restaurantListResponseSchema>;
+export const searchQuerySchema = z.strictObject({
+  q: z.string().trim().max(120),
+  near: z.strictObject({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).optional(),
+});
+const searchRestaurantSchema = z.strictObject({
+  name: z.string(), address: z.string().nullable(), distanceMeters: z.number().int().nonnegative().nullable(),
+  stars: z.number().nullable(), reviewCount: z.number().int().nonnegative().nullable(), category: z.string().nullable(),
+  priceTier: z.enum(["€", "€€", "€€€", "€€€€"]).nullable(),
+  status: z.enum(["open", "closed", "temporarily_closed", "unknown"]),
+});
+export const searchResponseSchema = z.strictObject({
+  known: z.array(searchRestaurantSchema.extend({ slug: z.string() })),
+  candidates: z.array(searchRestaurantSchema.extend({
+    placeId: z.string(), warnings: z.array(z.enum(["same_name", "outside_lisbon", "maybe_not_restaurant"])),
+  })),
+});
+export type SearchResponse = z.infer<typeof searchResponseSchema>;
 // Keyset pagination over a bigint identity column: the cursor is the last id on the page.
 export const MAX_BIGINT_ID = "9223372036854775807";
 export const idCursorQuerySchema = paginationQuerySchema.extend({
@@ -148,6 +165,13 @@ export const routes = {
     auth: "owner",
     request: { query: idCursorQuerySchema },
     responses: { 200: restaurantListResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  search: {
+    method: "GET",
+    path: "/api/v1/search",
+    auth: "owner",
+    request: { query: z.strictObject({ q: z.string().max(120), near: z.string().optional() }) },
+    responses: { 200: searchResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   verdict: {
     method: "GET",
