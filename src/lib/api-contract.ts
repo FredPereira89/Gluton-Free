@@ -189,6 +189,21 @@ export const previewLookupResponseSchema = z.strictObject({
 });
 export type PreviewLookupResponse = z.infer<typeof previewLookupResponseSchema>;
 
+export const startLookupBodySchema = z.strictObject({
+  googlePlaceId: z.string().trim().min(1).max(256),
+  listings: z.array(previewListingSchema).max(2),
+});
+export const startLookupResponseSchema = z.strictObject({ jobId: z.number().int().positive(), restaurantSlug: z.string().min(1) });
+export const jobResponseSchema = z.strictObject({
+  id: z.number().int().positive(), restaurantSlug: z.string(),
+  status: z.enum(["queued", "running", "succeeded", "failed"]),
+  step: z.string().nullable(), steps: z.array(z.strictObject({ name: z.string(), status: z.enum(["pending", "running", "done"]) })),
+  sources: z.array(z.strictObject({ code: z.string(), name: z.string(), stars: z.number().nullable(), reviewCount: z.number().int().nullable(), textCount: z.number().int().nullable(), fetchedCount: z.number().int().nullable(), fetchStatus: z.string() })),
+  facts: z.record(z.string(), z.unknown()), etaSeconds: z.number().int().nonnegative().nullable(),
+  vendorUsd: z.number().nonnegative(), llmUsd: z.number().nonnegative(), error: z.string().nullable(),
+});
+export type JobResponse = z.infer<typeof jobResponseSchema>;
+
 export const routes = {
   health: {
     method: "GET",
@@ -245,6 +260,16 @@ export const routes = {
     auth: "owner",
     request: { body: previewLookupBodySchema },
     responses: { 200: previewLookupResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 429: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  startLookup: {
+    method: "POST", path: "/api/v1/lookups", auth: "owner",
+    request: { body: startLookupBodySchema },
+    responses: { 200: startLookupResponseSchema, 202: startLookupResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 429: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  job: {
+    method: "GET", path: "/api/v1/jobs/{id}", auth: "owner",
+    request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
+    responses: { 200: jobResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
 } as const;
 

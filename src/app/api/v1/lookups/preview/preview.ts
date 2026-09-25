@@ -30,10 +30,8 @@ export function proposeGoogleListing(name: string, placeId: string, reviewCount:
   };
 }
 
-// ADR-0005's auto-accept rule ("same phone, or ~100m with a near-identical name") needs a phone
-// or address that DataForSEO's Tripadvisor Search does not return, so name similarity is the only
-// evidence available here; distance and phone are reported as unavailable, not as a mismatch.
-const CONFIDENT_NAME_SIMILARITY = 0.92;
+// Tripadvisor Search has no phone or distance. A name alone cannot satisfy ADR-0005's
+// auto-accept rule, so every plausible candidate remains an Owner question.
 const MIN_PROPOSAL_NAME_SIMILARITY = 0.5;
 
 /** Picks the best-matching Tripadvisor Search result for the Google name, or null if none is plausible. */
@@ -45,10 +43,9 @@ export function proposeTripadvisorListing(googleName: string, candidates: Tripad
     if (!best || score > best.score) best = { item, score };
   }
   if (!best || best.score < MIN_PROPOSAL_NAME_SIMILARITY) return null;
-  const confident = best.score >= CONFIDENT_NAME_SIMILARITY;
   return {
     source: "tripadvisor", url: tripadvisorUrl(best.item.url_path!), name: best.item.title!,
-    confidence: confident ? "confident" : "uncertain", autoAccept: confident,
+    confidence: "uncertain", autoAccept: false,
     reviewCount: best.item.reviews_count ?? best.item.rating?.votes_count ?? null,
     evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: best.score },
   };

@@ -12,6 +12,7 @@ import { loadRestaurantBundle } from "@/web/data";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
+import { LookupProgress } from "@/web/lookup-progress";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -73,6 +74,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
         <Sources page={page} />
+        {page.activeJob?.kind === "lookup" && <LookupProgress jobId={page.activeJob.id} />}
         <BundleExtras page={page} />
       </div>
     );
@@ -327,6 +329,7 @@ function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page
   return (
     <section className="sec">
       <h2>Sources</h2>
+      <p className="small muted">Source ratings, Review counts and Distinctions are facts about each Source, not a Verdict.</p>
       <div className="tbl-wrap">
         <table className="src">
           <thead>

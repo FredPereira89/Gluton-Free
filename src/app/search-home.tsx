@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { PreviewLookupResponse, SearchResponse } from "@/lib/api-contract";
 
@@ -27,8 +28,9 @@ function formatResetTime(resetAt: string): string {
   return new Date(resetAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function PreviewPanel({ loading, error, data, onClose }: {
+function PreviewPanel({ loading, error, data, onClose, onStart, starting, startError }: {
   loading: boolean; error: boolean; data: PreviewLookupResponse | null; onClose: () => void;
+  onStart: () => void; starting: boolean; startError: boolean;
 }) {
   return <div className="preview-panel">
     {loading && <span className="small muted">Checking Listings…</span>}
@@ -37,7 +39,7 @@ function PreviewPanel({ loading, error, data, onClose }: {
       {data.categoryGuess && <span className="small muted">Google category: {data.categoryGuess} (not a confirmed Format)</span>}
       {data.listings.map((listing) => <div className="preview-listing" key={listing.source}>
         <span className={`chip conf-${listing.confidence === "confident" ? "High" : "Low"}`}>
-          {listing.source}{listing.autoAccept ? " · auto-accept" : ""}
+          {listing.source}{listing.autoAccept ? " · auto-accept" : " · ask later"}
         </span>
         <a className="small" href={listing.url} target="_blank" rel="noreferrer">{listing.name}</a>
       </div>)}
@@ -47,7 +49,8 @@ function PreviewPanel({ loading, error, data, onClose }: {
       {data.notEnoughEvidenceWarning && <span className="search-warning">
         This Restaurant will probably have Not enough evidence. Look up anyway (≈$0.02)?
       </span>}
-      <button type="button" className="btn" disabled title="Coming soon">Start</button>
+      <button type="button" className="btn" disabled={starting} onClick={onStart}>{starting ? "Starting…" : "Start lookup"}</button>
+      {startError && <span role="alert" className="error">Could not start the lookup. Try again.</span>}
     </>}
     <button type="button" className="small" onClick={onClose}>Close</button>
   </div>;
@@ -63,6 +66,7 @@ function ResultContent({ result }: { result: Result }) {
 }
 
 export default function SearchHome() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResponse>(emptyResults);
   const [loading, setLoading] = useState(false);
@@ -72,6 +76,8 @@ export default function SearchHome() {
   const [preview, setPreview] = useState<PreviewLookupResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState(false);
   const location = useRef<{ lat: number; lng: number } | null | undefined>(undefined);
   const previewRequest = useRef<string | null>(null);
 
@@ -80,6 +86,7 @@ export default function SearchHome() {
     setPreviewFor(placeId);
     setPreview(null);
     setPreviewError(false);
+    setStartError(false);
     setPreviewLoading(true);
     try {
       const response = await fetch("/api/v1/lookups/preview", {
@@ -92,6 +99,24 @@ export default function SearchHome() {
       if (previewRequest.current === placeId) setPreviewError(true);
     } finally {
       if (previewRequest.current === placeId) setPreviewLoading(false);
+    }
+  }
+
+  async function start(placeId: string) {
+    if (!preview || starting) return;
+    setStarting(true);
+    setStartError(false);
+    try {
+      const response = await fetch("/api/v1/lookups", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ googlePlaceId: placeId, listings: preview.listings }),
+      });
+      if (!response.ok) throw new Error("Lookup failed");
+      const result = await response.json() as { restaurantSlug: string };
+      router.push(`/r/${encodeURIComponent(result.restaurantSlug)}`);
+    } catch {
+      setStartError(true);
+      setStarting(false);
     }
   }
 
@@ -180,7 +205,7 @@ export default function SearchHome() {
           <span className="search-action">Preview →</span>
         </button>
         {previewFor === result.placeId
-          && <PreviewPanel loading={previewLoading} error={previewError} data={preview} onClose={() => setPreviewFor(null)} />}
+          && <PreviewPanel loading={previewLoading} error={previewError} data={preview} onClose={() => setPreviewFor(null)} onStart={() => start(result.placeId)} starting={starting} startError={startError} />}
       </div>)}
     </div>}
     <Link href="/restaurants" className="small">Browse looked-up Restaurants</Link>

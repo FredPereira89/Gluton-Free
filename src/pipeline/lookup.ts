@@ -86,8 +86,9 @@ export async function ingestRestaurant(restaurantId: number, jobId: number, slee
       full.delete(l.id); // drop the raw vendor payload as soon as it is whitelisted
       const { inserted } = await storeListingFetch(l.id, n);
       summary[l.source] = { fetched: n.reviews.length, inserted, droppedThirdParty: n.droppedThirdParty };
+      await setStep(jobId, "fetching Reviews", { fetched: { ...summary } });
     }
-    await setStep(jobId, "Reviews stored", { fetched: summary });
+    await setStep(jobId, "Reviews stored", { fetched: summary }, "Reviews fetched");
     return summary;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -137,7 +138,7 @@ export async function extractRestaurant(restaurantId: number, jobId: number, sle
     await addLlmUsage(jobId, retryUsage);
   }
   const left = (await pendingExtraction(restaurantId)).length;
-  await setStep(jobId, "extraction done", { extraction: { pending: all.length, attempted: pending.length, unanalysed: left } });
+  await setStep(jobId, "extraction done", { extraction: { pending: all.length, attempted: pending.length, unanalysed: left } }, "window extracted");
   return { pending: all.length, attempted: pending.length, unanalysed: left };
 }
 
@@ -148,10 +149,14 @@ export async function judgeRestaurant(restaurantId: number, jobId: number) {
   const flags = await verifyPendingFlags(restaurantId, verifyUsage);
   await addLlmUsage(jobId, verifyUsage);
 
+  await setStep(jobId, "flags verified", { flags }, "flags verified");
+  await setStep(jobId, "checking signals", undefined, "signals checked");
   await setStep(jobId, "issuing Verdict");
   const explainUsage = emptyUsage("explain", JUDGE_MODEL, false);
   const verdictId = await issueVerdict(restaurantId, jobId, explainUsage, "automatic");
   await addLlmUsage(jobId, explainUsage);
+  await setStep(jobId, "Verdict issued", { verdictId }, "judged and explained");
+  await setStep(jobId, "notified", undefined, "notified");
   return { flags, verdictId };
 }
 
@@ -161,11 +166,13 @@ export type LookupStage = "ingest" | "extract" | "judge";
 export async function runLookup(
   restaurantId: number,
   sleep: Sleep,
-  opts: { from?: LookupStage; triggerRunId?: string; sample?: number; extractLimit?: number } = {},
+  opts: { from?: LookupStage; triggerRunId?: string; jobId?: number; sample?: number; extractLimit?: number } = {},
 ) {
-  const jobId = await createJob("lookup", restaurantId, opts.triggerRunId);
+  const jobId = opts.jobId ?? await createJob("lookup", restaurantId, opts.triggerRunId);
+  if (opts.jobId) await db()`update job set status = 'running', trigger_run_id = ${opts.triggerRunId ?? null}, updated_at = now() where id = ${jobId}`;
   const from = opts.from ?? "ingest";
   try {
+    await setStep(jobId, "Listings matched", undefined, "Listings matched");
     const ingest = from === "ingest" ? await ingestRestaurant(restaurantId, jobId, sleep, opts.sample) : null;
     const extraction = from !== "judge" ? await extractRestaurant(restaurantId, jobId, sleep, opts.extractLimit) : null;
     const judged = await judgeRestaurant(restaurantId, jobId);

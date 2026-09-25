@@ -31,9 +31,9 @@ export function createOpenApiDocument() {
         Object.entries(route.responses).map(([status, schema]) => [
           status,
           {
-            description: status === "200" ? "Success" : "Problem",
+            description: status === "200" ? "Success" : status === "202" ? "Accepted" : "Problem",
             content: {
-              [status === "200" ? "application/json" : "application/problem+json"]: {
+              [status === "200" || status === "202" ? "application/json" : "application/problem+json"]: {
                 schema: schema === problemSchema ? { $ref: "#/components/schemas/Problem" } : jsonSchema(schema),
               },
             },

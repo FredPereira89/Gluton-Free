@@ -71,7 +71,7 @@ describe("POST /api/v1/lookups/preview", () => {
     expect(response.status).toBe(404);
   });
 
-  it("proposes a confident, auto-accept Tripadvisor match for a near-identical name, and predicts enough evidence", async () => {
+  it("keeps a Tripadvisor match uncertain without distance or phone evidence, and predicts enough evidence", async () => {
     mockVendor(businessInfo("ChIJabc", "Casa do Bacalhau", 200), [
       { title: "Casa do Bacalhau", url_path: "/Restaurant_Review-g1-d1-Reviews-Casa_do_Bacalhau.html", reviews_count: 90 },
     ]);
@@ -84,8 +84,8 @@ describe("POST /api/v1/lookups/preview", () => {
     const tripadvisor = body.listings.find((l) => l.source === "tripadvisor")!;
     expect(google.confidence).toBe("confident");
     expect(google.autoAccept).toBe(true);
-    expect(tripadvisor.confidence).toBe("confident");
-    expect(tripadvisor.autoAccept).toBe(true);
+    expect(tripadvisor.confidence).toBe("uncertain");
+    expect(tripadvisor.autoAccept).toBe(false);
     expect(body.notEnoughEvidenceWarning).toBe(false);
     expect(body.categoryGuess).toBe("Restaurant");
     expect(recordSearchCost).toHaveBeenCalledWith(0.003);

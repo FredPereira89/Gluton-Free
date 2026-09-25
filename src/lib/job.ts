@@ -1,6 +1,8 @@
 import { db } from "./db";
 
 export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot";
+export const LOOKUP_STAGES = ["Listings matched", "Reviews fetched", "window extracted", "flags verified", "signals checked", "judged and explained", "notified"] as const;
+export type LookupStageName = typeof LOOKUP_STAGES[number];
 
 export type LlmUsage = {
   at: string;
@@ -23,10 +25,10 @@ export async function createJob(kind: JobKind, restaurantId: number, triggerRunI
   return Number(row!.id);
 }
 
-export async function setStep(jobId: number, step: string, progress?: Record<string, unknown>) {
+export async function setStep(jobId: number, step: string, progress?: Record<string, unknown>, stage?: LookupStageName) {
   await db()`
     update job set step = ${step}, updated_at = now(),
-      progress = progress || ${db().json((progress ?? {}) as never)}
+      progress = progress || ${db().json({ ...(progress ?? {}), ...(stage ? { stage } : {}) } as never)}
     where id = ${jobId}`;
 }
 

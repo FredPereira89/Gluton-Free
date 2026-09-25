@@ -23,13 +23,13 @@ describe("proposeGoogleListing", () => {
 });
 
 describe("proposeTripadvisorListing", () => {
-  it("marks a near-identical name as confident and auto-accept, with distance and phone unavailable", () => {
+  it("keeps a near-identical name uncertain without distance or phone evidence", () => {
     const listing = proposeTripadvisorListing("Casa do Bacalhau", [
       { title: "Casa do Bacalhau", url_path: "/Restaurant_Review-g1-d1-Reviews-Casa_do_Bacalhau.html", reviews_count: 80 },
     ]);
     expect(listing).not.toBeNull();
-    expect(listing!.confidence).toBe("confident");
-    expect(listing!.autoAccept).toBe(true);
+    expect(listing!.confidence).toBe("uncertain");
+    expect(listing!.autoAccept).toBe(false);
     expect(listing!.evidence.distanceMeters).toBeNull();
     expect(listing!.evidence.phoneMatch).toBeNull();
     expect(listing!.url).toBe(tripadvisorUrl("/Restaurant_Review-g1-d1-Reviews-Casa_do_Bacalhau.html"));

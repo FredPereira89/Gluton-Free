@@ -9,6 +9,16 @@ function response(body: unknown): Response {
 
 export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
+  if (url.hostname === "api.dataforseo.com" && url.pathname === "/v3/business_data/google/my_business_info/live") {
+    const reference = JSON.parse(String(init?.body))[0].keyword as string;
+    const placeId = reference.replace(/^place_id:/, "");
+    return Promise.resolve(response({ status_code: 20000, status_message: "Ok", tasks: [{
+      id: "invented-business", status_code: 20000, status_message: "Ok", cost: 0.003,
+      result: [{ items: [{ type: "google_business_info", place_id: placeId, title: fixture.restaurant,
+        address: "1 Imaginary Lane, Mouraria, Lisbon", address_info: { city: "Lisbon", district: "Mouraria" },
+        rating: { value: 4.5, votes_count: 16 } }] }],
+    }] }));
+  }
   if (url.hostname === "api.apify.com" && url.pathname === "/v2/datasets/invented/items") {
     return Promise.resolve(response(fixture.apify.items));
   }
@@ -19,6 +29,9 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
   const source = match[1] as keyof typeof sources;
   const operation = match[2]!;
   const depth = operation === "task_post" ? (JSON.parse(String(init?.body))[0].depth as number) : 0;
+  if (operation === "task_post" && JSON.parse(String(init?.body))[0].priority !== 2) {
+    return Promise.reject(new Error("Lookup Reviews must use DataForSEO's high-priority queue"));
+  }
   const taskId = operation === "task_post" ? `${source}-${depth}` : operation.split("/")[1]!;
   const isPost = operation === "task_post";
   const texts = sources[source];

@@ -111,7 +111,7 @@ describe("Lookup privacy", () => {
       insert into restaurant (slug, name, city, format, format_provenance)
       values ('fictional-privacy-restaurant', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
     const restaurantId = Number(restaurant!.id);
-    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only')`;
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
     await database`
       insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
       values (${restaurantId}, 'google', 'invented-google-place', 'https://example.invalid/google', 'pasted'),

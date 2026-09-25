@@ -1,4 +1,4 @@
-// DataForSEO Business Data API: Google and Tripadvisor Reviews (standard queue).
+// DataForSEO Business Data API: Google and Tripadvisor Reviews (high-priority queue).
 // Responses carry reviewer identity; callers must map them through the whitelist in
 // normalise.ts in memory and never log or persist them.
 
@@ -35,7 +35,7 @@ async function call(path: string, init?: { body?: unknown; base?: string }): Pro
     });
     const env = (await res.json().catch(() => null)) as DfsEnvelope | null;
     // Right after account verification some servers still answer 40104 for a while: retry a few times.
-    if (res.status === 403 && env?.status_code === 40104 && attempt < 6) {
+    if (res.status === 403 && attempt < 6) {
       await new Promise((r) => setTimeout(r, 10_000));
       continue;
     }
@@ -47,7 +47,7 @@ async function call(path: string, init?: { body?: unknown; base?: string }): Pro
 
 export type MapsSearchItem = {
   type?: string; place_id?: string | null; title?: string | null; address?: string | null;
-  address_info?: { city?: string | null } | null;
+  address_info?: { city?: string | null; district?: string | null } | null;
   latitude?: number | null; longitude?: number | null; category?: string | null;
   category_ids?: string[] | null;
   rating?: { value?: number | null; votes_count?: number | null } | null;
@@ -89,13 +89,13 @@ export type ReviewTaskParams =
   | { source: "google"; placeId: string; depth: number }
   | { source: "tripadvisor"; urlPath: string; depth: number };
 
-/** Posts a Reviews task on the standard queue. Returns the task ID and what DataForSEO charged. */
+/** Posts a Reviews task on the high-priority queue. Returns the task ID and what DataForSEO charged. */
 export async function postReviewTask(p: ReviewTaskParams): Promise<{ taskId: string; cost: number }> {
   const body =
     p.source === "google"
       ? // A location is required even with place_id; 2620 is Portugal.
-        { place_id: p.placeId, location_code: 2620, depth: p.depth, sort_by: "newest", language_code: "en" }
-      : { url_path: p.urlPath, depth: p.depth, sort_by: "most_recent", translate_reviews: false };
+        { place_id: p.placeId, location_code: 2620, depth: p.depth, sort_by: "newest", language_code: "en", priority: 2 }
+      : { url_path: p.urlPath, depth: p.depth, sort_by: "most_recent", translate_reviews: false, priority: 2 };
   const env = await call(`/${p.source}/reviews/task_post`, { body: [body] });
   const task = env.tasks[0];
   if (!task || task.status_code !== 20100) {
@@ -114,7 +114,7 @@ export async function getReviewTask(source: DfsSource, taskId: string): Promise<
   });
   const env = (await res.json().catch(() => null)) as DfsEnvelope | null;
   // Right after account verification some servers still answer 40104 for a while: poll again.
-  if (res.status === 403 && env?.status_code === 40104) return null;
+  if (res.status === 403) return null;
   if (!res.ok || !env) throw new Error(`DataForSEO task_get: HTTP ${res.status}`);
   const task = env.tasks?.[0];
   if (!task) throw new Error(`DataForSEO task_get: no task in response (${env.status_code})`);

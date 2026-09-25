@@ -43,7 +43,7 @@ export const POST = withApiErrors(async (request: Request) => {
     restaurantName: name,
     listings,
     categoryGuess: google.category ?? null,
-    estimate: estimateLookup(listings),
+    estimate: estimateLookup(listings.filter((listing) => listing.autoAccept)),
     notEnoughEvidenceWarning: predictNotEnoughEvidence(googleReviewCount),
   });
 });

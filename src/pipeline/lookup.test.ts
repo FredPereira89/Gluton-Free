@@ -5,6 +5,15 @@ import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
 import { fakeAnthropic, fakeVendorFetch } from "./vendor-fakes";
 
+vi.mock("@/lib/auth", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
+}));
+vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (_id: string, payload: { restaurantId: number; jobId: number }) => {
+  const { runLookup } = await import("./lookup");
+  await runLookup(payload.restaurantId, async () => {}, { jobId: payload.jobId });
+  return { id: "invented-trigger-run" };
+}) } }));
+
 vi.mock("@/analysis/llm", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/analysis/llm")>();
   const { fakeAnthropic } = await import("./vendor-fakes");
@@ -72,7 +81,7 @@ describe("Lookup pipeline", () => {
       insert into restaurant (slug, name, city, format, format_provenance)
       values ('fictional-copper-spoon', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
     const restaurantId = Number(restaurant!.id);
-    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only')`;
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
     await database`
       insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
       values (${restaurantId}, 'google', 'invented-google-place', 'https://example.invalid/google', 'pasted'),
@@ -160,4 +169,46 @@ describe("Lookup pipeline", () => {
     expect(await response.json()).toEqual(fixture.apify.items);
     await expect(fetch("https://unlisted-vendor.example/reviews")).rejects.toThrow("Unexpected external request");
   });
+
+  it("starts a Lookup through POST, exposes its Job and Verdict, and reuses it on a second POST", async () => {
+    const originalGoogle = [...fixture.googleReviews];
+    fixture.googleReviews.push(...originalGoogle);
+    try {
+    const { POST } = await import("@/app/api/v1/lookups/route");
+    const { GET } = await import("@/app/api/v1/jobs/[id]/route");
+    const { routes } = await import("@/lib/api-contract");
+    const request = () => new Request("http://localhost/api/v1/lookups", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ googlePlaceId: "invented-second-place", listings: [{
+        source: "tripadvisor", url: "https://www.tripadvisor.com/invented-second-path", name: fixture.restaurant,
+        confidence: "confident", autoAccept: true, reviewCount: 8,
+        evidence: { distanceMeters: 10, phoneMatch: true, nameSimilarity: 1 },
+      }] }),
+    });
+    const first = await POST(request());
+    expect(first.status).toBe(202);
+    const started = routes.startLookup.responses[202].parse(await first.json());
+    expect(started.restaurantSlug).toBe("fictional-copper-spoon-mouraria");
+    const jobResponse = await GET(new Request(`http://localhost/api/v1/jobs/${started.jobId}`), { params: Promise.resolve({ id: String(started.jobId) }) });
+    expect(jobResponse.status).toBe(200);
+    expect(jobResponse.headers.get("cache-control")).toContain("no-store");
+    const job = routes.job.responses[200].parse(await jobResponse.json());
+    expect(job.status).toBe("succeeded");
+    expect(job.steps.every((step) => step.status === "done")).toBe(true);
+    expect(job.vendorUsd).toBeGreaterThan(0);
+    expect(job.llmUsd).toBeGreaterThan(0);
+    expect(job.sources.map((source) => source.fetchedCount)).toEqual([16]);
+    expect(job.facts.askLater).toEqual([expect.objectContaining({ source: "tripadvisor" })]);
+    const [verdict] = await sql!`select state, job_id from verdict where job_id = ${started.jobId}`;
+    expect(verdict).toMatchObject({ state: "verdict", job_id: String(started.jobId) });
+    const second = await POST(request());
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual(started);
+    const { tasks } = await import("@trigger.dev/sdk");
+    expect(tasks.trigger).toHaveBeenCalledTimes(1);
+    expect(tasks.trigger).toHaveBeenCalledWith("restaurant-lookup", expect.objectContaining({ jobId: started.jobId }), { idempotencyKey: `lookup-${started.jobId}` });
+    } finally {
+      fixture.googleReviews.splice(originalGoogle.length);
+    }
+  }, 30_000);
 });
