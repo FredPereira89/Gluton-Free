@@ -16,7 +16,7 @@ export class ApiError extends Error {
 
 // RFC 9457 application/problem+json.
 export function problemResponse(err: { status: number; code: string; message: string }): Response {
-  const title = err.status === 400 ? "Bad request" : err.status === 401 ? "Unauthenticated" : err.status === 403 ? "Forbidden" : err.status === 404 ? "Not found" : err.status === 500 ? "Internal server error" : "Service unavailable";
+  const title = err.status === 400 ? "Bad request" : err.status === 401 ? "Unauthenticated" : err.status === 403 ? "Forbidden" : err.status === 404 ? "Not found" : err.status === 409 ? "Conflict" : err.status === 500 ? "Internal server error" : "Service unavailable";
   return Response.json(
     problemSchema.parse({ type: "about:blank", title, status: err.status, detail: err.message, code: err.code }),
     { status: err.status, headers: { "content-type": "application/problem+json", "Cache-Control": "private, no-store" } },

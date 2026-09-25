@@ -134,8 +134,11 @@ describe("Lookup pipeline", () => {
       content: [{ type: "text", text: "An invented English food quote." }],
     } as never);
     const { translateQuote } = await import("@/verdict/translate");
-    expect(await translateQuote("fictional-copper-spoon", Number(portuguese!.id))).toBe("An invented English food quote.");
-    expect(await translateQuote("fictional-copper-spoon", Number(portuguese!.id))).toBe("An invented English food quote.");
+    const original = "A comida estava muito saborosa e o serviço foi atencioso.";
+    await expect(translateQuote("fictional-copper-spoon", Number(portuguese!.id), "Another quote"))
+      .rejects.toMatchObject({ status: 404, code: "not_found" });
+    expect(await translateQuote("fictional-copper-spoon", Number(portuguese!.id), original)).toBe("An invented English food quote.");
+    expect(await translateQuote("fictional-copper-spoon", Number(portuguese!.id), original)).toBe("An invented English food quote.");
     expect(translateCall).toHaveBeenCalledTimes(1);
     const [cached] = await database`select quote_en from review_analysis where review_id = ${portuguese!.id}`;
     expect(cached!.quote_en).toBe("An invented English food quote.");
@@ -144,6 +147,10 @@ describe("Lookup pipeline", () => {
     expect(page!.verdict!.blocks.quotes).toContainEqual(expect.objectContaining({
       reviewId: Number(portuguese!.id), textEn: "An invented English food quote.", access: "personal_only",
     }));
+    await database`update review_analysis set quote = 'Uma nova citação após reanálise.', quote_en = null where review_id = ${portuguese!.id}`;
+    await expect(translateQuote("fictional-copper-spoon", Number(portuguese!.id), original))
+      .rejects.toMatchObject({ status: 409, code: "stale_quote" });
+    expect(translateCall).toHaveBeenCalledTimes(1);
     translateCall.mockRestore();
     parse.mockRestore();
   }, 30_000);

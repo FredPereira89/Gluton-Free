@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/problem";
 
 /** The analysis row is locked across the call so concurrent taps cannot buy two translations. */
-export async function translateQuote(slug: string, reviewId: number): Promise<string> {
+export async function translateQuote(slug: string, reviewId: number, original: string): Promise<string> {
   return db().begin(async (tx) => {
     const [row] = await tx`
       select a.quote, a.quote_en, r.language
@@ -14,6 +14,15 @@ export async function translateQuote(slug: string, reviewId: number): Promise<st
       where restaurant.slug = ${slug} and a.review_id = ${reviewId} and a.quote is not null
       for update of a`;
     if (!row) throw new ApiError(404, "not_found", "Quote not found");
+    const [verdict] = await tx`
+      select blocks -> 'quotes' as quotes from verdict
+      where restaurant_id = (select id from restaurant where slug = ${slug})
+      order by id desc limit 1`;
+    const shown = (verdict?.quotes ?? []) as { reviewId: number; text: string }[];
+    if (!shown.some((quote) => quote.reviewId === reviewId && quote.text === original)) {
+      throw new ApiError(404, "not_found", "Quote not found in the current Verdict");
+    }
+    if (row.quote !== original) throw new ApiError(409, "stale_quote", "The quote has changed; reload the Verdict");
     if (row.quote_en) return row.quote_en as string;
     if ((row.language as string | null)?.startsWith("en")) return row.quote as string;
     const response = await anthropic().messages.create({

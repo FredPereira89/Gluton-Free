@@ -7,6 +7,7 @@ import { GET as health } from "@/app/api/v1/health/route";
 import { GET as openApi } from "@/app/openapi.json/route";
 import { GET as verdict } from "@/app/api/v1/restaurants/[slug]/verdict/route";
 import { GET as restaurantBundle } from "@/app/api/v1/restaurants/[slug]/route";
+import { POST as translateQuote } from "@/app/api/v1/restaurants/[slug]/quotes/[reviewId]/translation/route";
 import { rollup, type RollupReview } from "@/verdict/rollup";
 import { loadRestaurantBundle, loadVerdictPage, type VerdictPage } from "@/web/data";
 import { acceptedJobResponse, acceptedJobSchema, paginatedSchema, parsePagination, routes, type RestaurantBundle } from "./api-contract";
@@ -96,6 +97,13 @@ describe("API registry and OpenAPI", () => {
 });
 
 describe("handler responses", () => {
+  it("requires owner authorization for quote translation writes", async () => {
+    const response = await translateQuote(new Request("https://app.example/api/v1/restaurants/sample/quotes/7/translation", {
+      method: "POST", body: JSON.stringify({ original: "A quote" }), headers: { "Content-Type": "application/json" },
+    }), { params: Promise.resolve({ slug: "sample", reviewId: "7" }) });
+    expect(response.status).toBe(403);
+    expect(routes.quoteTranslation.responses[403].parse(await response.json()).code).toBe("csrf");
+  });
   it("renders a Change-point evidence gap with a dashed label, have/need bars, and Source facts", async () => {
     const now = new Date("2026-09-24T12:00:00.000Z");
     const reviews: RollupReview[] = Array.from({ length: 29 }, (_, i) => ({

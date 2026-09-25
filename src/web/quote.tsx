@@ -31,7 +31,7 @@ export function Quote(q: QuoteProps) {
     setError(false);
     try {
       const response = await fetch(`/api/v1/restaurants/${encodeURIComponent(q.restaurantSlug)}/quotes/${q.reviewId}/translation`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ original: q.text }),
       });
       if (!response.ok) throw new Error("Translation unavailable");
       const body = await response.json() as { textEn: string };
