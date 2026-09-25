@@ -6,7 +6,7 @@ import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, TIER_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { formatPercentile } from "@/verdict/peer";
-import { PARAMS, type RedFlagGroup } from "@/verdict/rollup";
+import { PARAMS, type RedFlagGroup, type SourceReading } from "@/verdict/rollup";
 import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripRow, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
 import type { RestaurantBundle } from "@/lib/api-contract";
@@ -130,7 +130,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             ))}
           </div>
         </section>
-        <Sources page={page} perSource={perSource} />
+        <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} />
         <BundleExtras page={page} />
         <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
       </div>
@@ -147,7 +147,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           {tierChange}
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         </section>
-        <Sources page={page} perSource={perSource} hideExtras />
+        <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} hideExtras />
       </div>
     );
   }
@@ -280,7 +280,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         </p>}
       </section>
 
-      <Sources page={page} perSource={perSource} />
+      <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} />
       <BundleExtras page={page} />
       <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
     </div>
@@ -317,7 +317,7 @@ function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: M
 
 type SourceWindow = { text: number; windowStart: string | null };
 
-function Sources({ page, perSource, hideExtras = false }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow>; hideExtras?: boolean }) {
+function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow>; sourceReadings?: SourceReading[]; hideExtras?: boolean }) {
   return (
     <section className="sec">
       <h2>Sources</h2>
@@ -330,6 +330,7 @@ function Sources({ page, perSource, hideExtras = false }: { page: RestaurantBund
               <th className="num">Reviews</th>
               <th className="num">With text</th>
               <th className="num">Rating</th>
+              <th>Tier reading</th>
               <th>Newest</th>
               <th className="num">Window</th>
               <th>Window since</th>
@@ -339,13 +340,14 @@ function Sources({ page, perSource, hideExtras = false }: { page: RestaurantBund
           <tbody>
             {page.sources.map((s) => {
               const w = perSource?.[s.code];
+              const reading = sourceReadings?.find((sr) => sr.source === s.code);
               return (
                 <tr key={s.code}>
                   <td>
                     <a href={s.url} rel="noreferrer nofollow" target="_blank">
                       {s.name} ↗
                     </a>
-                    <div className="small muted">{s.kind === "crowd" ? "Crowd Source" : "Editorial Source"}</div>
+                    <div className="small muted">{s.kind === "crowd" ? "Crowd Source" : "Editorial Source"}{reading?.quiet && " · quiet"}</div>
                   </td>
                   <td>
                     <span className={`acc ${s.access === "personal_only" ? "personal" : "public"}`}>
@@ -355,6 +357,7 @@ function Sources({ page, perSource, hideExtras = false }: { page: RestaurantBund
                   <td className="num">{s.reviewCount?.toLocaleString("en") ?? "—"}</td>
                   <td className="num">{s.textCount?.toLocaleString("en") ?? "—"}</td>
                   <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>
+                  <td>{reading?.tier ? TIER_LABEL[reading.tier] : "—"}</td>
                   <td>{dateLabel(s.newestAt)}</td>
                   <td className="num">{w ? w.text.toLocaleString("en") : "—"}</td>
                   <td>{w?.windowStart ? dateLabel(w.windowStart) : "—"}</td>

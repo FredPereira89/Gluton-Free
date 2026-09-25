@@ -91,6 +91,13 @@ export const RollupSchema = z.strictObject({
     source: z.string(),
     quarters: z.array(z.strictObject({ quarter: z.string(), stars: z.number().nullable(), ratings: z.number().int(), volume: z.number().int() })),
   })).optional(),
+  // Optional for Verdicts issued before per-Source Tier readings were recorded (issue #38).
+  sourceReadings: z.array(z.strictObject({
+    source: z.string(),
+    tier: z.enum(TIERS).nullable(),
+    textReviews12m: z.number(),
+    quiet: z.boolean(),
+  })).optional(),
 });
 
 export const ShownQuoteSchema = z.strictObject({

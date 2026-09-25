@@ -86,6 +86,24 @@ describe("Tier change header (issue #39)", () => {
   });
 });
 
+describe("Confidence and per-Source readings (issue #38)", () => {
+  it("shows the quiet label next to a Source with fewer than 10 text Reviews in the last 12 months", async () => {
+    const page = bundle(0);
+    page.verdict!.blocks.rollup.sourceReadings = [{ source: "google", tier: "ok", textReviews12m: 3, quiet: true }];
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Crowd Source · quiet");
+  });
+
+  it("omits the quiet label for a Source with enough text Reviews", async () => {
+    const page = bundle(0);
+    page.verdict!.blocks.rollup.sourceReadings = [{ source: "google", tier: "ok", textReviews12m: 20, quiet: false }];
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).not.toContain("quiet");
+  });
+});
+
 describe("Restaurant Verdict red flags", () => {
   it("shows a quiet callout and its evidence for one incident while retaining the standings", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(bundle(1));

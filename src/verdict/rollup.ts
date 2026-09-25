@@ -3,7 +3,7 @@
 // Pure: no I/O, deterministic (the bootstrap uses a seeded generator).
 import { ASPECTS, INFORMATIVE_ONLY, INPUTS, INPUT_WEIGHTS, type Aspect, type FlagType, type Input, type Tier } from "@/domain/aspects";
 import { THEMES, type ThemeCode } from "@/domain/themes";
-import { DEFAULT_SHRINK_K, judgeWithSnapshot, type CompositeStanding, type PeerSnapshot, type Standing, type TierFloor } from "./peer";
+import { DEFAULT_SHRINK_K, formatPercentile, judgeWithSnapshot, type CompositeStanding, type PeerSnapshot, type Standing, type TierFloor } from "./peer";
 
 /**
  * Successes/trials for the exceptional-language test (issue #36): "exceptional" Reviews for food
@@ -75,6 +75,8 @@ export type RollupInput = {
   changePointAt?: Date | null;
   /** Owner-confirmed description, for example "Reopened after renovation". */
   changePointDescription?: string;
+  /** Crowd Sources whose most recent fetch failed (issue #38): forces Confidence to Low. */
+  failedSourceCodes?: string[];
 };
 
 export type InputStat = {
@@ -100,6 +102,16 @@ export type RedFlagGroup = {
 export type SourceHistory = {
   source: string;
   quarters: { quarter: string; stars: number | null; ratings: number; volume: number }[];
+};
+
+/** A Crowd Source's own Tier reading (issue #38): the Restaurant judged on that Source's Reviews alone. */
+export type SourceReading = {
+  source: string;
+  tier: Tier | null;
+  /** Text Reviews from this Source in the last 12 months. */
+  textReviews12m: number;
+  /** Fewer than 10 text Reviews from this Source in the last 12 months. */
+  quiet: boolean;
 };
 
 export type Rollup = {
@@ -149,11 +161,13 @@ export type Rollup = {
   themeBase: { analysed: number; windowMonths: number };
   series: { quarter: string; composite: number | null; volume: number; textVolume: number }[];
   sourceHistory: SourceHistory[];
+  sourceReadings: SourceReading[];
 };
 
 const MONTH_MS = 30.4375 * 24 * 3600 * 1000;
 const ageMonths = (now: Date, d: Date) => Math.max(0, (now.getTime() - d.getTime()) / MONTH_MS);
 const recency = (age: number) => Math.pow(0.5, age / PARAMS.halfLifeMonths);
+const textIn12mCount = (text: RollupReview[], now: Date) => text.filter((r) => ageMonths(now, r.publishedAt) <= 12).length;
 
 function countedInputs(format: string): Input[] {
   const skip = new Set(INFORMATIVE_ONLY[format] ?? []);
@@ -224,14 +238,6 @@ export function tierFrom(stats: InputStat[]): { tier: Tier; floorCap: string | n
   }
   if (composite >= PARAMS.goodCut) return { tier: "good", floorCap: null };
   return { tier: "ok", floorCap: null };
-}
-
-/** Band of a single θ-scale score, for the provisional disagreement caps. */
-function band(x: number): Tier {
-  if (x < 0) return "avoid";
-  if (x >= PARAMS.mustGoCut) return "must_go";
-  if (x >= PARAMS.goodCut) return "good";
-  return "ok";
 }
 
 function mulberry32(seed: number) {
@@ -429,7 +435,7 @@ export function rollup(input: RollupInput): Rollup {
   const { missed } = notEnoughEvidence;
 
   // Red flags.
-  const textIn12m = text.filter((r) => ageMonths(now, r.publishedAt) <= 12).length;
+  const textIn12m = textIn12mCount(text, now);
   const redFlags = redFlagGroups(input);
   const forced = redFlags.some((g) => g.forcesAvoid);
 
@@ -461,21 +467,60 @@ export function rollup(input: RollupInput): Rollup {
     caps.push("fewer than 5 Reviews with text in the last 12 months");
     level = Math.min(level, 1);
   }
-  const perSourceBands = sources.map((s) => ({ s, band: tierFrom(inputStats(reviews.filter((r) => r.source === s), now, format)).tier }));
-  if (new Set(perSourceBands.map((x) => x.band)).size > 1) {
-    caps.push(`Sources disagree (${perSourceBands.map((x) => `${x.s}: ${x.band}`).join(", ")})`);
-    level = Math.max(0, level - 1);
+
+  // Per-Source Tier readings (issue #38): each Crowd Source judged on its own Reviews alone, using
+  // the same Peer snapshot. Listed Sources with no Reviews yet still get a (null, quiet) reading.
+  const readingSources = [...new Set([...(input.sourceCodes ?? []), ...sources])];
+  const sourceEntries = readingSources.map((source) => {
+    const sourceReviews = reviews.filter((r) => r.source === source);
+    const windowTextCount = sourceReviews.filter((r) => r.hasText).length;
+    const textReviews12m = textIn12mCount(text.filter((r) => r.source === source), now);
+    if (!sourceReviews.length) return { source, tier: null, textReviews12m, windowTextCount, compositePercentile: null };
+    const sourceStats = inputStats(sourceReviews, now, format);
+    const judged = judgeWithSnapshot(sourceStats, format, input.city, input.peerSnapshot, false, exceptionalCounts(sourceReviews));
+    const tier = judged.provisional ? tierFrom(sourceStats).tier : judged.tier;
+    return { source, tier, textReviews12m, windowTextCount, compositePercentile: judged.provisional ? null : judged.compositeStanding?.percentile ?? null };
+  });
+  const sourceReadings: SourceReading[] = sourceEntries.map(({ source, tier, textReviews12m }) => ({
+    source, tier, textReviews12m, quiet: textReviews12m < 10,
+  }));
+
+  // Sources disagree (issue #38): only Sources with at least 10 text Reviews in their own window
+  // count toward diversity, so a quiet Source can't trigger this cap.
+  const qualifyingSources = sourceEntries.filter((e) => e.windowTextCount >= 10 && e.compositePercentile !== null);
+  if (qualifyingSources.length > 1) {
+    const percentiles = qualifyingSources.map((e) => e.compositePercentile!);
+    const spread = Math.max(...percentiles) - Math.min(...percentiles);
+    if (spread >= 30) {
+      caps.push(`Sources disagree by ${Math.round(spread)} points (${qualifyingSources.map((e) => `${e.source}: ${formatPercentile(e.compositePercentile!)}`).join(", ")})`);
+      level = Math.max(0, level - 1);
+    }
   }
-  const textOnly = stats.filter((s) => s.counted && s.input !== "overall");
-  const textW = textOnly.reduce((s, x) => s + x.weight, 0);
-  const textComposite = textW ? textOnly.reduce((s, x) => s + x.weight * x.theta, 0) / textW : 0;
-  const starsBand = band(theta(stats, "overall"));
-  if (band(textComposite) !== starsBand) {
-    caps.push(`text and stars disagree (text: ${band(textComposite)}, stars: ${starsBand})`);
-    level = Math.max(0, level - 1);
+
+  // Text and stars disagree (issue #38): the text-only composite percentile against the stars-only
+  // (overall) percentile, both from the same Peer standings used for the issued Tier.
+  if (!peers.provisional) {
+    const weightOf = (i: Input) => stats.find((s) => s.input === i)?.weight ?? 0;
+    const textStandings = peers.standings.filter((s) => s.input !== "overall");
+    const textWeight = textStandings.reduce((s, st) => s + weightOf(st.input), 0);
+    const textPercentile = textWeight
+      ? textStandings.reduce((s, st) => s + weightOf(st.input) * st.percentile, 0) / textWeight
+      : null;
+    const starsStanding = peers.standings.find((s) => s.input === "overall");
+    if (textPercentile !== null && starsStanding) {
+      const spread = Math.abs(textPercentile - starsStanding.percentile);
+      if (spread >= 30) {
+        caps.push(`text and stars disagree by ${Math.round(spread)} points (text: ${formatPercentile(textPercentile)}, stars: ${formatPercentile(starsStanding.percentile)})`);
+        level = Math.max(0, level - 1);
+      }
+    }
   }
   if (peers.provisional) {
     caps.push("provisional: judged against default cut-offs, not Peers");
+    level = 0;
+  }
+  if (input.failedSourceCodes?.length) {
+    caps.push(`a Crowd Source failed: ${input.failedSourceCodes.join(", ")}`);
     level = 0;
   }
 
@@ -587,6 +632,7 @@ export function rollup(input: RollupInput): Rollup {
     themeBase: { analysed: themeBase.length, windowMonths: themeWindow },
     series,
     sourceHistory: quarterlySourceHistory(input.reviews, now, input.sourceCodes),
+    sourceReadings,
   };
   return result;
 }

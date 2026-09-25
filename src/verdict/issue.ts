@@ -16,7 +16,7 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
   const [restaurant] = await sql`select id, name, city, format from restaurant where id = ${restaurantId}`;
   if (!restaurant) throw new Error(`restaurant ${restaurantId} not found`);
   const sourceRows = await sql`
-    select l.source_code from listing l join source s on s.code = l.source_code
+    select l.source_code, l.fetch_status from listing l join source s on s.code = l.source_code
     where l.restaurant_id = ${restaurantId} and s.kind = 'crowd'`;
   const rows = await sql`
     select r.id, l.source_code, r.published_at, r.stars, r.text is not null as has_text, r.sub_ratings,
@@ -58,6 +58,7 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
   return { restaurant, input: {
     now, city: restaurant.city as string, format: restaurant.format as string,
     reviews, sourceCodes: sourceRows.map((row) => row.source_code as string), flags, changePointAt,
+    failedSourceCodes: sourceRows.filter((row) => row.fetch_status === "failed").map((row) => row.source_code as string),
   } };
 }
 

@@ -1191,6 +1191,47 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "sourceReadings": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string"
+                                      },
+                                      "tier": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "avoid",
+                                              "ok",
+                                              "good",
+                                              "must_go",
+                                              "life_changing"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "textReviews12m": {
+                                        "type": "number"
+                                      },
+                                      "quiet": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "tier",
+                                      "textReviews12m",
+                                      "quiet"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -2341,6 +2382,47 @@
                                         "required": [
                                           "source",
                                           "quarters"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "sourceReadings": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "source": {
+                                            "type": "string"
+                                          },
+                                          "tier": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "avoid",
+                                                  "ok",
+                                                  "good",
+                                                  "must_go",
+                                                  "life_changing"
+                                                ]
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "textReviews12m": {
+                                            "type": "number"
+                                          },
+                                          "quiet": {
+                                            "type": "boolean"
+                                          }
+                                        },
+                                        "required": [
+                                          "source",
+                                          "tier",
+                                          "textReviews12m",
+                                          "quiet"
                                         ],
                                         "additionalProperties": false
                                       }

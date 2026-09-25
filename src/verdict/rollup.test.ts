@@ -703,3 +703,105 @@ describe("quarterly Source history", () => {
     expect(result.sourceHistory.find((s) => s.source === "tripadvisor")?.quarters[2]).toEqual({ quarter: "2023-Q3", stars: null, ratings: 0, volume: 1 });
   });
 });
+
+describe("Confidence and per-Source readings (issue #38)", () => {
+  // k = 0 lets a Source's real, internally-shrunk theta drive its peer-relative percentile almost
+  // undamped (it only undoes the shrinkK=10 baked into the stat itself), so two Sources with
+  // opposite Review content land near opposite ends of a linear -2..+2 sortedTheta.
+  function linearGroup(input: Input): PeerGroupStat {
+    return {
+      city: "Lisbon", level: "format", key: "tasca", input,
+      sortedTheta: Array.from({ length: 100 }, (_, i) => -2 + (i / 99) * 4),
+      formatMean: 0, k: 0,
+      composite: input === "food" ? Array.from({ length: 100 }, (_, i) => i) : [],
+      exceptionalPrior: { alpha: 1, beta: 1 }, peerCount: 100,
+    };
+  }
+  const snapshot: PeerSnapshot = { id: 1, month: "2026-09", publishedAt: "2026-09-01T00:00:00.000Z", groups: INPUTS.map(linearGroup) };
+
+  const high = (source: string) => review({ source, stars: 5, aspects: { food: 2, service: 2, ambience: 2, value: 2, wait: 2, consistency: 2 } });
+  const low = (source: string) => review({ source, stars: 1, aspects: { food: -2, service: -2, ambience: -2, value: -2, wait: -2, consistency: -2 } });
+
+  it("reaches High when every bootstrap resample reproduces the Tier", () => {
+    const reviews = [...many(15, () => high("google")), ...many(15, () => high("tripadvisor"))];
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    expect(r.confidence.bootstrapShare).toBe(1);
+    expect(r.confidence.level).toBe("high");
+  });
+
+  it("reaches Medium when the bootstrap share is between 55% and 80%", () => {
+    const reviews = many(40, (i) => {
+      const source = i % 2 ? "google" : "tripadvisor";
+      return i % 10 < 9 ? high(source) : low(source);
+    });
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    expect(r.confidence.bootstrapShare).toBe(0.575);
+    expect(r.confidence.level).toBe("medium");
+  });
+
+  it("falls to Low when the bootstrap share is under 55%", () => {
+    const reviews = many(40, (i) => {
+      const source = i % 2 ? "google" : "tripadvisor";
+      return i % 10 < 5 ? high(source) : low(source);
+    });
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    expect(r.confidence.bootstrapShare).toBe(0.495);
+    expect(r.confidence.level).toBe("low");
+  });
+
+  it("caps confidence at Medium with fewer than 5 text Reviews in the last 12 months", () => {
+    const old = many(30, (i) => ({ ...high(i % 2 ? "google" : "tripadvisor"), publishedAt: monthsAgo(20) }));
+    const recent = many(3, (i) => ({ ...high(i % 2 ? "google" : "tripadvisor"), publishedAt: monthsAgo(1) }));
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews: [...old, ...recent], flags: [], peerSnapshot: snapshot });
+    expect(r.confidence.caps.join()).toMatch(/fewer than 5 Reviews with text in the last 12 months/);
+    expect(r.confidence.level).not.toBe("high");
+  });
+
+  it("downgrades Confidence when per-Source composites are 30 or more percentile points apart", () => {
+    const reviews = [...many(30, () => high("google")), ...many(30, () => low("tripadvisor"))];
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    expect(r.confidence.caps.join()).toMatch(/Sources disagree/);
+    expect(r.sourceReadings.find((s) => s.source === "google")?.quiet).toBe(false);
+    expect(r.sourceReadings.find((s) => s.source === "tripadvisor")?.quiet).toBe(false);
+  });
+
+  it("does not let a Source with fewer than 10 text Reviews in its window trigger the per-Source cap", () => {
+    const reviews = [...many(30, () => high("google")), ...many(30, () => high("tripadvisor")), ...many(5, () => low("yelp"))];
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    expect(r.confidence.caps.join()).not.toMatch(/Sources disagree/);
+    const yelp = r.sourceReadings.find((s) => s.source === "yelp");
+    expect(yelp?.quiet).toBe(true);
+    expect(yelp?.textReviews12m).toBe(5);
+  });
+
+  it("downgrades Confidence when text and stars are 30 or more percentile points apart", () => {
+    // Five stars but every text Aspect scored at the bottom: overall (from stars) and the text
+    // inputs land at opposite ends of the same linear scale.
+    const reviews = many(30, () => review({ source: "google", stars: 5, aspects: { food: -2, service: -2, ambience: -2, value: -2, wait: -2, consistency: -2 } }));
+    const r = rollup({ now: NOW, city: "Lisbon", format: "tasca", reviews, flags: [], peerSnapshot: snapshot });
+    expect(r.confidence.caps.join()).toMatch(/text and stars disagree/);
+  });
+
+  it("forces Confidence to Low when a Crowd Source's last fetch failed", () => {
+    const r = rollup({ now: NOW, format: "tasca", reviews: many(60, (i) => great(i)), flags: [], failedSourceCodes: ["google"] });
+    expect(r.confidence.level).toBe("low");
+    expect(r.confidence.caps.join()).toMatch(/a Crowd Source failed: google/);
+  });
+
+  it("flags a listed Source with no Reviews yet as quiet with a null Tier reading", () => {
+    const r = rollup({ now: NOW, format: "tasca", reviews: many(20, (i) => great(i, "google")), flags: [], sourceCodes: ["google", "tripadvisor"] });
+    const reading = r.sourceReadings.find((s) => s.source === "tripadvisor");
+    expect(reading).toEqual({ source: "tripadvisor", tier: null, textReviews12m: 0, quiet: true });
+  });
+
+  it("reports each Source's own Tier reading and marks fewer than 10 text Reviews in the last 12 months as quiet", () => {
+    const reviews = [...many(20, () => high("google")), ...many(3, () => low("tripadvisor"))];
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [] });
+    const google = r.sourceReadings.find((s) => s.source === "google");
+    const tripadvisor = r.sourceReadings.find((s) => s.source === "tripadvisor");
+    expect(google?.quiet).toBe(false);
+    expect(google?.tier).not.toBeNull();
+    expect(tripadvisor?.quiet).toBe(true);
+    expect(tripadvisor?.textReviews12m).toBe(3);
+  });
+});
