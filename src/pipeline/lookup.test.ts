@@ -3,8 +3,10 @@ import { readdirSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
+import { fakePushSends, fakeSendPush } from "./push-fake";
 import { fakeAnthropic, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState } from "./vendor-fakes";
 
+vi.mock("@/lib/push-send", () => ({ sendPush: (...args: Parameters<typeof fakeSendPush>) => fakeSendPush(...args) }));
 
 const triggerControl = vi.hoisted(() => ({ failListingUndo: false }));
 
@@ -555,7 +557,76 @@ describe("Lookup pipeline", () => {
     }
   }, 30_000);
 
+  it("sends exactly one push per pipeline event, with the minimal payload", async () => {
+    const database = sql!;
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    const { runLookup } = await import("./lookup");
 
+    fakePushSends.length = 0;
+    const [verdictRestaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-push-verdict', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    const verdictRestaurantId = Number(verdictRestaurant!.id);
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${verdictRestaurantId}, 'google', 'invented-push-verdict-google-place', 'https://example.invalid/google', 'pasted'),
+             (${verdictRestaurantId}, 'tripadvisor', 'invented-push-verdict-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+    await runLookup(verdictRestaurantId, async () => {});
+    expect(fakePushSends).toEqual([{ kind: "verdict_ready", restaurantId: verdictRestaurantId, questionId: undefined }]);
+
+    fakePushSends.length = 0;
+    const [failedRestaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-push-failed', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    const failedRestaurantId = Number(failedRestaurant!.id);
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${failedRestaurantId}, 'google', 'invented-push-failed-google-place', 'https://example.invalid/google', 'pasted'),
+             (${failedRestaurantId}, 'tripadvisor', 'invented-push-failed-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+    extractFailureState.armed = true;
+    await expect(runLookup(failedRestaurantId, async () => {})).rejects.toThrow();
+    expect(fakePushSends).toEqual([{ kind: "lookup_failed", restaurantId: failedRestaurantId, questionId: undefined }]);
+
+    fakePushSends.length = 0;
+    try {
+      fakeRestaurantFacts.googleCategoryDisagrees = true;
+      const { POST } = await import("@/app/api/v1/lookups/route");
+      const started = await POST(new Request("http://localhost/api/v1/lookups", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ googlePlaceId: "invented-push-format-place", listings: [] }),
+      }));
+      expect(started.status).toBe(202);
+      const { restaurantSlug } = await started.json() as { restaurantSlug: string };
+      const [formatRestaurant] = await database`select id from restaurant where slug = ${restaurantSlug}`;
+      const formatRestaurantId = Number(formatRestaurant!.id);
+      const [formatQuestion] = await database`select id from owner_question where restaurant_id = ${formatRestaurantId} and kind = 'format'`;
+      expect(fakePushSends).toEqual([
+        { kind: "owner_question", restaurantId: formatRestaurantId, questionId: Number(formatQuestion!.id) },
+        { kind: "verdict_ready", restaurantId: formatRestaurantId, questionId: undefined },
+      ]);
+    } finally {
+      fakeRestaurantFacts.googleCategoryDisagrees = false;
+    }
+
+    fakePushSends.length = 0;
+    const { POST } = await import("@/app/api/v1/lookups/route");
+    const startedListing = await POST(new Request("http://localhost/api/v1/lookups", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ googlePlaceId: "invented-push-listing-place", listings: [{
+        source: "tripadvisor", url: "https://www.tripadvisor.com/invented-push-listing-path",
+        placeRef: "invented-push-listing-path", name: fixture.restaurant,
+        confidence: "uncertain", autoAccept: false, reviewCount: 8,
+        evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: 0.9 },
+      }] }),
+    }));
+    expect(startedListing.status).toBe(202);
+    const { restaurantSlug: listingSlug } = await startedListing.json() as { restaurantSlug: string };
+    const [listingRestaurant] = await database`select id from restaurant where slug = ${listingSlug}`;
+    const listingRestaurantId = Number(listingRestaurant!.id);
+    const [listingQuestion] = await database`select id from owner_question where restaurant_id = ${listingRestaurantId} and kind = 'listing_match'`;
+    expect(fakePushSends[0]).toEqual({ kind: "owner_question", restaurantId: listingRestaurantId, questionId: Number(listingQuestion!.id) });
+    expect(fakePushSends).toContainEqual({ kind: "verdict_ready", restaurantId: listingRestaurantId, questionId: undefined });
+  }, 30_000);
 
   it("reads Format from Reviews before issuing the Verdict and shows its proposal", async () => {
     const { POST } = await import("@/app/api/v1/lookups/route");

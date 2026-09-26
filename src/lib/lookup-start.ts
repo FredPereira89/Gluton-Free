@@ -8,10 +8,14 @@ import { db } from "./db";
 import { markJobStartFailed } from "./job";
 import { raiseListingQuestions } from "./owner-question";
 import { ApiError } from "./problem";
+import { sendPush } from "./push-send";
 import { recordSearchCost, spendCapStatus } from "./spend-cap";
 
 type Input = z.infer<typeof startLookupBodySchema>;
 type Started = { jobId: number; restaurantSlug: string; created: boolean };
+type LookupTxResult =
+  | { jobId: number; restaurantSlug: string; created: false; listingQuestionIds: number[] }
+  | { jobId: number; restaurantSlug: string; created: true; restaurantId: number; listingQuestionIds: number[] };
 
 function slugPart(text: string): string {
   return text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -48,20 +52,20 @@ export async function startLookup(input: Input): Promise<Started> {
   // the Owner-question flow (#50); only the exact Google place ID is auto accepted here.
   const askLater = input.listings.filter((listing) => listing.source === "tripadvisor");
 
-  const result = await db().begin(async (sql) => {
+  const result = await db().begin(async (sql): Promise<LookupTxResult> => {
     await sql`select pg_advisory_xact_lock(hashtext(${input.googlePlaceId}))`;
     await sql`select pg_advisory_xact_lock(hashtext(${`slug:${base}`}))`;
     const [found] = await sql`
       select r.id as restaurant_id, r.slug, j.id from listing l join restaurant r on r.id = l.restaurant_id
       left join lateral (select id from job where restaurant_id = r.id and kind = 'lookup' order by id desc limit 1) j on true
       where l.source_code = 'google' and l.place_ref = ${input.googlePlaceId}`;
-    if (found?.id) return { jobId: Number(found.id), restaurantSlug: found.slug as string, created: false };
+    if (found?.id) return { jobId: Number(found.id), restaurantSlug: found.slug as string, created: false, listingQuestionIds: [] };
     if (found) {
       const [job] = await sql`
         insert into job (kind, restaurant_id, status, step, progress, vendor_cost_usd)
         values ('lookup', ${found.restaurant_id}, 'queued', 'Listings matched', ${sql.json({ estimateMinutes, askLater } as never)}, ${resolved.cost}) returning id`;
-      await raiseListingQuestions(sql, Number(found.restaurant_id), askLater);
-      return { jobId: Number(job!.id), restaurantSlug: found.slug as string, created: true, restaurantId: Number(found.restaurant_id) };
+      const listingQuestionIds = await raiseListingQuestions(sql, Number(found.restaurant_id), askLater);
+      return { jobId: Number(job!.id), restaurantSlug: found.slug as string, created: true, restaurantId: Number(found.restaurant_id), listingQuestionIds };
     }
     let slug = base;
     if ((await sql`select 1 from restaurant where slug = ${slug}`).length) slug = `${base}-${slugPart(area || city)}`;
@@ -78,8 +82,8 @@ export async function startLookup(input: Input): Promise<Started> {
     const [job] = await sql`
       insert into job (kind, restaurant_id, status, step, progress, vendor_cost_usd)
       values ('lookup', ${restaurantId}, 'queued', 'Listings matched', ${sql.json({ estimateMinutes, askLater } as never)}, ${resolved.cost}) returning id`;
-    await raiseListingQuestions(sql, restaurantId, askLater);
-    return { jobId: Number(job!.id), restaurantSlug: slug, created: true, restaurantId };
+    const listingQuestionIds = await raiseListingQuestions(sql, restaurantId, askLater);
+    return { jobId: Number(job!.id), restaurantSlug: slug, created: true, restaurantId, listingQuestionIds };
   });
 
   if (!result.created) {
@@ -88,6 +92,8 @@ export async function startLookup(input: Input): Promise<Started> {
     await recordSearchCost(resolved.cost);
     return result;
   }
+  // Pushed only after the transaction above has committed, so a rolled-back question never notifies.
+  for (const questionId of result.listingQuestionIds) await sendPush("owner_question", result.restaurantId, questionId);
   try {
     const handle = await tasks.trigger("restaurant-lookup", { restaurantId: result.restaurantId, jobId: result.jobId }, {
       idempotencyKey: `lookup-${result.jobId}`,
