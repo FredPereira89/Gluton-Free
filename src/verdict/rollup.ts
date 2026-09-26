@@ -183,8 +183,10 @@ export type Rollup = {
   }[];
   sourceHistory: SourceHistory[];
   sourceReadings: SourceReading[];
-  /** The newest confirmed Change point, if any (ADR 0007); mirrors the input, always null until issue #58. */
+  /** The newest confirmed Change point, if any (ADR 0007); mirrors the input. */
   changePointAt: string | null;
+  /** Mirrors the input; present only alongside changePointAt. */
+  changePointDescription?: string;
   /** Null unless at least two non-quiet Sources' Tier readings differ (issue #41). */
   disagreement: SourceDisagreement | null;
 };
@@ -688,6 +690,7 @@ export function rollup(input: RollupInput): Rollup {
     sourceHistory: quarterlySourceHistory(input.reviews, now, input.sourceCodes),
     sourceReadings,
     changePointAt: input.changePointAt?.toISOString() ?? null,
+    changePointDescription: input.changePointAt ? input.changePointDescription : undefined,
     disagreement,
   };
   return result;

@@ -41,6 +41,8 @@ vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, 
     await runRejudge(p.restaurantId, async () => {}, { cause: "owner_answer" });
   } else if (id === "owner-listing-undo") {
     // The worker waits for the API transaction to commit before reading the detached Listing set.
+  } else if (id === "owner-change-point") {
+    // The worker waits for the API transaction (the Change point insert/delete) to commit before re-judging.
   } else if (id === "owner-source-retry") {
     const p = payload as { restaurantId: number; listingId: number; questionId: number; jobId: number };
     await runSourceRetry(p.restaurantId, p.listingId, p.questionId, async () => {}, { jobId: p.jobId });
@@ -718,6 +720,204 @@ describe("Lookup pipeline", () => {
     const [latestVerdict] = await sql!`select blocks from verdict where restaurant_id = ${before!.id} order by id desc limit 1`;
     expect((latestVerdict!.blocks as { rollup: { changePointAt: string | null } }).rollup.changePointAt).toBeNull();
     expect(fakeVendorCalls.reviewPosts).toBe(0);
+  }, 30_000);
+
+  it("declares a Change point that cuts the window, then deleting restores it", async () => {
+    const database = sql!;
+    const { POST: declare } = await import("@/app/api/v1/restaurants/[slug]/change-points/route");
+    const { DELETE: undeclare } = await import("@/app/api/v1/restaurants/[slug]/change-points/[id]/route");
+    const { runLookup, runRejudge } = await import("./lookup");
+
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    const restaurantSlug = "fictional-change-point-full";
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values (${restaurantSlug}, ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurant!.id}, 'google', 'invented-change-point-google-place', 'https://example.invalid/google', 'pasted'),
+             (${restaurant!.id}, 'tripadvisor', 'invented-change-point-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+    await runLookup(Number(restaurant!.id), async () => {});
+
+    const [initialVerdict] = await database`select state from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(initialVerdict!.state).toBe("verdict");
+
+    const changePointDate = new Date().toISOString().slice(0, 10);
+    const declared = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_chef", date: changePointDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declared.status).toBe(202);
+    const { id: declareJobId } = await declared.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: declareJobId, cause: "owner_answer" });
+
+    const [changePoint] = await sql!`select id from change_point where restaurant_id = ${restaurant!.id} and date = ${changePointDate}`;
+    const [cutVerdict] = await sql!`select state, change_point_id, blocks from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(cutVerdict!.state).toBe("not_enough_evidence");
+    expect(Number(cutVerdict!.change_point_id)).toBe(Number(changePoint!.id));
+    expect((cutVerdict!.blocks as { rollup: { changePointAt: string | null } }).rollup.changePointAt).not.toBeNull();
+
+    // Only the newest Change point matters (ADR 0007): an older one declared afterwards must not
+    // take over from the newer one already governing the Verdict.
+    const olderDate = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    const declaredOlder = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_owner", date: olderDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declaredOlder.status).toBe(202);
+    const { id: olderJobId } = await declaredOlder.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: olderJobId, cause: "owner_answer" });
+
+    const [olderChangePoint] = await sql!`select id from change_point where restaurant_id = ${restaurant!.id} and date = ${olderDate}`;
+    const [verdictAfterOlder] = await sql!`select change_point_id from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(Number(verdictAfterOlder!.change_point_id)).toBe(Number(changePoint!.id));
+
+    // Deleting the older, non-governing Change point changes nothing.
+    const deletedOlder = await undeclare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points/${olderChangePoint!.id}`, {
+      method: "DELETE",
+    }), { params: Promise.resolve({ slug: restaurantSlug, id: String(olderChangePoint!.id) }) });
+    expect(deletedOlder.status).toBe(202);
+    const { id: deleteOlderJobId } = await deletedOlder.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: deleteOlderJobId, cause: "owner_answer" });
+    const [verdictAfterDeletingOlder] = await sql!`select state, change_point_id from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(verdictAfterDeletingOlder!.state).toBe("not_enough_evidence");
+    expect(Number(verdictAfterDeletingOlder!.change_point_id)).toBe(Number(changePoint!.id));
+
+    const deleted = await undeclare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points/${changePoint!.id}`, {
+      method: "DELETE",
+    }), { params: Promise.resolve({ slug: restaurantSlug, id: String(changePoint!.id) }) });
+    expect(deleted.status).toBe(202);
+    const { id: deleteJobId } = await deleted.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: deleteJobId, cause: "owner_answer" });
+
+    const [restoredVerdict] = await sql!`select state, change_point_id, blocks from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(restoredVerdict!.state).toBe("verdict");
+    expect(restoredVerdict!.change_point_id).toBeNull();
+    expect((restoredVerdict!.blocks as { rollup: { changePointAt: string | null } }).rollup.changePointAt).toBeNull();
+  }, 45_000);
+
+  it("re-proposes the Format from Reviews since a new concept or moved Change point, not other kinds", async () => {
+    const database = sql!;
+    const { POST: declare } = await import("@/app/api/v1/restaurants/[slug]/change-points/route");
+    const { runLookup, runRejudge } = await import("./lookup");
+
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    const restaurantSlug = "fictional-change-point-format";
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values (${restaurantSlug}, ${fixture.restaurant}, 'Lisbon', 'fine_dining', 'owner') returning id`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurant!.id}, 'google', 'invented-change-point-format-google-place', 'https://example.invalid/google', 'pasted'),
+             (${restaurant!.id}, 'tripadvisor', 'invented-change-point-format-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+    await runLookup(Number(restaurant!.id), async () => {});
+    const [afterLookup] = await database`select format, format_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(afterLookup).toMatchObject({ format: "fine_dining", format_provenance: "owner" });
+
+    // A new owner doesn't change the Format: an owner-confirmed Format is left alone.
+    const ownerChangeDate = new Date().toISOString().slice(0, 10);
+    const declaredOwner = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_owner", date: ownerChangeDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declaredOwner.status).toBe(202);
+    const { id: ownerJobId } = await declaredOwner.json() as { id: number };
+    const [afterOwnerDeclared] = await database`select format_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(afterOwnerDeclared!.format_provenance).toBe("owner");
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: ownerJobId, cause: "owner_answer" });
+    const [afterOwnerRejudge] = await database`select format, format_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(afterOwnerRejudge).toMatchObject({ format: "fine_dining", format_provenance: "owner" });
+
+    // A new concept re-proposes the Format (ADR 0007): the earlier owner confirmation predates it.
+    const conceptChangeDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const declaredConcept = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_concept", date: conceptChangeDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declaredConcept.status).toBe(202);
+    const { id: conceptJobId } = await declaredConcept.json() as { id: number };
+    const [afterConceptDeclared] = await database`select format_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(afterConceptDeclared!.format_provenance).toBe("llm");
+
+    // The Change point is dated tomorrow, after every fixture Review, so the proposal is read
+    // from no Reviews at all: there is nothing to propose, and the Format itself stays untouched.
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: conceptJobId, cause: "owner_answer" });
+    const [afterConceptRejudge] = await database`select format, format_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(afterConceptRejudge).toMatchObject({ format: "fine_dining", format_provenance: "llm" });
+  }, 30_000);
+
+  it("proposes a new Format from Reviews since a new concept Change point, overriding an owner confirmation", async () => {
+    const database = sql!;
+    const { POST: declare } = await import("@/app/api/v1/restaurants/[slug]/change-points/route");
+    const { runLookup, runRejudge } = await import("./lookup");
+
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    const restaurantSlug = "fictional-change-point-format-applied";
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values (${restaurantSlug}, ${fixture.restaurant}, 'Lisbon', 'fine_dining', 'owner') returning id`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurant!.id}, 'google', 'invented-change-point-format-applied-google-place', 'https://example.invalid/google', 'pasted'),
+             (${restaurant!.id}, 'tripadvisor', 'invented-change-point-format-applied-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+    await runLookup(Number(restaurant!.id), async () => {});
+
+    // Dated today: at least the newest fixture Reviews fall on or after it, so the reading has
+    // Reviews since the change to read, and the fake reading's Format ("tasca") is applied.
+    const conceptChangeDate = new Date().toISOString().slice(0, 10);
+    const declared = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_concept", date: conceptChangeDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declared.status).toBe(202);
+    const { id: jobId } = await declared.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId, cause: "owner_answer" });
+
+    const [after] = await database`select format, format_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(after).toMatchObject({ format: "tasca", format_provenance: "llm" });
+  }, 30_000);
+
+  it("does not re-propose the Format for a backdated new concept behind a later, non-reproposing Change point", async () => {
+    const database = sql!;
+    const { POST: declare } = await import("@/app/api/v1/restaurants/[slug]/change-points/route");
+    const { runLookup, runRejudge } = await import("./lookup");
+
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    const restaurantSlug = "fictional-change-point-format-backdated";
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values (${restaurantSlug}, ${fixture.restaurant}, 'Lisbon', 'fine_dining', 'owner') returning id`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurant!.id}, 'google', 'invented-change-point-format-backdated-google-place', 'https://example.invalid/google', 'pasted'),
+             (${restaurant!.id}, 'tripadvisor', 'invented-change-point-format-backdated-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+    await runLookup(Number(restaurant!.id), async () => {});
+
+    // The newest, governing Change point is a new owner (tomorrow): it does not re-propose the Format.
+    const ownerChangeDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const declaredOwner = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_owner", date: ownerChangeDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declaredOwner.status).toBe(202);
+    const { id: ownerJobId } = await declaredOwner.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: ownerJobId, cause: "owner_answer" });
+
+    // A new concept backdated to yesterday, before the new owner: it is not the governing Change
+    // point (the new owner, dated later, still is), so it must not flip format_provenance either.
+    const conceptChangeDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const declaredConcept = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_concept", date: conceptChangeDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declaredConcept.status).toBe(202);
+    const { id: conceptJobId } = await declaredConcept.json() as { id: number };
+    const [afterConceptDeclared] = await database`select format_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(afterConceptDeclared!.format_provenance).toBe("owner");
+
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: conceptJobId, cause: "owner_answer" });
+    const [after] = await database`select format, format_provenance from restaurant where id = ${restaurant!.id}`;
+    expect(after).toMatchObject({ format: "fine_dining", format_provenance: "owner" });
   }, 30_000);
 
   it("dismisses a Format question while preserving and pinning its proposed Format", async () => {

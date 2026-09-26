@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import type { Aspect, FlagType } from "@/domain/aspects";
+import type postgres from "postgres";
+import { CHANGE_POINT_LABEL, type Aspect, type ChangePointKind, type FlagType } from "@/domain/aspects";
 import { db } from "@/lib/db";
 import type { LlmUsage } from "@/lib/job";
 import { BlocksSchema } from "./blocks";
@@ -10,8 +11,12 @@ import { stabilizeTier, type RejudgeCause } from "./stability";
 
 const FORMAT_NAME: Record<string, string> = { tasca: "tasca" };
 
-// changePointAt is null until #58 (Declare and delete Change points) adds storage for it.
-export async function loadRollupInput(restaurantId: number, now = new Date(), changePointAt: Date | null = null) {
+export async function loadRollupInput(
+  restaurantId: number,
+  now = new Date(),
+  changePointAt: Date | null = null,
+  changePointDescription?: string,
+) {
   const sql = db();
   const [restaurant] = await sql`select id, name, city, format from restaurant where id = ${restaurantId}`;
   if (!restaurant) throw new Error(`restaurant ${restaurantId} not found`);
@@ -57,12 +62,21 @@ export async function loadRollupInput(restaurantId: number, now = new Date(), ch
   }));
   return { restaurant, input: {
     now, city: restaurant.city as string, format: restaurant.format as string,
-    reviews, sourceCodes: sourceRows.map((row) => row.source_code as string), flags, changePointAt,
+    reviews, sourceCodes: sourceRows.map((row) => row.source_code as string), flags, changePointAt, changePointDescription,
     failedSourceCodes: sourceRows.filter((row) => row.fetch_status === "failed").map((row) => row.source_code as string),
   } };
 }
 
-async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> {
+/** The Change point that governs the next Verdict: only the newest confirmed one matters (ADR 0007). */
+export async function loadNewestChangePoint(restaurantId: number, sql: postgres.Sql | postgres.TransactionSql = db()) {
+  const [row] = await sql`
+    select id, kind, date from change_point where restaurant_id = ${restaurantId} and deleted_at is null
+    order by date desc, id desc limit 1`;
+  if (!row) return null;
+  return { id: Number(row.id), date: new Date(row.date as string), kind: row.kind as ChangePointKind };
+}
+
+async function quoteCandidates(restaurantId: number, changePointAt: Date | null): Promise<QuoteCandidate[]> {
   const rows = await db()`
     select a.review_id, a.quote, a.quote_aspect, a.quote_polarity, a.quote_en, r.language, r.stars, l.source_code, s.access, r.published_at
     from review_analysis a
@@ -70,7 +84,8 @@ async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> 
     join listing l on l.id = r.listing_id
     join source s on s.code = l.source_code
     where l.restaurant_id = ${restaurantId} and a.quote is not null
-      and r.published_at > now() - interval '24 months'`;
+      and r.published_at > now() - interval '24 months'
+      and (${changePointAt}::timestamptz is null or r.published_at >= ${changePointAt})`;
   return rows.map((q) => ({
     reviewId: Number(q.review_id),
     aspect: q.quote_aspect as Aspect,
@@ -88,14 +103,17 @@ async function quoteCandidates(restaurantId: number): Promise<QuoteCandidate[]> 
 /** Computes and appends a Verdict. Format, Listing, Change point and undo answers use owner_answer. */
 export async function issueVerdict(restaurantId: number, jobId: number | null, usage: LlmUsage, cause: RejudgeCause): Promise<number> {
   const sql = db();
-  const { restaurant, input } = await loadRollupInput(restaurantId);
+  const changePoint = await loadNewestChangePoint(restaurantId);
+  const { restaurant, input } = await loadRollupInput(
+    restaurantId, new Date(), changePoint?.date ?? null, changePoint ? CHANGE_POINT_LABEL[changePoint.kind] : undefined,
+  );
   const [previous] = await sql`
     select blocks, explanation, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
   const priorBlocks = previous ? BlocksSchema.parse(previous.blocks) : null;
   const priorRollup = priorBlocks?.rollup ?? null;
   const r = stabilizeTier(rollup({ ...input, peerSnapshot: await loadCurrentPeerSnapshot() }), priorRollup, cause, input.now);
   const formatName = FORMAT_NAME[input.format] ?? input.format;
-  const candidates = preselect(await quoteCandidates(restaurantId));
+  const candidates = preselect(await quoteCandidates(restaurantId, changePoint?.date ?? null));
   const inputsHash = createHash("sha256").update(JSON.stringify({
     facts: explanationFacts(restaurant.name as string, formatName, r),
     candidates: candidates.map(({ reviewId, aspect, polarity, text, lang, stars, source, publishedAt }) =>
@@ -110,9 +128,9 @@ export async function issueVerdict(restaurantId: number, jobId: number | null, u
     );
   const blocks = BlocksSchema.parse({ rollup: r, quotes });
   const [row] = await sql`
-    insert into verdict (restaurant_id, job_id, peer_snapshot_id, state, tier, confidence, provisional, blocks, explanation, inputs_hash)
+    insert into verdict (restaurant_id, job_id, peer_snapshot_id, state, tier, confidence, provisional, blocks, explanation, inputs_hash, change_point_id)
     values (${restaurantId}, ${jobId}, ${r.peerSnapshot?.id ?? null}, ${r.state}, ${r.tier}, ${r.state === "verdict" ? r.confidence.level : null},
-            ${r.provisional}, ${sql.json(blocks as never)}, ${explanation}, ${inputsHash})
+            ${r.provisional}, ${sql.json(blocks as never)}, ${explanation}, ${inputsHash}, ${changePoint?.id ?? null})
     returning id`;
   return Number(row!.id);
 }

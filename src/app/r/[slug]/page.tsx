@@ -17,6 +17,7 @@ import { OwnerQuestions, SourceRetryBanners } from "@/web/owner-questions";
 import { ListingUndo } from "@/web/listing-undo";
 import { RestaurantFactsEditor } from "@/web/restaurant-facts";
 import { Distinctions } from "@/web/distinctions";
+import { ChangePoints } from "@/web/change-points";
 import { CriticPieces } from "@/web/critic-pieces";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -87,7 +88,13 @@ export default async function VerdictPageRoute({ params }: Props) {
   }
 
   const r = v.blocks.rollup;
-  const tierChange = r.tierChange && <p className="small muted">Was {TIER_LABEL[r.tierChange.from]} until {dateLabel(r.tierChange.at)}</p>;
+  const changePointLine = r.changePointAt && (
+    <p className="small muted">
+      Re-judged on Reviews since {r.changePointDescription ? `${r.changePointDescription}, ` : ""}{dateLabel(r.changePointAt)}
+      {r.tierChange && r.tierChangedNow && <>; was {TIER_LABEL[r.tierChange.from]}</>}
+    </p>
+  );
+  const tierChange = changePointLine ?? (r.tierChange && <p className="small muted">Was {TIER_LABEL[r.tierChange.from]} until {dateLabel(r.tierChange.at)}</p>);
   const perSource = r.counts.perSource;
   const sourceByCode = new Map(page.sources.map((s) => [s.code, s]));
 
@@ -119,6 +126,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             {baseChips}
             {r.provisional && <span className="chip prov">Provisional</span>}
           </div>
+          {changePointLine}
           {nee.reasonLine && <p className="explain">{nee.reasonLine}</p>}
           {v.explanation && (
             <p className="explain">
@@ -421,12 +429,10 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
           <ul>{page.series.map((point) => <li key={point.quarter}>{point.quarter}: {point.volume} Reviews, {point.textVolume} with text</li>)}</ul>
         </div>
       )}
-      {page.changePoints.length > 0 && (
-        <div>
-          <h2>Change points</h2>
-          <ul>{page.changePoints.map((point) => <li key={point.occurredOn}>{point.occurredOn}: {point.description}</li>)}</ul>
-        </div>
-      )}
+      <div>
+        <h2>Change points</h2>
+        <ChangePoints slug={page.restaurant.slug} items={page.changePoints} disabled={page.activeJob !== null} />
+      </div>
       {page.ownerQuestions.length > 0 && (
         <div>
           <h2>Owner questions</h2>

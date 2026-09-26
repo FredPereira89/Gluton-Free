@@ -27,6 +27,8 @@ describe("Tier stability between automatic re-judges", () => {
     const moved = stabilizeTier(verdict("good", 47), held, "automatic", now);
     expect(moved.tier).toBe("good");
     expect(moved.tierChange).toEqual({ from: "ok", at: now.toISOString() });
+    expect(moved.tierChangedNow).toBe(true);
+    expect(held.tierChangedNow).toBe(false);
   });
 
   it("also holds a one-point downward crossing and moves at two points", () => {
@@ -66,5 +68,8 @@ describe("Tier stability between automatic re-judges", () => {
     const later = stabilizeTier(verdict("ok", 44), ownerResult, "automatic", new Date("2026-11-01T12:00:00.000Z"));
     expect(later.tier).toBe("good");
     expect(later.tierChange).toEqual({ from: "ok", at: now.toISOString() });
+    // The move happened at `ownerResult`'s re-judge, not this later held one: only the former is fresh.
+    expect(ownerResult.tierChangedNow).toBe(true);
+    expect(later.tierChangedNow).toBe(false);
   });
 });

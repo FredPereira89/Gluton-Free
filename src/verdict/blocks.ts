@@ -23,6 +23,8 @@ export const RollupSchema = z.strictObject({
   state: z.enum(["verdict", "not_enough_evidence"]),
   tier: z.enum(TIERS).nullable(),
   tierChange: z.strictObject({ from: z.enum(TIERS), at: z.iso.datetime() }).optional(),
+  // Optional so Verdicts issued before this Change-point staleness fix (issue #58) remain readable.
+  tierChangedNow: z.boolean().optional(),
   tierBasis: z.strictObject({
     composite: z.number(),
     standings: z.array(z.strictObject({ input: z.enum(INPUTS), percentile: z.number() })),
@@ -108,6 +110,7 @@ export const RollupSchema = z.strictObject({
   })).optional(),
   // Optional so Verdicts issued before Change points were surfaced (issue #41; storage lands in #58) remain readable.
   changePointAt: z.iso.datetime().nullable().optional(),
+  changePointDescription: z.string().optional(),
   // Optional so Verdicts issued before the disagreement line (issue #41) remain readable.
   disagreement: z.strictObject({
     sources: z.array(z.strictObject({ source: z.string(), tier: z.enum(TIERS) })),
