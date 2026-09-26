@@ -408,9 +408,13 @@ export function quarterlySourceHistory(reviews: Pick<RollupReview, "source" | "p
  * text Review has no window and contributes nothing. Reviews outside the window are simply left out
  * of the result — nothing is deleted, they just stop counting.
  */
-export function applyReviewWindow(reviews: RollupReview[], now: Date, changePointAt: Date | null): RollupReview[] {
+export function reviewWindowCutoff(now: Date, changePointAt: Date | null): Date {
   const maxAge = new Date(now.getTime() - PARAMS.reviewWindowMaxAgeMonths * MONTH_MS);
-  const cutoff = changePointAt && changePointAt > maxAge ? changePointAt : maxAge;
+  return changePointAt && changePointAt > maxAge ? changePointAt : maxAge;
+}
+
+export function applyReviewWindow(reviews: RollupReview[], now: Date, changePointAt: Date | null): RollupReview[] {
+  const cutoff = reviewWindowCutoff(now, changePointAt);
 
   const bySource = new Map<string, RollupReview[]>();
   for (const r of reviews) {
