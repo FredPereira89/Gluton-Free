@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
 import { fakePushSends, fakeSendPush } from "./push-fake";
-import { fakeAnthropic, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState } from "./vendor-fakes";
+import { fakeAnthropic, fakeChangeMarker, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState } from "./vendor-fakes";
 
 vi.mock("@/lib/push-send", () => ({ sendPush: (...args: Parameters<typeof fakeSendPush>) => fakeSendPush(...args) }));
 
@@ -127,7 +127,9 @@ describe("Lookup pipeline", () => {
              (${restaurantId}, 'tripadvisor', 'invented-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
 
     const { runLookup } = await import("./lookup");
+    fakeChangeMarker.value = "new_owner";
     const result = await runLookup(restaurantId, async () => {});
+    fakeChangeMarker.value = "none";
     const reviews = await database`select source_review_id, text from review order by source_review_id`;
     const analyses = await database`select a.review_id, a.change from review_analysis a join review r on r.id = a.review_id join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurantId}`;
     const [verdict] = await database`select state, tier, provisional, job_id from verdict where restaurant_id = ${restaurantId}`;
@@ -1118,5 +1120,93 @@ describe("Lookup pipeline", () => {
     expect(responses.map((response) => response.status).sort((a, b) => a - b)).toEqual([202, 409]);
     const conflict = responses.find((response) => response.status === 409)!;
     expect((await conflict.json()).code).toBe("already_settled");
+  }, 30_000);
+
+  it("proposes a Change point after lookup, waits for three new mentions after rejection, and re-judges an edited confirmation", async () => {
+    const database = sql!;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-change-proposal', 'Fictional Renovated Restaurant', 'Lisbon', 'tasca', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'google', 'invented-change-proposal-google', 'https://example.invalid/change-proposal', 'pasted')`;
+    const { runLookup, runRejudge } = await import("./lookup");
+    fakeChangeMarker.value = "renovated";
+    try {
+      await runLookup(restaurantId, async () => {});
+    } finally {
+      fakeChangeMarker.value = "none";
+    }
+    const [first] = await database`
+      select id, payload from owner_question where restaurant_id = ${restaurantId} and kind = 'change_point'`;
+    expect(first?.payload).toMatchObject({ kind: "renovated", reason: "mentions", mentionCount: 8 });
+
+    const { POST: reject } = await import("@/app/api/v1/owner-questions/[id]/reject-change-point/route");
+    const rejected = await reject(new Request(`http://localhost/api/v1/owner-questions/${first!.id}/reject-change-point`, { method: "POST" }),
+      { params: Promise.resolve({ id: String(first!.id) }) });
+    expect(rejected.status).toBe(200);
+    const [dismissed] = await database`select status, payload from owner_question where id = ${first!.id}`;
+    expect(dismissed).toMatchObject({ status: "dismissed", payload: { mentionCount: 8 } });
+
+    const { raiseChangePointProposal } = await import("@/lib/change-point-proposal");
+    const [listing] = await database`select id from listing where restaurant_id = ${restaurantId}`;
+    for (let i = 1; i <= 3; i++) {
+      const [review] = await database`
+        insert into review (listing_id, source_review_id, published_at, text)
+        values (${listing!.id}, ${`new-mention-${i}`}, now() - ${i} * interval '1 day', 'Invented renovated Restaurant mention')
+        returning id`;
+      await database`
+        insert into review_analysis (review_id, extractor_version, exceptional, change)
+        values (${review!.id}, 'test', 'none', 'renovated')`;
+      const proposed = await raiseChangePointProposal(restaurantId);
+      expect(Boolean(proposed)).toBe(i === 3);
+    }
+    const [again] = await database`
+      select id, payload from owner_question where restaurant_id = ${restaurantId} and kind = 'change_point' and status = 'open'`;
+    const editedDate = "2025-05-20";
+    const { POST: confirm } = await import("@/app/api/v1/restaurants/[slug]/change-points/route");
+    const confirmed = await confirm(new Request("http://localhost/api/v1/restaurants/fictional-change-proposal/change-points", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "renovated", date: editedDate, questionId: Number(again!.id) }),
+    }), { params: Promise.resolve({ slug: "fictional-change-proposal" }) });
+    expect(confirmed.status).toBe(202);
+    const [point] = await database`
+      select id, provenance, date::text as date from change_point where restaurant_id = ${restaurantId}`;
+    expect(point).toMatchObject({ provenance: "proposed_confirmed", date: editedDate });
+    const before = await database`select count(*)::int as total from verdict where restaurant_id = ${restaurantId}`;
+    await runRejudge(restaurantId, async () => {}, { cause: "owner_answer" });
+    const after = await database`select count(*)::int as total from verdict where restaurant_id = ${restaurantId}`;
+    expect(after[0]!.total).toBe(before[0]!.total + 1);
+    const [latest] = await database`
+      select change_point_id from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    expect(Number(latest!.change_point_id)).toBe(Number(point!.id));
+    const open = await database`
+      select id from owner_question where restaurant_id = ${restaurantId} and kind = 'change_point' and status = 'open'`;
+    expect(open).toHaveLength(0);
+  }, 30_000);
+
+  it("never checks a Baseline Peer for Change point proposals", async () => {
+    const database = sql!;
+    const [peer] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-baseline-change-peer', 'Fictional Baseline Peer', 'Lisbon', 'tasca', 'baseline_auto') returning id`;
+    const peerId = Number(peer!.id);
+    await database`insert into job (kind, restaurant_id, status) values ('baseline', ${peerId}, 'succeeded')`;
+    const [listing] = await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${peerId}, 'google', 'invented-baseline-change-peer', 'https://example.invalid/baseline-change-peer', 'pasted') returning id`;
+    for (let i = 0; i < 3; i++) {
+      const [review] = await database`
+        insert into review (listing_id, source_review_id, published_at, text)
+        values (${listing!.id}, ${`peer-change-${i}`}, now() - ${i} * interval '1 day', 'Invented new owner mention') returning id`;
+      await database`
+        insert into review_analysis (review_id, extractor_version, exceptional, change)
+        values (${review!.id}, 'test', 'none', 'new_owner')`;
+    }
+    const { raiseChangePointProposal } = await import("@/lib/change-point-proposal");
+    expect(await raiseChangePointProposal(peerId)).toBeUndefined();
+    const questions = await database`select id from owner_question where restaurant_id = ${peerId}`;
+    expect(questions).toHaveLength(0);
   }, 30_000);
 });

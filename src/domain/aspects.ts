@@ -66,10 +66,11 @@ export const CHANGE_MARKERS = ["none", "new_owner", "new_chef", "renovated", "ne
 export type ChangeMarker = (typeof CHANGE_MARKERS)[number];
 
 /** Owner-declared Change point kind (ADR 0007, issue #58): a dated event that cuts the Review window. */
-export const CHANGE_POINT_KINDS = ["reopened", "new_owner", "new_chef", "new_concept", "moved"] as const;
+export const CHANGE_POINT_KINDS = ["reopened", "renovated", "new_owner", "new_chef", "new_concept", "moved"] as const;
 export type ChangePointKind = (typeof CHANGE_POINT_KINDS)[number];
 export const CHANGE_POINT_LABEL: Record<ChangePointKind, string> = {
   reopened: "Reopened",
+  renovated: "Renovated",
   new_owner: "New owner",
   new_chef: "New head chef",
   new_concept: "New concept",

@@ -8,7 +8,7 @@ import { THEMES, THEME_CODES, THEME_VOCAB_VERSION, type ThemeCode } from "@/doma
 import type { LlmUsage } from "@/lib/job";
 import { addUsage, anthropic, EXTRACT_MODEL } from "./llm";
 
-export const EXTRACTOR_VERSION = `${EXTRACT_MODEL}|extract-v3|${THEME_VOCAB_VERSION}`;
+export const EXTRACTOR_VERSION = `${EXTRACT_MODEL}|extract-v4|${THEME_VOCAB_VERSION}`;
 export const CHUNK = 20;
 
 const score = z.number().int().nullable();
@@ -130,7 +130,7 @@ null when the Review does not speak to that Aspect. Most Reviews leave several A
 
 ## Change
 
-new_owner, new_chef, renovated, new_concept, or moved only when the Review's own text says this Restaurant itself changed hands, changed its head chef, was renovated, changed concept or menu direction, or moved address. A reviewer merely noting it "used to be better" without naming what changed is not enough. Otherwise none.
+new_owner, new_chef, renovated, new_concept, or moved only when the Review's own text says this Restaurant itself changed hands, changed its head chef, was renovated, changed concept or menu direction, or moved address. Building works at this Restaurant ("obras"), including a reservation it cancelled because of those works, count as renovated even before reopening. A reviewer merely noting it "used to be better" without naming what changed is not enough. Otherwise none.
 
 ## Themes
 
@@ -172,6 +172,16 @@ function requestParams(items: ExtractInput[]) {
 const clampScore = (v: number | null): number | null => (v === null ? null : Math.max(-2, Math.min(2, Math.round(v))));
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
 
+/** Clear renovation statements survive model variation caused by other Reviews in the batch. */
+export function explicitRenovation(text: string): boolean {
+  const oneLine = squash(text);
+  return /\b(?:renovated|refurbished|remodelled|remodeled)\s+(?:the|this|our)\s+(?:restaurant|place|dining room)\b/iu.test(oneLine)
+    || /\b(?:restaurant|place|dining room)\s+(?:was|has been|had been|is)\s+(?:recently\s+|just\s+)?(?:renovated|refurbished|remodelled|remodeled)\b/iu.test(oneLine)
+    || /\b(?:restaurante|espaço|local)\s+(?:foi|está|acabou de ser)\s+(?:renovad[oa]|remodelad[oa])\b/iu.test(oneLine)
+    || /\brestaurante\s+(?:cancelou|desmarcou)\b.{0,120}\b(?:devido a obras|por obras|para obras)\b/iu.test(oneLine)
+    || /\b(?:cancelou|cancelada|cancelamento|desmarcou|desmarcações)\b.{0,120}\b(?:devido a obras|por obras|para obras)\b.{0,100}\b(?:a pedido do restaurante|no restaurante)\b/iu.test(oneLine);
+}
+
 /** Validates one model entry against its Review. Drops a quote that is not verbatim. */
 function toExtracted(out: LenientEntry, input: ExtractInput): Extracted {
   const aspects = Object.fromEntries(ASPECTS.map((a) => [a, clampScore(out[a])])) as Record<Aspect, number | null>;
@@ -186,7 +196,7 @@ function toExtracted(out: LenientEntry, input: ExtractInput): Extracted {
     lang: out.lang.toLowerCase().slice(0, 8),
     aspects,
     exceptional: out.exceptional,
-    change: out.change,
+    change: out.change === "none" && explicitRenovation(input.text) ? "renovated" : out.change,
     flags: out.flags.flatMap((f) => (isFlagType(f.type) ? [{ type: f.type, firstHand: f.first_hand, severity: f.severity, evidence: f.evidence.slice(0, 300) }] : [])),
     themes: [...new Set(out.themes.filter(isTheme))].slice(0, 3),
     quote,

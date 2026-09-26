@@ -4,6 +4,47 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { OwnerQuestion } from "@/lib/api-contract";
 import { acceptedJobSchema } from "@/lib/api-contract";
+import { CHANGE_POINT_LABEL } from "@/domain/aspects";
+
+function ChangePointQuestion({ slug, question }: { slug: string; question: Extract<OwnerQuestion, { kind: "change_point" }> }) {
+  const router = useRouter();
+  const [date, setDate] = useState(question.proposedDate);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function settle(confirm: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = confirm
+        ? await fetch(`/api/v1/restaurants/${encodeURIComponent(slug)}/change-points`, {
+            method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
+            body: JSON.stringify({ kind: question.proposedKind, date, questionId: question.id }),
+          })
+        : await fetch(`/api/v1/owner-questions/${question.id}/reject-change-point`, { method: "POST", cache: "no-store" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(body?.detail ?? "Could not save your answer. Try again.");
+      }
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save your answer. Try again.");
+      setBusy(false);
+    }
+  }
+
+  return <article className="owner-question">
+    <h3>{question.prompt}</h3>
+    <p className="small muted">Proposed: {CHANGE_POINT_LABEL[question.proposedKind]} ({question.reason === "gap" ? "Review gap" : `${question.mentionCount} Review mentions`}).</p>
+    <label className="field">Change date
+      <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required disabled={busy} />
+    </label>
+    <button type="button" className="btn" disabled={busy || !date} onClick={() => void settle(true)}>Confirm and re-judge</button>{" "}
+    <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void settle(false)}>Reject proposal</button>
+    {busy && <p className="small muted" role="status">Saving your answer…</p>}
+    {error && <p className="error" role="alert">{error}</p>}
+  </article>;
+}
 
 function formatDistance(meters: number | null): string {
   if (meters === null) return "Distance unavailable";
@@ -16,7 +57,7 @@ export function OwnerQuestions({ slug, questions }: { slug: string; questions: O
   const [error, setError] = useState<string | null>(null);
   const [settled, setSettled] = useState<number | null>(null);
 
-  async function answer(question: OwnerQuestion, selection: { answer: "accept"; placeRef: string } | { answer: "none" }) {
+  async function answer(question: Extract<OwnerQuestion, { kind: "listing_match" }>, selection: { answer: "accept"; placeRef: string } | { answer: "none" }) {
     setSubmitting(question.id);
     setError(null);
     try {
@@ -61,7 +102,9 @@ export function OwnerQuestions({ slug, questions }: { slug: string; questions: O
   }
 
   return <div className="owner-questions" aria-live="polite">
-    {questions.filter((question) => question.kind !== "retry_source").map((question) => question.kind === "format" ? (
+    {questions.filter((question) => question.kind !== "retry_source").map((question) => question.kind === "change_point" ? (
+      <ChangePointQuestion key={question.id} slug={slug} question={question} />
+    ) : question.kind === "format" ? (
       <article className="owner-question" key={question.id}>
         <h3>{question.prompt}</h3>
         <p className="small muted">Proposed Format: <strong>{question.proposedFormat.replaceAll("_", " ")}</strong></p>

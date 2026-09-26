@@ -3,6 +3,7 @@ import fixture from "./fixtures/lookup.json";
 const usage = { input_tokens: 100, output_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
 const sources = { google: fixture.googleReviews, tripadvisor: fixture.tripadvisorReviews };
 export const fakeRestaurantFacts = { googleCategoryDisagrees: false };
+export const fakeChangeMarker = { value: "none" };
 export const fakeVendorCalls = { reviewPosts: 0 };
 export const sourceFetchFailureState: { source: "google" | "tripadvisor" | null; taskPostFailures: number; taskGetFailures: number } = {
   source: null,
@@ -99,7 +100,7 @@ export const fakeAnthropic = {
       return {
         usage,
         content: [{ type: "text", text: JSON.stringify({ reviews: ids.map((id) => ({
-          i: id, ...fixture.anthropic.analysis,
+          i: id, ...fixture.anthropic.analysis, change: fakeChangeMarker.value,
         })) }) }],
       };
     },
