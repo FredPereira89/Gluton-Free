@@ -12,7 +12,7 @@ import { normaliseGoogle, normaliseTripadvisor } from "@/ingest/normalise";
 import { storeListingFetch } from "@/ingest/store";
 import { db } from "@/lib/db";
 import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage, type LookupStage } from "@/lib/job";
-import { raiseFailedLookupQuestion } from "@/lib/owner-question";
+import { raiseFailedLookupQuestion, raiseFormatQuestion } from "@/lib/owner-question";
 import { toPipelineError } from "@/lib/pipeline-error";
 import { issueVerdict } from "@/verdict/issue";
 import { PARAMS } from "@/verdict/rollup";
@@ -165,19 +165,30 @@ export async function judgeRestaurant(restaurantId: number, jobId: number, cause
     ) windowed where source_rank <= ${PARAMS.reviewWindowCap}
     order by published_at desc`;
   const sourcePrices = listings.map((l) => ({ source: l.source_code as string, priceLevel: l.price_level as string | null }));
+  const googleCategories = listings.find((listing) => listing.source_code === "google")?.categories as string[] | null ?? [];
   const needReading = restaurant?.format_provenance !== "owner"
     || (choosePriceTier(sourcePrices, null) === null && restaurant?.price_provenance !== "owner");
   const factsUsage = emptyUsage("restaurant-facts", EXTRACT_MODEL, false);
   const reading = needReading ? await readRestaurantFacts(
     reviews.map((r) => r.text as string),
     listings.flatMap((listing) => listing.categories as string[] | null ?? []),
+    googleCategories,
     factsUsage,
   ) : null;
   if (factsUsage.requests) await addLlmUsage(jobId, factsUsage);
-  if (reading) await sql`
-    update restaurant set format = ${reading.format}, format_provenance = 'llm',
-      format_changed_at = case when format is distinct from ${reading.format} then now() else format_changed_at end
-    where id = ${restaurantId} and format_provenance <> 'owner'`;
+  if (reading) {
+    await sql.begin(async (tx) => {
+      const [current] = await tx`select format_provenance from restaurant where id = ${restaurantId} for update`;
+      if (current?.format_provenance === "owner") return;
+      await tx`
+        update restaurant set format = ${reading.format}, format_provenance = 'llm',
+          format_changed_at = case when format is distinct from ${reading.format} then now() else format_changed_at end
+        where id = ${restaurantId}`;
+      if (reading.googleCategoryDisagrees && googleCategories.length) {
+        await raiseFormatQuestion(tx, restaurantId, reading.format, googleCategories);
+      }
+    });
+  }
   const price = choosePriceTier(sourcePrices, reading?.reviewPriceTier ?? null);
   if (price) await sql`
     update restaurant set price_tier = ${price.tier}, price_provenance = ${price.provenance}

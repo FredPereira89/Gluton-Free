@@ -38,8 +38,41 @@ export function OwnerQuestions({ slug, questions }: { slug: string; questions: O
     }
   }
 
+  async function keepProposedFormat(question: Extract<OwnerQuestion, { kind: "format" }>) {
+    setSubmitting(question.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/owner-questions/${question.id}/dismiss`, {
+        method: "POST",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { detail?: string; title?: string } | null;
+        throw new Error(body?.detail ?? body?.title ?? "Could not save your answer. Try again.");
+      }
+      setSubmitting(null);
+      setSettled(question.id);
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save your answer. Try again.");
+      setSubmitting(null);
+    }
+  }
+
   return <div className="owner-questions" aria-live="polite">
-    {questions.map((question) => (
+    {questions.map((question) => question.kind === "format" ? (
+      <article className="owner-question" key={question.id}>
+        <h3>{question.prompt}</h3>
+        <p className="small muted">Proposed Format: <strong>{question.proposedFormat.replaceAll("_", " ")}</strong></p>
+        <button type="button" className="btn btn-secondary" disabled={submitting !== null || settled !== null}
+          onClick={() => void keepProposedFormat(question)}>
+          Keep proposed Format
+        </button>
+        {submitting === question.id && <p className="small muted" role="status">Saving your answer…</p>}
+        {settled === question.id && <p className="small muted" role="status">Format saved. Refreshing the Restaurant page…</p>}
+        {error && <p className="error" role="alert">{error}</p>}
+      </article>
+    ) : (
       <article className="owner-question" key={question.id}>
         <h3>{question.prompt}</h3>
         <ul className="owner-question-candidates">

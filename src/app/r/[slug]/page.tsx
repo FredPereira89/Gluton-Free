@@ -14,6 +14,8 @@ import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
 import { OwnerQuestions } from "@/web/owner-questions";
+import { ListingUndo } from "@/web/listing-undo";
+import { RestaurantFactsEditor } from "@/web/restaurant-facts";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -151,6 +153,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         </section>
         <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} hideExtras />
+        <BundleExtras page={page} />
       </div>
     );
   }
@@ -358,6 +361,11 @@ function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page
                       {s.name} ↗
                     </a>
                     <div className="small muted">{s.kind === "crowd" ? "Crowd Source" : "Editorial Source"}{reading?.quiet && " · quiet"}</div>
+                    {s.matchProvenance === "auto_accepted" && (
+                      <div className="source-undo">
+                        <ListingUndo slug={page.restaurant.slug} source={s.code} disabled={page.activeJob !== null} />
+                      </div>
+                    )}
                   </td>
                   <td>
                     <span className={`acc ${s.access === "personal_only" ? "personal" : "public"}`}>
@@ -410,10 +418,12 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
   const history = r?.sourceHistory ?? [];
   const showComposite = !!r && !r.provisional && r.series.some((q) => q.compositePercentile != null);
   const disagreement = r?.disagreement;
-  if (!page.activeJob && !page.series.length && !history.length && !page.changePoints.length && !page.ownerQuestions.length && !showComposite && !disagreement) return null;
   const names = Object.fromEntries(page.sources.map((s) => [s.code, s.name]));
   return (
     <section className="sec">
+      <h2>Restaurant details</h2>
+      <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
+        priceTier={page.restaurant.priceTier} busy={page.activeJob !== null} />
       {page.activeJob && (
         <p>Current {page.activeJob.kind} job: {page.activeJob.status}{page.activeJob.step ? ` · ${page.activeJob.step}` : ""}.</p>
       )}

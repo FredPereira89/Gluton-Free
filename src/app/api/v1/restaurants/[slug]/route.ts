@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { routes } from "@/lib/api-contract";
-import { parseApiRequest, problemResponse, withApiErrors } from "@/lib/problem";
+import { ApiError, parseApiRequest, problemResponse, requireOwnerApi, withApiErrors } from "@/lib/problem";
+import { updateRestaurantFacts } from "@/lib/restaurant-facts-owner";
 import { loadRestaurantBundle } from "@/web/data";
 
 export const GET = withApiErrors(async (request: Request, { params }: { params: Promise<{ slug: string }> }) => {
@@ -14,4 +15,12 @@ export const GET = withApiErrors(async (request: Request, { params }: { params: 
     return new Response(null, { status: 304, headers });
   }
   return new Response(body, { status: 200, headers: { ...headers, "Content-Type": "application/json" } });
+});
+
+export const PATCH = withApiErrors(async (request: Request, { params }: { params: Promise<{ slug: string }> }) => {
+  await requireOwnerApi(request);
+  const { slug } = parseApiRequest(routes.updateRestaurantFacts.request.params, await params);
+  const body = await request.json().catch(() => { throw new ApiError(400, "invalid_request", "Invalid JSON body"); });
+  const update = parseApiRequest(routes.updateRestaurantFacts.request.body, body);
+  return updateRestaurantFacts(slug, update);
 });

@@ -3,7 +3,9 @@ import { readdirSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
-import { fakeAnthropic, fakeVendorFetch, vendorFailureState } from "./vendor-fakes";
+import { fakeAnthropic, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, vendorFailureState } from "./vendor-fakes";
+
+const triggerControl = vi.hoisted(() => ({ failListingUndo: false }));
 
 const extractFailureState: { armed: boolean } = { armed: false };
 vi.mock("@/analysis/extract", async (importOriginal) => {
@@ -24,12 +26,18 @@ vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
 }));
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, payload: never) => {
+  if (id === "owner-listing-undo" && triggerControl.failListingUndo) throw new Error("Trigger unavailable");
   const { runLookup, runListingFetch, runRejudge } = await import("./lookup");
-  if (id === "owner-listing-answer") {
+  if (id === "owner-format-correction") {
+    // The API commits before Trigger.dev begins processing the queued correction.
+  } else if (id === "owner-listing-answer") {
     const p = payload as { restaurantId: number; listingId: number; fetchJobId: number };
     await runListingFetch(p.restaurantId, p.listingId, async () => {}, { jobId: p.fetchJobId });
     await runRejudge(p.restaurantId, async () => {}, { cause: "owner_answer" });
+  } else if (id === "owner-listing-undo") {
+    // The worker waits for the API transaction to commit before reading the detached Listing set.
   } else {
     const p = payload as { restaurantId: number; jobId: number; from?: "ingest" | "extract" | "judge" };
     await runLookup(p.restaurantId, async () => {}, { jobId: p.jobId, from: p.from });
@@ -185,6 +193,84 @@ describe("Lookup pipeline", () => {
     expect(translateCall).toHaveBeenCalledTimes(1);
     translateCall.mockRestore();
     parse.mockRestore();
+  }, 30_000);
+
+  it("undoes an auto-accepted Listing and appends a Verdict from the remaining Sources", async () => {
+    const database = sql!;
+    await database`insert into source (code, name, kind, access) values
+      ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only')
+      on conflict (code) do nothing`;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance, price_tier, price_provenance)
+      values ('fictional-undo-auto-match', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner', '€', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    const [google] = await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'google', 'invented-undo-google-place', 'https://example.invalid/google', 'auto_accepted') returning id`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'tripadvisor', 'invented-undo-tripadvisor-path', 'https://example.invalid/tripadvisor', 'proposed_confirmed')`;
+
+    const { runLookup } = await import("./lookup");
+    await runLookup(restaurantId, async () => {});
+    const [before] = await database`select count(*)::int as n from verdict where restaurant_id = ${restaurantId}`;
+    expect(before!.n).toBe(1);
+    const [flaggedReview] = await database`select id from review where listing_id = ${google!.id} order by id limit 1`;
+    await database`insert into review_flag (review_id, type, flag_group, first_hand, severity, evidence, verification)
+      values (${flaggedReview!.id}, 'hygiene', 'health', true, 'low', 'Invented source-specific flag', 'rejected')`;
+
+    const { DELETE } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/route");
+    triggerControl.failListingUndo = true;
+    const failedStart = await DELETE(
+      new Request("http://localhost/api/v1/restaurants/fictional-undo-auto-match/listings/google", { method: "DELETE" }),
+      { params: Promise.resolve({ slug: "fictional-undo-auto-match", source: "google" }) },
+    );
+    triggerControl.failListingUndo = false;
+    expect(failedStart.status).toBe(503);
+    const [stillAttached] = await database`select id from listing where id = ${google!.id}`;
+    expect(stillAttached).toBeDefined();
+    const [reviewCountAfterFailure] = await database`select count(*)::int as n from review where listing_id = ${google!.id}`;
+    expect(reviewCountAfterFailure!.n).toBe(8);
+    const [activeRejudge] = await database`select id from job where restaurant_id = ${restaurantId} and kind = 'rejudge' and status in ('queued', 'running')`;
+    expect(activeRejudge).toBeUndefined();
+
+    const response = await DELETE(
+      new Request("http://localhost/api/v1/restaurants/fictional-undo-auto-match/listings/google", { method: "DELETE" }),
+      { params: Promise.resolve({ slug: "fictional-undo-auto-match", source: "google" }) },
+    );
+    expect(response.status).toBe(202);
+    const { routes } = await import("@/lib/api-contract");
+    const accepted = routes.undoListing.responses[202].parse(await response.json());
+    const { runRejudge } = await import("./lookup");
+    await runRejudge(restaurantId, async () => {}, { jobId: accepted.id, cause: "owner_answer" });
+
+    const listings = await database`select source_code from listing where restaurant_id = ${restaurantId} order by source_code`;
+    expect(listings.map((listing) => listing.source_code)).toEqual(["tripadvisor"]);
+    const reviews = await database`
+      select l.source_code, count(*)::int as n from review r join listing l on l.id = r.listing_id
+      where l.restaurant_id = ${restaurantId} group by l.source_code`;
+    expect(reviews).toEqual([{ source_code: "tripadvisor", n: 8 }]);
+    const sourceFlags = await database`
+      select f.id from review_flag f join review r on r.id = f.review_id join listing l on l.id = r.listing_id
+      where l.restaurant_id = ${restaurantId} and l.source_code = 'google'`;
+    expect(sourceFlags).toEqual([]);
+    const [after] = await database`select count(*)::int as n from verdict where restaurant_id = ${restaurantId}`;
+    expect(after!.n).toBe(2);
+    const [latest] = await database`select blocks from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    const perSource = (latest!.blocks as { rollup: { counts: { perSource: Record<string, unknown> } } }).rollup.counts.perSource;
+    expect(perSource).not.toHaveProperty("google");
+    expect(perSource).toHaveProperty("tripadvisor");
+    const [job] = await database`select status from job where id = ${accepted.id}`;
+    expect(job!.status).toBe("succeeded");
+
+    const refused = await DELETE(
+      new Request("http://localhost/api/v1/restaurants/fictional-undo-auto-match/listings/tripadvisor", { method: "DELETE" }),
+      { params: Promise.resolve({ slug: "fictional-undo-auto-match", source: "tripadvisor" }) },
+    );
+    expect(refused.status).toBe(409);
+    expect((await refused.json()).code).toBe("not_auto_accepted");
+    const [tripadvisor] = await database`select 1 from listing where restaurant_id = ${restaurantId} and source_code = 'tripadvisor'`;
+    expect(tripadvisor).toBeDefined();
   }, 30_000);
 
   it("retries a failed extraction stage without a second vendor charge", async () => {
@@ -349,6 +435,7 @@ describe("Lookup pipeline", () => {
     const { loadRestaurantBundle } = await import("@/web/data");
     const page = await loadRestaurantBundle(restaurantSlug);
     expect(page?.restaurant.formatProvenance).toBe("llm");
+    expect(page?.ownerQuestions).toEqual([]);
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { default: VerdictPageRoute } = await import("@/app/r/[slug]/page");
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: restaurantSlug }) }));
@@ -364,6 +451,102 @@ describe("Lookup pipeline", () => {
     await runLookup(Number(restaurant!.id), async () => {}, { from: "judge" });
     const [after] = await sql!`select format, format_provenance, price_tier, price_provenance from restaurant where id = ${restaurant!.id}`;
     expect(after).toMatchObject({ format: "fine_dining", format_provenance: "owner", price_tier: "€", price_provenance: "llm" });
+  }, 30_000);
+
+  it("raises a Format question only when Reviews disagree with Google's category", async () => {
+    const { POST } = await import("@/app/api/v1/lookups/route");
+    const lookup = (googlePlaceId: string) => POST(new Request("http://localhost/api/v1/lookups", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ googlePlaceId, listings: [] }),
+    }));
+    try {
+      fakeRestaurantFacts.googleCategoryDisagrees = true;
+      const mismatch = await lookup("invented-format-mismatch-place");
+      expect(mismatch.status).toBe(202);
+      const mismatchBody = await mismatch.json() as { restaurantSlug: string };
+      const { loadRestaurantBundle } = await import("@/web/data");
+      expect((await loadRestaurantBundle(mismatchBody.restaurantSlug))?.ownerQuestions).toMatchObject([{
+        kind: "format", source: "google", proposedFormat: "tasca", googleCategory: "Tasca restaurant",
+      }]);
+
+      fakeRestaurantFacts.googleCategoryDisagrees = false;
+      const agrees = await lookup("invented-format-agrees-place");
+      expect(agrees.status).toBe(202);
+      const agreesBody = await agrees.json() as { restaurantSlug: string };
+      expect((await loadRestaurantBundle(agreesBody.restaurantSlug))?.ownerQuestions).toEqual([]);
+    } finally {
+      fakeRestaurantFacts.googleCategoryDisagrees = false;
+    }
+  }, 30_000);
+
+  it("changes Format and Price tier, then re-judges without fetching again", async () => {
+    const { POST } = await import("@/app/api/v1/lookups/route");
+    const { PATCH } = await import("@/app/api/v1/restaurants/[slug]/route");
+    const started = await POST(new Request("http://localhost/api/v1/lookups", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ googlePlaceId: "invented-format-correction-place", listings: [] }),
+    }));
+    const { restaurantSlug } = await started.json() as { restaurantSlug: string };
+    const [before] = await sql!`select id, format_changed_at from restaurant where slug = ${restaurantSlug}`;
+    const [reviewsBefore] = await sql!`select count(*)::int as count from review rv join listing l on l.id = rv.listing_id where l.restaurant_id = ${before!.id}`;
+
+    fakeVendorCalls.reviewPosts = 0;
+    const response = await PATCH(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}`, {
+      method: "PATCH", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ format: "fine_dining", priceTier: "€€€" }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(response.status).toBe(202);
+    const { id: jobId } = (await response.json()) as { id: number };
+    const [updated] = await sql!`select format, format_provenance, price_tier, price_provenance, format_changed_at from restaurant where id = ${before!.id}`;
+    expect(updated).toMatchObject({ format: "fine_dining", format_provenance: "owner", price_tier: "€€€", price_provenance: "owner" });
+    expect(updated!.format_changed_at).toEqual(before!.format_changed_at);
+
+    const { runRejudge } = await import("./lookup");
+    await runRejudge(Number(before!.id), async () => {}, { jobId, cause: "owner_answer" });
+    const [verdictCount] = await sql!`select count(*)::int as count from verdict where restaurant_id = ${before!.id}`;
+    expect(verdictCount!.count).toBeGreaterThan(1);
+    const [reviewsAfter] = await sql!`select count(*)::int as count from review rv join listing l on l.id = rv.listing_id where l.restaurant_id = ${before!.id}`;
+    expect(reviewsAfter!.count).toBe(reviewsBefore!.count);
+    const [latestVerdict] = await sql!`select blocks from verdict where restaurant_id = ${before!.id} order by id desc limit 1`;
+    expect((latestVerdict!.blocks as { rollup: { changePointAt: string | null } }).rollup.changePointAt).toBeNull();
+    expect(fakeVendorCalls.reviewPosts).toBe(0);
+  }, 30_000);
+
+  it("dismisses a Format question while preserving and pinning its proposed Format", async () => {
+    fakeRestaurantFacts.googleCategoryDisagrees = true;
+    try {
+      const { POST: startLookup } = await import("@/app/api/v1/lookups/route");
+      const { POST: dismiss } = await import("@/app/api/v1/owner-questions/[id]/dismiss/route");
+      const started = await startLookup(new Request("http://localhost/api/v1/lookups", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ googlePlaceId: "invented-format-dismiss-place", listings: [] }),
+      }));
+      const { restaurantSlug } = await started.json() as { restaurantSlug: string };
+      const { loadRestaurantBundle } = await import("@/web/data");
+      const question = (await loadRestaurantBundle(restaurantSlug))?.ownerQuestions[0];
+      expect(question?.kind).toBe("format");
+      const [before] = await sql!`select id from restaurant where slug = ${restaurantSlug}`;
+      // A later reading may change the current proposal while this question remains open.
+      await sql!`update restaurant set format = 'fine_dining', format_provenance = 'llm' where id = ${before!.id}`;
+
+      const response = await dismiss(new Request(`http://localhost/api/v1/owner-questions/${question!.id}/dismiss`, { method: "POST" }), {
+        params: Promise.resolve({ id: String(question!.id) }),
+      });
+      expect(response.status).toBe(202);
+      expect(await response.json()).toEqual({ settled: true });
+      const [after] = await sql!`select format, format_provenance from restaurant where id = ${before!.id}`;
+      expect(after).toMatchObject({ format: "tasca", format_provenance: "owner" });
+      const [settled] = await sql!`select status from owner_question where id = ${question!.id}`;
+      expect(settled).toMatchObject({ status: "dismissed" });
+
+      const again = await dismiss(new Request(`http://localhost/api/v1/owner-questions/${question!.id}/dismiss`, { method: "POST" }), {
+        params: Promise.resolve({ id: String(question!.id) }),
+      });
+      expect(again.status).toBe(409);
+      expect((await again.json()).code).toBe("already_settled");
+    } finally {
+      fakeRestaurantFacts.googleCategoryDisagrees = false;
+    }
   }, 30_000);
 
   it("raises an Owner question for an uncertain match; Accept fetches the Listing and re-judges", async () => {

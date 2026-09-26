@@ -7,7 +7,7 @@ import {
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
 import type { SearchResponse } from "@/lib/api-contract";
-import { questionCandidates, questionPrompt } from "@/lib/owner-question";
+import { formatQuestionPayloadSchema, formatQuestionPrompt, questionCandidates, questionPrompt } from "@/lib/owner-question";
 
 export async function searchKnownRestaurants(q: string, placeIds: string[]): Promise<(SearchResponse["known"][number] & { placeId: string | null })[]> {
   const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
@@ -141,16 +141,18 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
 export async function loadRestaurantBundle(slug: string): Promise<RestaurantBundle | null> {
   const page = await loadVerdictPage(slug);
   if (!page) return null;
-  const [job, openQuestions] = await Promise.all([
+  const [job, openQuestions, listingProvenance] = await Promise.all([
     db()`
       select id, kind, status, step, created_at from job
       where restaurant_id = ${page.restaurant.id}
       order by id desc limit 1`.then((rows) => rows[0]),
     db()`
-      select id, source_code, payload from owner_question
-      where restaurant_id = ${page.restaurant.id} and status = 'open' and kind = 'listing_match'
+      select id, source_code, kind, payload from owner_question
+      where restaurant_id = ${page.restaurant.id} and status = 'open' and kind in ('format', 'listing_match')
       order by id`,
+    db()`select source_code, match_provenance from listing where restaurant_id = ${page.restaurant.id}`,
   ]);
+  const matchProvenanceBySource = new Map(listingProvenance.map((listing) => [listing.source_code as string, listing.match_provenance as string]));
   return restaurantBundleSchema.parse({
     restaurant: page.restaurant,
     verdict: page.verdict && {
@@ -164,7 +166,11 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       peerSnapshotId: page.verdict.peerSnapshotId ?? null,
       blocks: page.verdict.blocks,
     },
-    sources: page.sources.map((source) => ({ ...source, newestAt: source.newestAt?.toISOString() ?? null })),
+    sources: page.sources.map((source) => ({
+      ...source,
+      matchProvenance: matchProvenanceBySource.get(source.code),
+      newestAt: source.newestAt?.toISOString() ?? null,
+    })),
     distinctions: page.distinctions,
     critics: page.critics,
     series: page.verdict?.blocks.rollup.series ?? [],
@@ -173,9 +179,21 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
     } : null,
     ownerQuestions: job?.kind === "lookup" && (job.status === "queued" || job.status === "running") ? [] : openQuestions.map((q) => {
+      if (q.kind === "format") {
+        const payload = formatQuestionPayloadSchema.parse(q.payload);
+        return {
+          id: Number(q.id),
+          kind: "format" as const,
+          source: "google" as const,
+          prompt: formatQuestionPrompt(payload.googleCategory, payload.proposedFormat),
+          proposedFormat: payload.proposedFormat,
+          googleCategory: payload.googleCategory,
+        };
+      }
       const candidates = questionCandidates(q.payload);
       return {
         id: Number(q.id),
+        kind: "listing_match" as const,
         source: q.source_code as string,
         prompt: questionPrompt(q.source_code as string),
         candidates: candidates.map(({ placeRef, name, url, evidence }) => ({ placeRef, name, url, evidence })),

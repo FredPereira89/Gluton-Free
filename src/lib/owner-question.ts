@@ -1,11 +1,22 @@
 import { tasks } from "@trigger.dev/sdk";
 import type postgres from "postgres";
+import { z } from "zod";
 import type { PreviewListing } from "@/app/api/v1/lookups/preview/preview";
+import { FORMATS } from "@/domain/restaurant-facts";
 import { db } from "./db";
-import { acceptedJobResponse, answerListingResponseSchema } from "./api-contract";
+import { acceptedJobResponse, answerListingResponseSchema, apiJsonResponse } from "./api-contract";
 import { markJobStartFailed } from "./job";
 import type { PipelineError } from "./pipeline-error";
 import { ApiError } from "./problem";
+
+export const formatQuestionPayloadSchema = z.strictObject({
+  proposedFormat: z.enum(FORMATS),
+  googleCategory: z.string().nullable(),
+});
+
+export function formatQuestionPrompt(googleCategory: string | null, proposedFormat: string): string {
+  return `Google categorizes this Restaurant as ${googleCategory ?? "a different format"}; Reviews suggest ${proposedFormat.replaceAll("_", " ")}. Keep this proposed Format?`;
+}
 
 /** Raises one Owner question per uncertain Source (ADR-0005: a Lookup never waits for it). */
 export async function raiseListingQuestions(sql: postgres.TransactionSql, restaurantId: number, askLater: PreviewListing[]) {
@@ -21,6 +32,22 @@ export async function raiseListingQuestions(sql: postgres.TransactionSql, restau
       values (${restaurantId}, 'listing_match', ${source}, ${sql.json({ candidates } as never)})
       on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing`;
   }
+}
+
+/** Raises a Format question only when Reviews clearly disagree with Google's category. */
+export async function raiseFormatQuestion(
+  sql: postgres.TransactionSql,
+  restaurantId: number,
+  proposedFormat: string,
+  googleCategories: string[],
+) {
+  const googleCategory = googleCategories[0];
+  if (!googleCategory) return;
+  const payload = formatQuestionPayloadSchema.parse({ proposedFormat, googleCategory });
+  await sql`
+    insert into owner_question (restaurant_id, kind, source_code, payload)
+    values (${restaurantId}, 'format', 'google', ${sql.json(payload as never)})
+    on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing`;
 }
 
 /** Raises the Owner question for a failed Lookup (ADR-0005: a Lookup never waits for it). */
@@ -42,6 +69,26 @@ export function questionCandidates(payload: unknown): PreviewListing[] {
   if (Array.isArray(data.candidates)) return data.candidates as PreviewListing[];
   // Read questions created by the earlier single-candidate payload format during rollout.
   return "placeRef" in data ? [payload as PreviewListing] : [];
+}
+
+/** Keeps the proposed Format and records that the owner confirmed it. */
+export async function dismissFormatQuestion(id: number): Promise<Response> {
+  await db().begin(async (tx) => {
+    const [question] = await tx`
+      select restaurant_id, kind, status, payload from owner_question where id = ${id} for update`;
+    if (!question || question.kind !== "format") throw new ApiError(404, "not_found", "Format question not found");
+    if (question.status !== "open") throw new ApiError(409, "already_settled", "This Owner question was already settled");
+    const payload = formatQuestionPayloadSchema.parse(question.payload);
+    // Dismiss means the owner accepts the suggested Format, so later readings must preserve it.
+    await tx`
+      update restaurant set format = ${payload.proposedFormat}, format_provenance = 'owner'
+      where id = ${question.restaurant_id}`;
+    const [settled] = await tx`
+      update owner_question set status = 'dismissed', settled_at = now()
+      where id = ${id} and status = 'open' returning id`;
+    if (!settled) throw new ApiError(409, "already_settled", "This Owner question was already settled");
+  });
+  return apiJsonResponse(answerListingResponseSchema, 202, { settled: true });
 }
 
 /** Answers the most recent Owner question for that Source. Settles `none` outright; `accept` fetches the Listing and re-judges. */
