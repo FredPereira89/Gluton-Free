@@ -7,21 +7,27 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+const NOTIFICATION_BODY = {
+  verdict_ready: "The Verdict is ready.",
+  lookup_failed: "The Lookup failed.",
+  owner_question: "An Owner question is waiting.",
+};
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
     const value = event.data ? event.data.json() : {};
     payload = value && typeof value === "object" ? value : {};
   } catch {
-    payload = { body: event.data?.text() ?? "" };
+    payload = {};
   }
-  const title = typeof payload.title === "string" ? payload.title : "Gluton-Free";
-  const body = typeof payload.body === "string" ? payload.body : "You have an update.";
-  event.waitUntil(self.registration.showNotification(title, {
+  const body = NOTIFICATION_BODY[payload.kind] ?? "You have an update.";
+  const url = typeof payload.restaurantSlug === "string" ? `/r/${payload.restaurantSlug}` : "/";
+  event.waitUntil(self.registration.showNotification("Gluton-Free", {
     body,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    data: { url: typeof payload.url === "string" ? payload.url : "/" },
+    data: { url },
   }));
 });
 

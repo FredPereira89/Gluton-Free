@@ -2,7 +2,15 @@ import { syncEnvVars } from "@trigger.dev/build/extensions/core";
 import { defineConfig } from "@trigger.dev/sdk";
 
 // Secrets the lookup task needs, copied from the deploying machine's environment on each deploy.
-const TASK_SECRETS = ["SUPABASE_DB_URL", "ANTHROPIC_API_KEY", "DATAFORSEO_LOGIN", "DATAFORSEO_PASSWORD"] as const;
+const TASK_SECRETS = [
+  "SUPABASE_DB_URL",
+  "ANTHROPIC_API_KEY",
+  "DATAFORSEO_LOGIN",
+  "DATAFORSEO_PASSWORD",
+  "VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+  "VAPID_SUBJECT",
+] as const;
 
 export default defineConfig({
   project: process.env.TRIGGER_PROJECT_REF ?? "",

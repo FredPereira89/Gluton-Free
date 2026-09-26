@@ -18,36 +18,50 @@ export function formatQuestionPrompt(googleCategory: string | null, proposedForm
   return `Google categorizes this Restaurant as ${googleCategory ?? "a different format"}; Reviews suggest ${proposedFormat.replaceAll("_", " ")}. Keep this proposed Format?`;
 }
 
-/** Raises one Owner question per uncertain Source (ADR-0005: a Lookup never waits for it). */
-export async function raiseListingQuestions(sql: postgres.TransactionSql, restaurantId: number, askLater: PreviewListing[]) {
+/**
+ * Raises one Owner question per uncertain Source (ADR-0005: a Lookup never waits for it).
+ * Returns the id of each question actually created, skipping Sources that already had one open —
+ * the caller pushes for these only after its own transaction commits.
+ */
+export async function raiseListingQuestions(sql: postgres.TransactionSql, restaurantId: number, askLater: PreviewListing[]): Promise<number[]> {
   const bySource = new Map<string, PreviewListing[]>();
   for (const candidate of askLater) {
     const candidates = bySource.get(candidate.source) ?? [];
     candidates.push(candidate);
     bySource.set(candidate.source, candidates);
   }
+  const createdIds: number[] = [];
   for (const [source, candidates] of bySource) {
-    await sql`
+    const [created] = await sql`
       insert into owner_question (restaurant_id, kind, source_code, payload)
       values (${restaurantId}, 'listing_match', ${source}, ${sql.json({ candidates } as never)})
-      on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing`;
+      on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing
+      returning id`;
+    if (created) createdIds.push(Number(created.id));
   }
+  return createdIds;
 }
 
-/** Raises a Format question only when Reviews clearly disagree with Google's category. */
+/**
+ * Raises a Format question only when Reviews clearly disagree with Google's category.
+ * Returns the created question's id, or undefined when none was raised — the caller pushes only
+ * after its own transaction commits.
+ */
 export async function raiseFormatQuestion(
   sql: postgres.TransactionSql,
   restaurantId: number,
   proposedFormat: string,
   googleCategories: string[],
-) {
+): Promise<number | undefined> {
   const googleCategory = googleCategories[0];
-  if (!googleCategory) return;
+  if (!googleCategory) return undefined;
   const payload = formatQuestionPayloadSchema.parse({ proposedFormat, googleCategory });
-  await sql`
+  const [created] = await sql`
     insert into owner_question (restaurant_id, kind, source_code, payload)
     values (${restaurantId}, 'format', 'google', ${sql.json(payload as never)})
-    on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing`;
+    on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing
+    returning id`;
+  return created ? Number(created.id) : undefined;
 }
 
 /** Raises the Owner question for a failed Lookup (ADR-0005: a Lookup never waits for it). */

@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage, type LookupStage } from "@/lib/job";
 import { raiseFailedLookupQuestion, raiseFormatQuestion, raiseSourceRetryQuestions } from "@/lib/owner-question";
 import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
+import { sendPush } from "@/lib/push-send";
 import { issueVerdict } from "@/verdict/issue";
 import { PARAMS } from "@/verdict/rollup";
 import type { RejudgeCause } from "@/verdict/stability";
@@ -248,17 +249,20 @@ export async function judgeRestaurant(restaurantId: number, jobId: number, cause
   ) : null;
   if (factsUsage.requests) await addLlmUsage(jobId, factsUsage);
   if (reading) {
-    await sql.begin(async (tx) => {
+    // sql.begin only resolves once the transaction commits, so pushing on its result never notifies about a rolled-back question.
+    const formatQuestionId = await sql.begin(async (tx) => {
       const [current] = await tx`select format_provenance from restaurant where id = ${restaurantId} for update`;
-      if (current?.format_provenance === "owner") return;
+      if (current?.format_provenance === "owner") return undefined;
       await tx`
         update restaurant set format = ${reading.format}, format_provenance = 'llm',
           format_changed_at = case when format is distinct from ${reading.format} then now() else format_changed_at end
         where id = ${restaurantId}`;
       if (reading.googleCategoryDisagrees && googleCategories.length) {
-        await raiseFormatQuestion(tx, restaurantId, reading.format, googleCategories);
+        return await raiseFormatQuestion(tx, restaurantId, reading.format, googleCategories);
       }
+      return undefined;
     });
+    if (formatQuestionId) await sendPush("owner_question", restaurantId, formatQuestionId);
   }
   const price = choosePriceTier(sourcePrices, reading?.reviewPriceTier ?? null);
   if (price) await sql`
@@ -276,6 +280,7 @@ export async function judgeRestaurant(restaurantId: number, jobId: number, cause
   const verdictId = await issueVerdict(restaurantId, jobId, explainUsage, cause);
   await addLlmUsage(jobId, explainUsage);
   await setStep(jobId, "Verdict issued", { verdictId }, "judged and explained");
+  await sendPush("verdict_ready", restaurantId);
   await setStep(jobId, "notified", undefined, "notified");
   return { flags, verdictId };
 }
@@ -296,6 +301,7 @@ export async function runLookup(
     stage = "extract";
     const extraction = from !== "judge" ? await extractRestaurant(restaurantId, jobId, sleep, opts.extractLimit) : null;
     const questionIds = await raiseSourceRetryQuestions(db(), restaurantId);
+    for (const questionId of questionIds) await sendPush("owner_question", restaurantId, questionId);
     stage = "judge";
     const judged = await judgeRestaurant(restaurantId, jobId);
     await finishJob(jobId);
@@ -304,6 +310,7 @@ export async function runLookup(
     const error = toPipelineError(e);
     await finishJob(jobId, error, stage);
     await raiseFailedLookupQuestion(db(), restaurantId, jobId, error);
+    await sendPush("lookup_failed", restaurantId);
     throw e;
   }
 }
