@@ -46,7 +46,7 @@ export type VerdictPage = {
   sources: SourceRow[];
   verdict: { id: number; state: string; tier: string | null; confidence: string | null; explanation: string | null; createdAt: Date; blocks: Blocks; peerSnapshotId?: number | null } | null;
   distinctions: { id: number; guide: string; level: string; editionYear: number | null; url: string }[];
-  critics: { publication: string; title: string; url: string; publishedOn: string | null }[];
+  critics: { id: number; publication: string; title: string; url: string; publishedOn: string | null; language: string | null; printedRating: string | null }[];
 };
 
 export async function loadVerdictPage(slug: string): Promise<VerdictPage | null> {
@@ -65,7 +65,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       from verdict where restaurant_id = ${id} order by id desc limit 1`,
     sql`select id, guide, level, edition_year, url from distinction where restaurant_id = ${id} order by edition_year desc nulls last, id desc`,
     sql`
-      select publication, title, url, published_on::text as published_on
+      select id, publication, title, url, published_on::text as published_on, language, printed_rating
       from critic_piece where restaurant_id = ${id} order by published_on desc nulls last, id`,
   ]);
   const blocks = v ? BlocksSchema.parse(v.blocks) : null;
@@ -134,7 +134,10 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
         }
       : null,
     distinctions: distinctions.map((d) => ({ id: Number(d.id), guide: d.guide, level: d.level, editionYear: d.edition_year, url: d.url })),
-    critics: critics.map((c) => ({ publication: c.publication, title: c.title, url: c.url, publishedOn: c.published_on })),
+    critics: critics.map((c) => ({
+      id: Number(c.id), publication: c.publication, title: c.title, url: c.url,
+      publishedOn: c.published_on, language: c.language, printedRating: c.printed_rating,
+    })),
   };
 }
 

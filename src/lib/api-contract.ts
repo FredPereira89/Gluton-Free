@@ -93,7 +93,10 @@ export const restaurantBundleSchema = z.strictObject({
   }).nullable(),
   sources: z.array(bundleSourceSchema),
   distinctions: z.array(z.strictObject({ id: z.number().int().positive().safe(), guide: z.string(), level: z.string(), editionYear: z.number().int().nullable(), url: z.url() })),
-  critics: z.array(z.strictObject({ publication: z.string(), title: z.string(), url: z.url(), publishedOn: z.string().nullable() })),
+  critics: z.array(z.strictObject({
+    id: z.number().int().positive().safe(), publication: z.string(), title: z.string(),
+    url: z.url(), publishedOn: z.iso.date().nullable(), language: z.string().nullable(), printedRating: z.string().nullable(),
+  })),
   series: RollupSchema.shape.series,
   changePoints: z.array(z.strictObject({ occurredOn: z.string(), description: z.string() })),
   activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]), status: z.enum(["queued", "running", "failed"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
@@ -112,6 +115,18 @@ export const createDistinctionBodySchema = z.strictObject({
 export const createDistinctionResponseSchema = z.strictObject({ id: z.number().int().positive().safe() });
 export const deleteDistinctionBodySchema = z.strictObject({ id: z.number().int().positive().safe() });
 export const deleteDistinctionResponseSchema = z.strictObject({ deleted: z.literal(true) });
+
+export const createCriticPieceBodySchema = z.strictObject({
+  publication: z.string().trim().min(1).max(160),
+  title: z.string().trim().min(1).max(240),
+  url: z.url().max(2048).refine((value) => /^https?:\/\//i.test(value)),
+  publishedOn: z.iso.date().nullable(),
+  language: z.string().trim().regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/).max(35).nullable(),
+  printedRating: z.string().trim().min(1).max(80).nullable(),
+});
+export const createCriticPieceResponseSchema = z.strictObject({ id: z.number().int().positive().safe() });
+export const deleteCriticPieceBodySchema = z.strictObject({ id: z.number().int().positive().safe() });
+export const deleteCriticPieceResponseSchema = z.strictObject({ deleted: z.literal(true) });
 
 export const healthResponseSchema = z.strictObject({ status: z.literal("ok") });
 export const verdictResponseSchema = z.strictObject({
@@ -373,6 +388,16 @@ export const routes = {
     method: "DELETE", path: "/api/v1/restaurants/{slug}/distinctions", auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1) }), body: deleteDistinctionBodySchema },
     responses: { 200: deleteDistinctionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  createCriticPiece: {
+    method: "POST", path: "/api/v1/restaurants/{slug}/critic-pieces", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: createCriticPieceBodySchema },
+    responses: { 201: createCriticPieceResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  deleteCriticPiece: {
+    method: "DELETE", path: "/api/v1/restaurants/{slug}/critic-pieces", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: deleteCriticPieceBodySchema },
+    responses: { 200: deleteCriticPieceResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   retrySource: {
     method: "POST", path: "/api/v1/restaurants/{slug}/listings/{source}/retry", auth: "owner",

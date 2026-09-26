@@ -17,6 +17,7 @@ import { OwnerQuestions, SourceRetryBanners } from "@/web/owner-questions";
 import { ListingUndo } from "@/web/listing-undo";
 import { RestaurantFactsEditor } from "@/web/restaurant-facts";
 import { Distinctions } from "@/web/distinctions";
+import { CriticPieces } from "@/web/critic-pieces";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -156,7 +157,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         </section>
         <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
-        <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} hideExtras />
+        <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} />
         <BundleExtras page={page} />
       </div>
     );
@@ -334,7 +335,7 @@ function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: M
 
 type SourceWindow = { text: number; windowStart: string | null };
 
-function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow>; sourceReadings?: SourceReading[]; hideExtras?: boolean }) {
+function Sources({ page, perSource, sourceReadings }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow>; sourceReadings?: SourceReading[] }) {
   return (
     <section className="sec">
       <h2>Sources</h2>
@@ -392,20 +393,7 @@ function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page
         </table>
       </div>
       <Distinctions slug={page.restaurant.slug} items={page.distinctions} />
-      {!hideExtras && page.critics.length > 0 && (
-        <div className="ev-list">
-          {page.critics.map((c) => (
-            <div key={c.url}>
-              <b>{c.publication}</b> ·{" "}
-              <a href={c.url} rel="noreferrer" target="_blank">
-                “{c.title}” ↗
-              </a>
-              {c.publishedOn ? ` (${c.publishedOn.slice(0, 4)})` : ""}
-            </div>
-          ))}
-          <p className="small muted">Shown for context; critic pieces never move the Tier.</p>
-        </div>
-      )}
+      <CriticPieces slug={page.restaurant.slug} items={page.critics} />
     </section>
   );
 }
