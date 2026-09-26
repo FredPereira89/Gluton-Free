@@ -64,3 +64,14 @@ export const FLAG_GROUP: Record<FlagType, "health" | "money"> = {
 /** Per-Review Change marker (ADR 0007): what the Review's own text says changed, if anything. */
 export const CHANGE_MARKERS = ["none", "new_owner", "new_chef", "renovated", "new_concept", "moved"] as const;
 export type ChangeMarker = (typeof CHANGE_MARKERS)[number];
+
+/** Owner-declared Change point kind (ADR 0007, issue #58): a dated event that cuts the Review window. */
+export const CHANGE_POINT_KINDS = ["reopened", "new_owner", "new_chef", "new_concept", "moved"] as const;
+export type ChangePointKind = (typeof CHANGE_POINT_KINDS)[number];
+export const CHANGE_POINT_LABEL: Record<ChangePointKind, string> = {
+  reopened: "Reopened",
+  new_owner: "New owner",
+  new_chef: "New head chef",
+  new_concept: "New concept",
+  moved: "Moved",
+};

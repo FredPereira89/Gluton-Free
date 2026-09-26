@@ -41,6 +41,8 @@ vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, 
     await runRejudge(p.restaurantId, async () => {}, { cause: "owner_answer" });
   } else if (id === "owner-listing-undo") {
     // The worker waits for the API transaction to commit before reading the detached Listing set.
+  } else if (id === "owner-change-point") {
+    // The worker waits for the API transaction (the Change point insert/delete) to commit before re-judging.
   } else if (id === "owner-source-retry") {
     const p = payload as { restaurantId: number; listingId: number; questionId: number; jobId: number };
     await runSourceRetry(p.restaurantId, p.listingId, p.questionId, async () => {}, { jobId: p.jobId });
@@ -719,6 +721,80 @@ describe("Lookup pipeline", () => {
     expect((latestVerdict!.blocks as { rollup: { changePointAt: string | null } }).rollup.changePointAt).toBeNull();
     expect(fakeVendorCalls.reviewPosts).toBe(0);
   }, 30_000);
+
+  it("declares a Change point that cuts the window, then deleting restores it", async () => {
+    const database = sql!;
+    const { POST: declare } = await import("@/app/api/v1/restaurants/[slug]/change-points/route");
+    const { DELETE: undeclare } = await import("@/app/api/v1/restaurants/[slug]/change-points/[id]/route");
+    const { runLookup, runRejudge } = await import("./lookup");
+
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    const restaurantSlug = "fictional-change-point-full";
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values (${restaurantSlug}, ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurant!.id}, 'google', 'invented-change-point-google-place', 'https://example.invalid/google', 'pasted'),
+             (${restaurant!.id}, 'tripadvisor', 'invented-change-point-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+    await runLookup(Number(restaurant!.id), async () => {});
+
+    const [initialVerdict] = await database`select state from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(initialVerdict!.state).toBe("verdict");
+
+    const changePointDate = new Date().toISOString().slice(0, 10);
+    const declared = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_chef", date: changePointDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declared.status).toBe(202);
+    const { id: declareJobId } = await declared.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: declareJobId, cause: "owner_answer" });
+
+    const [changePoint] = await sql!`select id from change_point where restaurant_id = ${restaurant!.id} and date = ${changePointDate}`;
+    const [cutVerdict] = await sql!`select state, change_point_id, blocks from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(cutVerdict!.state).toBe("not_enough_evidence");
+    expect(Number(cutVerdict!.change_point_id)).toBe(Number(changePoint!.id));
+    expect((cutVerdict!.blocks as { rollup: { changePointAt: string | null } }).rollup.changePointAt).not.toBeNull();
+
+    // Only the newest Change point matters (ADR 0007): an older one declared afterwards must not
+    // take over from the newer one already governing the Verdict.
+    const olderDate = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    const declaredOlder = await declare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "new_owner", date: olderDate }),
+    }), { params: Promise.resolve({ slug: restaurantSlug }) });
+    expect(declaredOlder.status).toBe(202);
+    const { id: olderJobId } = await declaredOlder.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: olderJobId, cause: "owner_answer" });
+
+    const [olderChangePoint] = await sql!`select id from change_point where restaurant_id = ${restaurant!.id} and date = ${olderDate}`;
+    const [verdictAfterOlder] = await sql!`select change_point_id from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(Number(verdictAfterOlder!.change_point_id)).toBe(Number(changePoint!.id));
+
+    // Deleting the older, non-governing Change point changes nothing.
+    const deletedOlder = await undeclare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points/${olderChangePoint!.id}`, {
+      method: "DELETE",
+    }), { params: Promise.resolve({ slug: restaurantSlug, id: String(olderChangePoint!.id) }) });
+    expect(deletedOlder.status).toBe(202);
+    const { id: deleteOlderJobId } = await deletedOlder.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: deleteOlderJobId, cause: "owner_answer" });
+    const [verdictAfterDeletingOlder] = await sql!`select state, change_point_id from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(verdictAfterDeletingOlder!.state).toBe("not_enough_evidence");
+    expect(Number(verdictAfterDeletingOlder!.change_point_id)).toBe(Number(changePoint!.id));
+
+    const deleted = await undeclare(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points/${changePoint!.id}`, {
+      method: "DELETE",
+    }), { params: Promise.resolve({ slug: restaurantSlug, id: String(changePoint!.id) }) });
+    expect(deleted.status).toBe(202);
+    const { id: deleteJobId } = await deleted.json() as { id: number };
+    await runRejudge(Number(restaurant!.id), async () => {}, { jobId: deleteJobId, cause: "owner_answer" });
+
+    const [restoredVerdict] = await sql!`select state, change_point_id, blocks from verdict where restaurant_id = ${restaurant!.id} order by id desc limit 1`;
+    expect(restoredVerdict!.state).toBe("verdict");
+    expect(restoredVerdict!.change_point_id).toBeNull();
+    expect((restoredVerdict!.blocks as { rollup: { changePointAt: string | null } }).rollup.changePointAt).toBeNull();
+  }, 45_000);
 
   it("dismisses a Format question while preserving and pinning its proposed Format", async () => {
     fakeRestaurantFacts.googleCategoryDisagrees = true;

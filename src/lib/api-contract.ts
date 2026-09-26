@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TIERS } from "@/domain/aspects";
+import { CHANGE_POINT_KINDS, TIERS } from "@/domain/aspects";
 import { FORMATS } from "@/domain/restaurant-facts";
 import { BlocksSchema, RollupSchema } from "@/verdict/blocks";
 import { parseApiRequest, problemSchema } from "./problem";
@@ -95,13 +95,20 @@ export const restaurantBundleSchema = z.strictObject({
   distinctions: z.array(z.strictObject({ id: z.number().int().positive().safe(), guide: z.string(), level: z.string(), editionYear: z.number().int().nullable(), url: z.url() })),
   critics: z.array(z.strictObject({ publication: z.string(), title: z.string(), url: z.url(), publishedOn: z.string().nullable() })),
   series: RollupSchema.shape.series,
-  changePoints: z.array(z.strictObject({ occurredOn: z.string(), description: z.string() })),
+  changePoints: z.array(z.strictObject({ id: z.number().int().positive().safe(), occurredOn: z.string(), description: z.string() })),
   activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]), status: z.enum(["queued", "running", "failed"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
   ownerQuestions: z.array(ownerQuestionSchema),
 });
 export const quoteTranslationResponseSchema = z.strictObject({ textEn: z.string().min(1) });
 export const quoteTranslationBodySchema = z.strictObject({ original: z.string().min(1).max(240) });
 export type RestaurantBundle = z.infer<typeof restaurantBundleSchema>;
+
+export const createChangePointBodySchema = z.strictObject({
+  kind: z.enum(CHANGE_POINT_KINDS),
+  date: z.iso.date(),
+  // Settles the Owner question that proposed this Change point (issue #59), once that kind exists.
+  questionId: z.number().int().positive().optional(),
+});
 
 export const createDistinctionBodySchema = z.strictObject({
   guide: z.enum(["Michelin", "Guia Repsol"]),
@@ -373,6 +380,16 @@ export const routes = {
     method: "DELETE", path: "/api/v1/restaurants/{slug}/distinctions", auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1) }), body: deleteDistinctionBodySchema },
     responses: { 200: deleteDistinctionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  createChangePoint: {
+    method: "POST", path: "/api/v1/restaurants/{slug}/change-points", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: createChangePointBodySchema },
+    responses: { 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  deleteChangePoint: {
+    method: "DELETE", path: "/api/v1/restaurants/{slug}/change-points/{id}", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1), id: z.coerce.number().int().positive().safe() }) },
+    responses: { 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   retrySource: {
     method: "POST", path: "/api/v1/restaurants/{slug}/listings/{source}/retry", auth: "owner",

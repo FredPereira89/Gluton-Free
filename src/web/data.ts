@@ -8,6 +8,7 @@ import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
 import type { SearchResponse } from "@/lib/api-contract";
 import { formatQuestionPayloadSchema, formatQuestionPrompt, questionCandidates, questionPrompt } from "@/lib/owner-question";
+import { CHANGE_POINT_LABEL, type ChangePointKind } from "@/domain/aspects";
 
 export async function searchKnownRestaurants(q: string, placeIds: string[]): Promise<(SearchResponse["known"][number] & { placeId: string | null })[]> {
   const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
@@ -141,7 +142,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
 export async function loadRestaurantBundle(slug: string): Promise<RestaurantBundle | null> {
   const page = await loadVerdictPage(slug);
   if (!page) return null;
-  const [job, openQuestions, listingProvenance] = await Promise.all([
+  const [job, openQuestions, listingProvenance, changePoints] = await Promise.all([
     db()`
       select id, kind, status, step, created_at from job
       where restaurant_id = ${page.restaurant.id}
@@ -151,6 +152,9 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       where restaurant_id = ${page.restaurant.id} and status = 'open' and kind in ('format', 'listing_match', 'retry_source')
       order by id`,
     db()`select source_code, match_provenance from listing where restaurant_id = ${page.restaurant.id}`,
+    db()`
+      select id, kind, date from change_point where restaurant_id = ${page.restaurant.id} and deleted_at is null
+      order by date desc, id desc`,
   ]);
   const matchProvenanceBySource = new Map(listingProvenance.map((listing) => [listing.source_code as string, listing.match_provenance as string]));
   return restaurantBundleSchema.parse({
@@ -174,7 +178,11 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
     distinctions: page.distinctions,
     critics: page.critics,
     series: page.verdict?.blocks.rollup.series ?? [],
-    changePoints: [],
+    changePoints: changePoints.map((c) => ({
+      id: Number(c.id),
+      occurredOn: new Date(c.date as string).toISOString().slice(0, 10),
+      description: CHANGE_POINT_LABEL[c.kind as ChangePointKind],
+    })),
     activeJob: job && job.status !== "succeeded" ? {
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
     } : null,

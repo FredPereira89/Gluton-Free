@@ -108,6 +108,7 @@ export const RollupSchema = z.strictObject({
   })).optional(),
   // Optional so Verdicts issued before Change points were surfaced (issue #41; storage lands in #58) remain readable.
   changePointAt: z.iso.datetime().nullable().optional(),
+  changePointDescription: z.string().optional(),
   // Optional so Verdicts issued before the disagreement line (issue #41) remain readable.
   disagreement: z.strictObject({
     sources: z.array(z.strictObject({ source: z.string(), tier: z.enum(TIERS) })),
