@@ -105,4 +105,10 @@ describe("sendPush", () => {
     expect(db).not.toHaveBeenCalled();
     expect(webpushSendNotification).not.toHaveBeenCalled();
   });
+
+  it("swallows a DB failure instead of throwing, so it never flips the caller's job/request outcome", async () => {
+    query.mockRejectedValue(new Error("connection reset"));
+    await expect(sendPush("verdict_ready", 7)).resolves.toBeUndefined();
+    expect(webpushSendNotification).not.toHaveBeenCalled();
+  });
 });
