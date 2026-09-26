@@ -11,6 +11,8 @@ import { emptyUsage, EXTRACT_MODEL } from "../src/analysis/llm";
 import { COMPARED_FIELDS, diffExtraction, summarizeAgreement, type GoldBaseline } from "../src/analysis/gold-set";
 import { closeDb, db } from "../src/lib/db";
 
+const summaryOnly = process.argv.includes("--summary-only");
+
 function toBaseline(e: Extracted): GoldBaseline {
   return { lang: e.lang, aspects: e.aspects, exceptional: e.exceptional, change: e.change, themes: e.themes, flags: e.flags, quote: e.quote };
 }
@@ -40,7 +42,7 @@ async function main() {
 
   const differing = reviewDiffs.filter((r) => r.diffs.length > 0);
   console.log(`${differing.length} of ${results.size} Reviews differ from the baseline on at least one field`);
-  for (const r of differing) {
+  if (!summaryOnly) for (const r of differing) {
     console.log(`  review ${r.reviewId}: ${r.diffs.map((d) => `${d.field} ${JSON.stringify(d.baseline)} -> ${JSON.stringify(d.candidate)}`).join("; ")}`);
   }
 }
