@@ -3,15 +3,21 @@ import { db } from "@/lib/db";
 import { redactNames } from "@/ingest/scrub";
 import { EXTRACTOR_VERSION, type ExtractInput, type Extracted } from "./extract";
 
-/** Text Reviews of a Restaurant with no analysis at the current extractor version, newest first. */
-export async function pendingExtraction(restaurantId: number): Promise<ExtractInput[]> {
+/** Text Reviews lacking current-version analysis, optionally bounded to a per-Source Review window. */
+export async function pendingExtraction(restaurantId: number, window?: { since: Date; maxPerSource: number }): Promise<ExtractInput[]> {
   const rows = await db()`
+    with text_reviews as (
+      select r.id, r.text, r.stars, r.published_at,
+        row_number() over (partition by l.source_code order by r.published_at desc, r.id desc) as source_rank
+      from review r join listing l on l.id = r.listing_id
+      where l.restaurant_id = ${restaurantId} and r.text is not null
+        and (${window?.since ?? null}::timestamptz is null or r.published_at >= ${window?.since ?? null})
+    )
     select r.id, r.text, r.stars
-    from review r
-    join listing l on l.id = r.listing_id
+    from text_reviews r
     left join review_analysis a on a.review_id = r.id and a.extractor_version = ${EXTRACTOR_VERSION}
-    where l.restaurant_id = ${restaurantId} and r.text is not null and a.review_id is null
-    order by r.published_at desc`;
+    where a.review_id is null and (${window?.maxPerSource ?? null}::int is null or r.source_rank <= ${window?.maxPerSource ?? null})
+    order by r.published_at desc, r.id desc`;
   return rows.map((r) => ({ id: Number(r.id), text: r.text as string, stars: r.stars as number | null }));
 }
 

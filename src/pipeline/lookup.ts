@@ -184,11 +184,11 @@ async function save(results: Map<number, Extracted>, items: ExtractInput[]) {
 }
 
 /**
- * Extracts Aspects for every text Review not yet analysed: newest by sync, the rest by batch, then a sync retry.
+ * Extracts Aspects for pending text Reviews in an optional per-Source window: newest by sync, the rest by batch, then a sync retry.
  * With `limit`, extracts only the newest `limit` pending Reviews, by sync (a quick end-to-end check).
  */
-export async function extractRestaurant(restaurantId: number, jobId: number, sleep: Sleep, limit?: number) {
-  const all = await pendingExtraction(restaurantId);
+export async function extractRestaurant(restaurantId: number, jobId: number, sleep: Sleep, limit?: number, window?: { since: Date; maxPerSource: number }) {
+  const all = await pendingExtraction(restaurantId, window);
   const pending = limit ? all.slice(0, limit) : all;
   const first = pending.slice(0, limit ?? SYNC_FIRST);
   const rest = pending.slice(first.length);
@@ -212,14 +212,14 @@ export async function extractRestaurant(restaurantId: number, jobId: number, sle
   }
 
   const pendingIds = new Set(pending.map((p) => p.id));
-  const missing = (await pendingExtraction(restaurantId)).filter((p) => pendingIds.has(p.id));
+  const missing = (await pendingExtraction(restaurantId, window)).filter((p) => pendingIds.has(p.id));
   if (missing.length) {
     await setStep(jobId, "re-extracting missed Reviews");
     const retryUsage = emptyUsage("extract-retry", EXTRACT_MODEL, false);
     await save(await extractSync(missing, retryUsage), missing);
     await addLlmUsage(jobId, retryUsage);
   }
-  const left = (await pendingExtraction(restaurantId)).length;
+  const left = (await pendingExtraction(restaurantId, window)).length;
   await setStep(jobId, "extraction done", { extraction: { pending: all.length, attempted: pending.length, unanalysed: left } }, "window extracted");
   return { pending: all.length, attempted: pending.length, unanalysed: left };
 }
@@ -384,13 +384,13 @@ export async function runSourceRetry(
 export async function runRejudge(
   restaurantId: number,
   sleep: Sleep,
-  opts: { triggerRunId?: string; jobId?: number; cause?: RejudgeCause } = {},
+  opts: { triggerRunId?: string; jobId?: number; cause?: RejudgeCause; extractWindow?: { since: Date; maxPerSource: number } } = {},
 ) {
   const jobId = opts.jobId ?? await createJob("rejudge", restaurantId, opts.triggerRunId);
   if (opts.jobId) await db()`update job set status = 'running', trigger_run_id = ${opts.triggerRunId ?? null}, updated_at = now() where id = ${jobId}`;
   try {
     await setStep(jobId, "extracting new Reviews");
-    const extraction = await extractRestaurant(restaurantId, jobId, sleep);
+    const extraction = await extractRestaurant(restaurantId, jobId, sleep, undefined, opts.extractWindow);
     const judged = await judgeRestaurant(restaurantId, jobId, opts.cause ?? "automatic");
     await finishJob(jobId);
     return { jobId, extraction, ...judged };

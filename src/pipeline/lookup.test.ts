@@ -112,6 +112,37 @@ afterAll(async () => {
 });
 
 describe("Lookup pipeline", () => {
+  it("limits pending extraction to Reviews since a confirmed Change point", async () => {
+    const database = sql!;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-extraction-window', 'Fictional Extraction Window', 'Lisbon', 'tasca', 'owner') returning id`;
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    const [listing] = await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurant!.id}, 'google', 'invented-extraction-window', 'https://example.invalid/extraction-window', 'pasted') returning id`;
+    const reviews = await database`
+      insert into review (listing_id, source_review_id, published_at, text)
+      values (${listing!.id}, 'invented-before-point', '2025-04-30', 'Before renovation'),
+             (${listing!.id}, 'invented-at-point', '2025-05-01', 'At renovation'),
+             (${listing!.id}, 'invented-after-point', '2025-05-02', 'After renovation')
+      returning id, source_review_id`;
+    const { pendingExtraction } = await import("@/analysis/store");
+    const all = await pendingExtraction(Number(restaurant!.id));
+    const since = await pendingExtraction(Number(restaurant!.id), {
+      since: new Date("2025-05-01T00:00:00Z"), maxPerSource: 2,
+    });
+    const capped = await pendingExtraction(Number(restaurant!.id), {
+      since: new Date("2025-05-01T00:00:00Z"), maxPerSource: 1,
+    });
+    expect(all.map((review) => review.id).sort()).toEqual(reviews.map((review) => Number(review.id)).sort());
+    expect(since.map((review) => review.id)).toEqual([
+      Number(reviews.find((review) => review.source_review_id === "invented-after-point")!.id),
+      Number(reviews.find((review) => review.source_review_id === "invented-at-point")!.id),
+    ]);
+    expect(capped.map((review) => review.id)).toEqual(since.slice(0, 1).map((review) => review.id));
+  });
+
   it("stores invented Reviews and analyses, issues a Verdict, and records the job cost", async () => {
     const database = sql!;
     const migrations = await database`select name from schema_migration order by name`;
@@ -130,7 +161,11 @@ describe("Lookup pipeline", () => {
     fakeChangeMarker.value = "new_owner";
     const result = await runLookup(restaurantId, async () => {});
     fakeChangeMarker.value = "none";
-    const reviews = await database`select source_review_id, text from review order by source_review_id`;
+    const reviews = await database`
+      select r.source_review_id, r.text from review r
+      join listing l on l.id = r.listing_id
+      where l.restaurant_id = ${restaurantId}
+      order by r.source_review_id`;
     const analyses = await database`select a.review_id, a.change from review_analysis a join review r on r.id = a.review_id join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurantId}`;
     const [verdict] = await database`select state, tier, provisional, job_id from verdict where restaurant_id = ${restaurantId}`;
     const [job] = await database`select status, vendor_cost_usd, llm_usage from job where id = ${result.jobId}`;
