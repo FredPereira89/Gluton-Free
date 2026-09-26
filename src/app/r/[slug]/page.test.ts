@@ -24,6 +24,33 @@ describe("Restaurant details (issue #53)", () => {
   });
 });
 
+describe("Distinctions (issue #61)", () => {
+  it("shows the guide, level, edition, link and Tier disclaimer outside the explanation", async () => {
+    const page = bundle(0);
+    page.distinctions = [{ id: 7, guide: "Guia Repsol", level: "Solete", editionYear: 2026, url: "https://www.guiarepsol.com/sample" }];
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Guia Repsol");
+    expect(html).toContain("Solete (2026)");
+    expect(html).toContain('href="https://www.guiarepsol.com/sample"');
+    expect(html).toContain("Distinctions are credited to their guide and never move the Tier.");
+    expect(html).toContain("Add Distinction");
+    expect(html).toContain("Delete Guia Repsol Solete 2026");
+    expect(page.verdict!.explanation).toBe("The food is good.");
+  });
+
+  it("keeps Distinctions visible when verified red flags force Avoid", async () => {
+    const page = bundle(2, true);
+    page.distinctions = [{ id: 8, guide: "Michelin", level: "Selected", editionYear: 2026, url: "https://guide.michelin.com/sample" }];
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("Recurring recent incidents force Avoid");
+    expect(html).toContain("Michelin");
+    expect(html).toContain("Selected (2026)");
+    expect(html).toContain("Distinctions are credited to their guide and never move the Tier.");
+  });
+});
+
 function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20): RestaurantBundle {
   const reviews: RollupReview[] = Array.from({ length: reviewCount }, (_, i) => ({
     id: i + 1, source: "google", publishedAt, stars: 5, hasText: true, subRatings: null,

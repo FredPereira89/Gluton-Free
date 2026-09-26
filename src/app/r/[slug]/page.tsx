@@ -16,6 +16,7 @@ import { LookupProgress } from "@/web/lookup-progress";
 import { OwnerQuestions, SourceRetryBanners } from "@/web/owner-questions";
 import { ListingUndo } from "@/web/listing-undo";
 import { RestaurantFactsEditor } from "@/web/restaurant-facts";
+import { Distinctions } from "@/web/distinctions";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -390,17 +391,9 @@ function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page
           </tbody>
         </table>
       </div>
-      {!hideExtras && (page.distinctions.length > 0 || page.critics.length > 0) && (
+      <Distinctions slug={page.restaurant.slug} items={page.distinctions} />
+      {!hideExtras && page.critics.length > 0 && (
         <div className="ev-list">
-          {page.distinctions.map((d) => (
-            <div key={d.url}>
-              <b>{d.guide}</b> · {d.level}
-              {d.editionYear ? ` (${d.editionYear})` : ""}{" "}
-              <a href={d.url} rel="noreferrer" target="_blank">
-                ↗
-              </a>
-            </div>
-          ))}
           {page.critics.map((c) => (
             <div key={c.url}>
               <b>{c.publication}</b> ·{" "}
@@ -410,7 +403,7 @@ function Sources({ page, perSource, sourceReadings, hideExtras = false }: { page
               {c.publishedOn ? ` (${c.publishedOn.slice(0, 4)})` : ""}
             </div>
           ))}
-          <p className="small muted">Shown for context; Distinctions and critic pieces never move the Tier.</p>
+          <p className="small muted">Shown for context; critic pieces never move the Tier.</p>
         </div>
       )}
     </section>

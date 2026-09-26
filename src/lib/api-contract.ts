@@ -92,7 +92,7 @@ export const restaurantBundleSchema = z.strictObject({
     blocks: BlocksSchema,
   }).nullable(),
   sources: z.array(bundleSourceSchema),
-  distinctions: z.array(z.strictObject({ guide: z.string(), level: z.string(), editionYear: z.number().int().nullable(), url: z.url() })),
+  distinctions: z.array(z.strictObject({ id: z.number().int().positive().safe(), guide: z.string(), level: z.string(), editionYear: z.number().int().nullable(), url: z.url() })),
   critics: z.array(z.strictObject({ publication: z.string(), title: z.string(), url: z.url(), publishedOn: z.string().nullable() })),
   series: RollupSchema.shape.series,
   changePoints: z.array(z.strictObject({ occurredOn: z.string(), description: z.string() })),
@@ -102,6 +102,16 @@ export const restaurantBundleSchema = z.strictObject({
 export const quoteTranslationResponseSchema = z.strictObject({ textEn: z.string().min(1) });
 export const quoteTranslationBodySchema = z.strictObject({ original: z.string().min(1).max(240) });
 export type RestaurantBundle = z.infer<typeof restaurantBundleSchema>;
+
+export const createDistinctionBodySchema = z.strictObject({
+  guide: z.enum(["Michelin", "Guia Repsol"]),
+  level: z.string().trim().min(1).max(120),
+  editionYear: z.number().int().min(1900).max(2100),
+  url: z.url().refine((value) => /^https?:\/\//i.test(value)),
+});
+export const createDistinctionResponseSchema = z.strictObject({ id: z.number().int().positive().safe() });
+export const deleteDistinctionBodySchema = z.strictObject({ id: z.number().int().positive().safe() });
+export const deleteDistinctionResponseSchema = z.strictObject({ deleted: z.literal(true) });
 
 export const healthResponseSchema = z.strictObject({ status: z.literal("ok") });
 export const verdictResponseSchema = z.strictObject({
@@ -353,6 +363,16 @@ export const routes = {
       202: z.union([answerListingResponseSchema, acceptedJobSchema]),
       400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema,
     },
+  },
+  createDistinction: {
+    method: "POST", path: "/api/v1/restaurants/{slug}/distinctions", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: createDistinctionBodySchema },
+    responses: { 201: createDistinctionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  deleteDistinction: {
+    method: "DELETE", path: "/api/v1/restaurants/{slug}/distinctions", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: deleteDistinctionBodySchema },
+    responses: { 200: deleteDistinctionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   retrySource: {
     method: "POST", path: "/api/v1/restaurants/{slug}/listings/{source}/retry", auth: "owner",

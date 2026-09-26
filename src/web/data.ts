@@ -45,7 +45,7 @@ export type VerdictPage = {
   restaurant: { id: number; slug: string; name: string; city: string; area: string | null; format: string; formatProvenance: "llm" | "owner" | "baseline_auto"; priceTier: string | null };
   sources: SourceRow[];
   verdict: { id: number; state: string; tier: string | null; confidence: string | null; explanation: string | null; createdAt: Date; blocks: Blocks; peerSnapshotId?: number | null } | null;
-  distinctions: { guide: string; level: string; editionYear: number | null; url: string }[];
+  distinctions: { id: number; guide: string; level: string; editionYear: number | null; url: string }[];
   critics: { publication: string; title: string; url: string; publishedOn: string | null }[];
 };
 
@@ -63,7 +63,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
     sql`
       select id, state, tier, confidence, explanation, created_at, blocks, peer_snapshot_id
       from verdict where restaurant_id = ${id} order by id desc limit 1`,
-    sql`select guide, level, edition_year, url from distinction where restaurant_id = ${id} order by edition_year desc nulls last`,
+    sql`select id, guide, level, edition_year, url from distinction where restaurant_id = ${id} order by edition_year desc nulls last, id desc`,
     sql`
       select publication, title, url, published_on::text as published_on
       from critic_piece where restaurant_id = ${id} order by published_on desc nulls last, id`,
@@ -133,7 +133,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
           peerSnapshotId: v.peer_snapshot_id === null ? null : Number(v.peer_snapshot_id),
         }
       : null,
-    distinctions: distinctions.map((d) => ({ guide: d.guide, level: d.level, editionYear: d.edition_year, url: d.url })),
+    distinctions: distinctions.map((d) => ({ id: Number(d.id), guide: d.guide, level: d.level, editionYear: d.edition_year, url: d.url })),
     critics: critics.map((c) => ({ publication: c.publication, title: c.title, url: c.url, publishedOn: c.published_on })),
   };
 }
