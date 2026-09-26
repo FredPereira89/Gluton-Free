@@ -1055,6 +1055,9 @@
                                   ],
                                   "additionalProperties": false
                                 },
+                                "tierChangedNow": {
+                                  "type": "boolean"
+                                },
                                 "tierBasis": {
                                   "type": "object",
                                   "properties": {
@@ -2332,6 +2335,9 @@
                                         "at"
                                       ],
                                       "additionalProperties": false
+                                    },
+                                    "tierChangedNow": {
+                                      "type": "boolean"
                                     },
                                     "tierBasis": {
                                       "type": "object",

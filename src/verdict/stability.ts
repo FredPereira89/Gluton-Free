@@ -15,6 +15,8 @@ export type StabilityVerdict = {
   tierFloors?: TierFloor[];
   ceilingNote?: string | null;
   tierChange?: { from: Tier; at: string };
+  /** True only when this exact re-judgement is what moved the Tier, not a carried-forward tierChange. */
+  tierChangedNow?: boolean;
   tierBasis?: { composite: number; standings: { input: Input; percentile: number }[] };
   tierHeld?: boolean;
 };
@@ -30,6 +32,7 @@ export function stabilizeTier<T extends StabilityVerdict>(current: T, previous: 
   if (!current.tier) return current;
   if (!previous?.tier || current.tier === previous.tier) {
     current.tierChange = previous?.tier === current.tier ? previous.tierChange : undefined;
+    current.tierChangedNow = false;
     current.tierBasis = previous?.tier === current.tier ? basisOf(previous) : basisOf(current);
     return current;
   }
@@ -63,6 +66,7 @@ export function stabilizeTier<T extends StabilityVerdict>(current: T, previous: 
 
   if (move) {
     current.tierChange = { from: previous.tier, at: now.toISOString() };
+    current.tierChangedNow = true;
     current.tierBasis = basisOf(current);
   } else {
     current.tier = previous.tier;
@@ -70,6 +74,7 @@ export function stabilizeTier<T extends StabilityVerdict>(current: T, previous: 
     current.tierFloors = previous.tierFloors;
     current.ceilingNote = null;
     current.tierChange = previous.tierChange;
+    current.tierChangedNow = false;
     current.tierBasis = basisOf(previous);
     current.tierHeld = true;
   }

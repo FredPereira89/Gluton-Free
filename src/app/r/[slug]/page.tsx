@@ -90,7 +90,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   const changePointLine = r.changePointAt && (
     <p className="small muted">
       Re-judged on Reviews since {r.changePointDescription ? `${r.changePointDescription}, ` : ""}{dateLabel(r.changePointAt)}
-      {r.tierChange && <>; was {TIER_LABEL[r.tierChange.from]}</>}
+      {r.tierChange && r.tierChangedNow && <>; was {TIER_LABEL[r.tierChange.from]}</>}
     </p>
   );
   const tierChange = changePointLine ?? (r.tierChange && <p className="small muted">Was {TIER_LABEL[r.tierChange.from]} until {dateLabel(r.tierChange.at)}</p>);

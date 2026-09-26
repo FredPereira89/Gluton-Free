@@ -5,6 +5,7 @@ import { batchEnded, collectBatch, extractSync, submitBatch, type ExtractInput, 
 import { readRestaurantFacts } from "@/analysis/restaurant-facts";
 import { emptyUsage, EXTRACT_MODEL, JUDGE_MODEL } from "@/analysis/llm";
 import { pendingExtraction, saveAnalyses } from "@/analysis/store";
+import { reproposesFormat } from "@/domain/aspects";
 import { choosePriceTier } from "@/domain/restaurant-facts";
 import { verifyPendingFlags } from "@/analysis/verify";
 import { depthFor, getReviewTask, postReviewTask, type DfsSource, type ReviewTaskParams } from "@/ingest/dataforseo";
@@ -15,7 +16,7 @@ import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsag
 import { raiseFailedLookupQuestion, raiseFormatQuestion, raiseSourceRetryQuestions } from "@/lib/owner-question";
 import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
 import { sendPush } from "@/lib/push-send";
-import { issueVerdict } from "@/verdict/issue";
+import { issueVerdict, loadNewestChangePoint } from "@/verdict/issue";
 import { PARAMS } from "@/verdict/rollup";
 import type { RejudgeCause } from "@/verdict/stability";
 
@@ -226,6 +227,10 @@ export async function extractRestaurant(restaurantId: number, jobId: number, sle
 export async function judgeRestaurant(restaurantId: number, jobId: number, cause: RejudgeCause = "automatic") {
   const sql = db();
   const [restaurant] = await sql`select format_provenance, price_provenance from restaurant where id = ${restaurantId}`;
+  // A confirmed new concept or moved Change point re-proposes the Format from the Reviews since
+  // the change (ADR 0007); other kinds (reopened, new owner, new chef) don't affect the Format.
+  const changePoint = await loadNewestChangePoint(restaurantId);
+  const formatSince = changePoint && reproposesFormat(changePoint.kind) ? changePoint.date : null;
   const listings = await sql`select source_code, price_level, categories from listing where restaurant_id = ${restaurantId}`;
   const reviews = await sql`
     select text from (
@@ -234,6 +239,7 @@ export async function judgeRestaurant(restaurantId: number, jobId: number, cause
       from review r join listing l on l.id = r.listing_id
       where l.restaurant_id = ${restaurantId} and r.text is not null
         and r.published_at >= now() - ${PARAMS.reviewWindowMaxAgeMonths} * interval '1 month'
+        and (${formatSince}::timestamptz is null or r.published_at >= ${formatSince})
     ) windowed where source_rank <= ${PARAMS.reviewWindowCap}
     order by published_at desc`;
   const sourcePrices = listings.map((l) => ({ source: l.source_code as string, priceLevel: l.price_level as string | null }));

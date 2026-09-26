@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type postgres from "postgres";
 import { CHANGE_POINT_LABEL, type Aspect, type ChangePointKind, type FlagType } from "@/domain/aspects";
 import { db } from "@/lib/db";
 import type { LlmUsage } from "@/lib/job";
@@ -67,8 +68,8 @@ export async function loadRollupInput(
 }
 
 /** The Change point that governs the next Verdict: only the newest confirmed one matters (ADR 0007). */
-async function loadNewestChangePoint(restaurantId: number) {
-  const [row] = await db()`
+export async function loadNewestChangePoint(restaurantId: number, sql: postgres.Sql | postgres.TransactionSql = db()) {
+  const [row] = await sql`
     select id, kind, date from change_point where restaurant_id = ${restaurantId} and deleted_at is null
     order by date desc, id desc limit 1`;
   if (!row) return null;

@@ -75,3 +75,8 @@ export const CHANGE_POINT_LABEL: Record<ChangePointKind, string> = {
   new_concept: "New concept",
   moved: "Moved",
 };
+
+/** Kinds that re-propose the Format from the Reviews since the change (ADR 0007). */
+export function reproposesFormat(kind: ChangePointKind): boolean {
+  return kind === "new_concept" || kind === "moved";
+}

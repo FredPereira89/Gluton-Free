@@ -1,6 +1,8 @@
 import type postgres from "postgres";
 import { tasks } from "@trigger.dev/sdk";
 import type { z } from "zod";
+import { reproposesFormat } from "@/domain/aspects";
+import { loadNewestChangePoint } from "@/verdict/issue";
 import { acceptedJobResponse, type createChangePointBodySchema } from "./api-contract";
 import { db } from "./db";
 import { ApiError } from "./problem";
@@ -45,6 +47,13 @@ export async function declareChangePoint(slug: string, body: z.infer<typeof crea
     await tx`
       insert into change_point (restaurant_id, kind, date, provenance)
       values (${restaurantId}, ${body.kind}, ${body.date}, ${provenance})`;
+    // Re-propose the Format only if this declaration is (or remains) the governing, newest
+    // Change point (ADR 0007): a backdated new_concept/moved behind a later, non-reproposing
+    // point must not override the owner's confirmation, which the later point still governs.
+    const governing = await loadNewestChangePoint(restaurantId, tx);
+    if (governing && reproposesFormat(governing.kind)) {
+      await tx`update restaurant set format_provenance = 'llm' where id = ${restaurantId}`;
+    }
     return enqueueRejudge(tx, restaurantId, "Change point declared");
   });
   return acceptedJobResponse(jobId);
