@@ -3,7 +3,8 @@ import { readdirSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
-import { fakeAnthropic, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, vendorFailureState } from "./vendor-fakes";
+import { fakeAnthropic, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState } from "./vendor-fakes";
+
 
 const triggerControl = vi.hoisted(() => ({ failListingUndo: false }));
 
@@ -29,7 +30,7 @@ vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined)
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, payload: never) => {
   if (id === "owner-listing-undo" && triggerControl.failListingUndo) throw new Error("Trigger unavailable");
-  const { runLookup, runListingFetch, runRejudge } = await import("./lookup");
+  const { runLookup, runListingFetch, runRejudge, runSourceRetry } = await import("./lookup");
   if (id === "owner-format-correction") {
     // The API commits before Trigger.dev begins processing the queued correction.
   } else if (id === "owner-listing-answer") {
@@ -38,6 +39,9 @@ vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, 
     await runRejudge(p.restaurantId, async () => {}, { cause: "owner_answer" });
   } else if (id === "owner-listing-undo") {
     // The worker waits for the API transaction to commit before reading the detached Listing set.
+  } else if (id === "owner-source-retry") {
+    const p = payload as { restaurantId: number; listingId: number; questionId: number; jobId: number };
+    await runSourceRetry(p.restaurantId, p.listingId, p.questionId, async () => {}, { jobId: p.jobId });
   } else {
     const p = payload as { restaurantId: number; jobId: number; from?: "ingest" | "extract" | "judge" };
     await runLookup(p.restaurantId, async () => {}, { jobId: p.jobId, from: p.from });
@@ -193,6 +197,137 @@ describe("Lookup pipeline", () => {
     expect(translateCall).toHaveBeenCalledTimes(1);
     translateCall.mockRestore();
     parse.mockRestore();
+  }, 30_000);
+
+  it("issues a Low-Confidence partial Verdict and retries only the failed Source", async () => {
+    const database = sql!;
+    const originalGoogleLength = fixture.googleReviews.length;
+    fixture.googleReviews.push(...Array.from({ length: 8 }, (_, index) => `Invented extra Google Review ${index + 1} praises the food.`));
+    try {
+      const [restaurant] = await database`
+        insert into restaurant (slug, name, city, format, format_provenance)
+        values ('fictional-partial-lookup', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+      const restaurantId = Number(restaurant!.id);
+      await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+      await database`
+        insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+        values (${restaurantId}, 'google', 'invented-partial-google-place', 'https://example.invalid/google', 'pasted'),
+               (${restaurantId}, 'tripadvisor', 'invented-partial-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+
+      sourceFetchFailureState.source = "tripadvisor";
+      sourceFetchFailureState.taskGetFailures = 3;
+      const { runLookup } = await import("./lookup");
+      const initial = await runLookup(restaurantId, async () => {});
+      expect(sourceFetchFailureState.taskGetFailures).toBe(0);
+
+      const [job] = await database`select status from job where id = ${initial.jobId}`;
+      expect(job!.status).toBe("succeeded");
+      const [tripadvisor] = await database`select fetch_status from listing where restaurant_id = ${restaurantId} and source_code = 'tripadvisor'`;
+      expect(tripadvisor!.fetch_status).toBe("failed");
+      const [verdict] = await database`select state, confidence, blocks from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+      expect(verdict).toMatchObject({ state: "verdict", confidence: "low" });
+      expect((verdict!.blocks as { rollup: { confidence: { level: string } } }).rollup.confidence.level).toBe("low");
+      const [question] = await database`select id, status, source_code, kind from owner_question where restaurant_id = ${restaurantId}`;
+      expect(question).toMatchObject({ status: "open", source_code: "tripadvisor", kind: "retry_source" });
+
+      const { loadRestaurantBundle } = await import("@/web/data");
+      const partialPage = await loadRestaurantBundle("fictional-partial-lookup");
+      expect(partialPage?.ownerQuestions).toMatchObject([{ kind: "retry_source", source: "tripadvisor", prompt: "Retry Tripadvisor" }]);
+      const { renderToStaticMarkup } = await import("react-dom/server");
+      const { default: VerdictPageRoute } = await import("@/app/r/[slug]/page");
+      const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "fictional-partial-lookup" }) }));
+      expect(html).toContain("Tripadvisor could not be fetched.");
+      expect(html).toContain("Retry Tripadvisor");
+
+      const { POST } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/retry/route");
+      const response = await POST(new Request("http://localhost/api/v1/restaurants/fictional-partial-lookup/listings/tripadvisor/retry", { method: "POST" }), {
+        params: Promise.resolve({ slug: "fictional-partial-lookup", source: "tripadvisor" }),
+      });
+      expect(response.status).toBe(202);
+      const [retriedListing] = await database`select fetch_status from listing where restaurant_id = ${restaurantId} and source_code = 'tripadvisor'`;
+      expect(retriedListing!.fetch_status).toBe("fetched");
+      const [verdictCount] = await database`select count(*)::int as count from verdict where restaurant_id = ${restaurantId}`;
+      expect(verdictCount!.count).toBe(2);
+      const [settled] = await database`select status from owner_question where id = ${question!.id}`;
+      expect(settled!.status).toBe("answered");
+      expect((await loadRestaurantBundle("fictional-partial-lookup"))?.ownerQuestions).toEqual([]);
+    } finally {
+      fixture.googleReviews.splice(originalGoogleLength);
+      sourceFetchFailureState.source = null;
+      sourceFetchFailureState.taskPostFailures = 0;
+      sourceFetchFailureState.taskGetFailures = 0;
+    }
+  }, 30_000);
+
+  it("retries transient Source task submission errors before marking the Source failed", async () => {
+    const database = sql!;
+    const beforePosts = fakeVendorCalls.reviewPosts;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-source-post-retry', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'google', 'invented-source-post-retry-google-place', 'https://example.invalid/google', 'pasted')`;
+
+    sourceFetchFailureState.source = "google";
+    sourceFetchFailureState.taskPostFailures = 2;
+    try {
+      const { runLookup } = await import("./lookup");
+      const result = await runLookup(restaurantId, async () => {});
+      expect(sourceFetchFailureState.taskPostFailures).toBe(0);
+      expect(fakeVendorCalls.reviewPosts).toBe(beforePosts + 2);
+      const [listing] = await database`select fetch_status from listing where restaurant_id = ${restaurantId}`;
+      expect(listing!.fetch_status).toBe("fetched");
+      const [job] = await database`select status from job where id = ${result.jobId}`;
+      expect(job!.status).toBe("succeeded");
+    } finally {
+      sourceFetchFailureState.source = null;
+      sourceFetchFailureState.taskPostFailures = 0;
+    }
+  }, 30_000);
+
+  it("re-judges a fetched Source after an extraction failure without fetching it twice", async () => {
+    const database = sql!;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-partial-retry-recovery', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'google', 'invented-recovery-google-place', 'https://example.invalid/google', 'pasted'),
+             (${restaurantId}, 'tripadvisor', 'invented-recovery-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+
+    sourceFetchFailureState.source = "tripadvisor";
+    sourceFetchFailureState.taskGetFailures = 3;
+    const { runLookup } = await import("./lookup");
+    await runLookup(restaurantId, async () => {});
+    sourceFetchFailureState.source = null;
+    const [question] = await database`select id from owner_question where restaurant_id = ${restaurantId} and kind = 'retry_source'`;
+    const postsBeforeRetry = fakeVendorCalls.reviewPosts;
+    extractFailureState.armed = true;
+
+    const { POST } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/retry/route");
+    const request = () => POST(
+      new Request("http://localhost/api/v1/restaurants/fictional-partial-retry-recovery/listings/tripadvisor/retry", { method: "POST" }),
+      { params: Promise.resolve({ slug: "fictional-partial-retry-recovery", source: "tripadvisor" }) },
+    );
+    const failedRetry = await request();
+    expect(failedRetry.status).toBe(500);
+    const [afterFailure] = await database`select fetch_status from listing where restaurant_id = ${restaurantId} and source_code = 'tripadvisor'`;
+    expect(afterFailure!.fetch_status).toBe("fetched");
+    const [openQuestion] = await database`select status from owner_question where id = ${question!.id}`;
+    expect(openQuestion!.status).toBe("open");
+
+    const recovered = await request();
+    expect(recovered.status).toBe(202);
+    expect(fakeVendorCalls.reviewPosts).toBe(postsBeforeRetry + 2);
+    const [verdictCount] = await database`select count(*)::int as count from verdict where restaurant_id = ${restaurantId}`;
+    expect(verdictCount!.count).toBe(2);
+    const [settled] = await database`select status from owner_question where id = ${question!.id}`;
+    expect(settled!.status).toBe("answered");
   }, 30_000);
 
   it("undoes an auto-accepted Listing and appends a Verdict from the remaining Sources", async () => {
@@ -419,6 +554,8 @@ describe("Lookup pipeline", () => {
       fixture.googleReviews.splice(originalGoogle.length);
     }
   }, 30_000);
+
+
 
   it("reads Format from Reviews before issuing the Verdict and shows its proposal", async () => {
     const { POST } = await import("@/app/api/v1/lookups/route");

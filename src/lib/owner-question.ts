@@ -58,6 +58,18 @@ export async function raiseFailedLookupQuestion(sql: postgres.Sql, restaurantId:
     on conflict (restaurant_id) where status = 'open' and kind = 'failed_lookup' do nothing`;
 }
 
+/** Raises one Retry Source Owner question per failed Crowd Source and returns newly created IDs. */
+export async function raiseSourceRetryQuestions(sql: postgres.Sql, restaurantId: number): Promise<number[]> {
+  const created = await sql`
+    insert into owner_question (restaurant_id, kind, source_code, payload)
+    select l.restaurant_id, 'retry_source', l.source_code, '{}'::jsonb
+    from listing l join source s on s.code = l.source_code
+    where l.restaurant_id = ${restaurantId} and s.kind = 'crowd' and l.fetch_status = 'failed'
+    on conflict (restaurant_id, source_code, kind) where status = 'open' do nothing
+    returning id`;
+  return created.map((question) => Number(question.id));
+}
+
 export function questionPrompt(sourceCode: string): string {
   const source = sourceCode === "tripadvisor" ? "Tripadvisor" : sourceCode;
   return `Which ${source} listing belongs to this Restaurant?`;

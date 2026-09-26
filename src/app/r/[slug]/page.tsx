@@ -13,7 +13,7 @@ import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
-import { OwnerQuestions } from "@/web/owner-questions";
+import { OwnerQuestions, SourceRetryBanners } from "@/web/owner-questions";
 import { ListingUndo } from "@/web/listing-undo";
 import { RestaurantFactsEditor } from "@/web/restaurant-facts";
 
@@ -76,6 +76,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <div className="chips">{baseChips}</div>
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
+        <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
         <Sources page={page} />
         {page.activeJob?.kind === "lookup" && <LookupProgress jobId={page.activeJob.id} />}
         <BundleExtras page={page} />
@@ -135,6 +136,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             ))}
           </div>
         </section>
+        <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
         <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} />
         <BundleExtras page={page} />
         <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
@@ -152,6 +154,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           {tierChange}
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         </section>
+        <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
         <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} hideExtras />
         <BundleExtras page={page} />
       </div>
@@ -292,6 +295,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         </p>}
       </section>
 
+      <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
       <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} />
       <BundleExtras page={page} />
       <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />

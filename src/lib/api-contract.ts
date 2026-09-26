@@ -69,7 +69,13 @@ const formatOwnerQuestionSchema = z.strictObject({
   proposedFormat: z.enum(FORMATS),
   googleCategory: z.string().nullable(),
 });
-export const ownerQuestionSchema = z.discriminatedUnion("kind", [listingOwnerQuestionSchema, formatOwnerQuestionSchema]);
+const retrySourceOwnerQuestionSchema = z.strictObject({
+  id: z.number().int(),
+  kind: z.literal("retry_source"),
+  source: z.enum(["google", "tripadvisor"]),
+  prompt: z.string(),
+});
+export const ownerQuestionSchema = z.discriminatedUnion("kind", [listingOwnerQuestionSchema, formatOwnerQuestionSchema, retrySourceOwnerQuestionSchema]);
 export type OwnerQuestion = z.infer<typeof ownerQuestionSchema>;
 
 export const restaurantBundleSchema = z.strictObject({
@@ -347,6 +353,11 @@ export const routes = {
       202: z.union([answerListingResponseSchema, acceptedJobSchema]),
       400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema,
     },
+  },
+  retrySource: {
+    method: "POST", path: "/api/v1/restaurants/{slug}/listings/{source}/retry", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1), source: z.enum(["google", "tripadvisor"]) }) },
+    responses: { 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   undoListing: {
     method: "DELETE", path: "/api/v1/restaurants/{slug}/listings/{source}", auth: "owner",

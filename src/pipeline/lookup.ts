@@ -12,8 +12,8 @@ import { normaliseGoogle, normaliseTripadvisor } from "@/ingest/normalise";
 import { storeListingFetch } from "@/ingest/store";
 import { db } from "@/lib/db";
 import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage, type LookupStage } from "@/lib/job";
-import { raiseFailedLookupQuestion, raiseFormatQuestion } from "@/lib/owner-question";
-import { toPipelineError } from "@/lib/pipeline-error";
+import { raiseFailedLookupQuestion, raiseFormatQuestion, raiseSourceRetryQuestions } from "@/lib/owner-question";
+import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
 import { issueVerdict } from "@/verdict/issue";
 import { PARAMS } from "@/verdict/rollup";
 import type { RejudgeCause } from "@/verdict/stability";
@@ -25,11 +25,29 @@ const SYNC_FIRST = 300; // newest Reviews go through the sync path so a Verdict 
 const POLL_VENDOR_S = 30;
 const POLL_BATCH_S = 60;
 const MAX_WAIT_S = 3 * 3600;
+const MAX_TASK_POST_ATTEMPTS = 3;
+const MAX_TASK_GET_FAILURES = 3;
+const SOURCE_FETCH_ERROR = "The Reviews vendor could not complete this request. Retry in a few minutes.";
 
 type ListingRow = { id: number; source: DfsSource; placeRef: string };
 
 function taskParams(l: ListingRow, depth: number): ReviewTaskParams {
   return l.source === "google" ? { source: "google", placeId: l.placeRef, depth } : { source: "tripadvisor", urlPath: l.placeRef, depth };
+}
+
+async function postReviewTaskWithRetries(params: ReviewTaskParams, sleep: Sleep): Promise<{ taskId: string; cost: number }> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_TASK_POST_ATTEMPTS; attempt++) {
+    try {
+      return await postReviewTask(params);
+    } catch (error) {
+      lastError = error;
+      if (error instanceof PipelineError && error.code === "vendor_balance_low") throw error;
+      if (error instanceof Error && error.message === "DataForSEO credentials are not set") throw error;
+      if (attempt < MAX_TASK_POST_ATTEMPTS) await sleep(2 ** (attempt - 1));
+    }
+  }
+  throw lastError;
 }
 
 /** Posts tasks for every listing and polls them together until each returns a result. */
@@ -38,26 +56,49 @@ async function runVendorTasks(
   depthOf: (l: ListingRow) => number,
   jobId: number,
   sleep: Sleep,
-): Promise<Map<number, unknown>> {
+): Promise<{ results: Map<number, unknown>; failures: Map<number, unknown> }> {
   const posted = new Map<number, string>();
+  const failures = new Map<number, unknown>();
   for (const l of listings) {
-    const { taskId, cost } = await postReviewTask(taskParams(l, depthOf(l)));
-    await addVendorCost(jobId, cost);
-    posted.set(l.id, taskId);
+    let task: { taskId: string; cost: number };
+    try {
+      task = await postReviewTaskWithRetries(taskParams(l, depthOf(l)), sleep);
+    } catch (error) {
+      failures.set(l.id, error);
+      continue;
+    }
+    await addVendorCost(jobId, task.cost);
+    posted.set(l.id, task.taskId);
   }
   const results = new Map<number, unknown>();
-  for (let waited = 0; results.size < listings.length; waited += POLL_VENDOR_S) {
-    if (waited > MAX_WAIT_S) throw new Error("DataForSEO tasks did not finish within 3 hours");
+  const pollFailures = new Map<number, number>();
+  for (let waited = 0; results.size + failures.size < listings.length; waited += POLL_VENDOR_S) {
+    if (waited > MAX_WAIT_S) {
+      for (const l of listings) if (!results.has(l.id) && !failures.has(l.id)) {
+        failures.set(l.id, new Error("DataForSEO task did not finish within 3 hours"));
+      }
+      break;
+    }
     await sleep(POLL_VENDOR_S);
     for (const l of listings) {
-      if (results.has(l.id)) continue;
-      const got = await getReviewTask(l.source, posted.get(l.id)!);
+      const taskId = posted.get(l.id);
+      if (!taskId || results.has(l.id) || failures.has(l.id)) continue;
+      let got: Awaited<ReturnType<typeof getReviewTask>>;
+      try {
+        got = await getReviewTask(l.source, taskId);
+      } catch (error) {
+        const attempts = (pollFailures.get(l.id) ?? 0) + 1;
+        if (attempts >= MAX_TASK_GET_FAILURES) failures.set(l.id, error);
+        else pollFailures.set(l.id, attempts);
+        continue;
+      }
+      pollFailures.delete(l.id);
       if (!got) continue;
       if (got.cost) await addVendorCost(jobId, got.cost);
       results.set(l.id, got.result);
     }
   }
-  return results;
+  return { results, failures };
 }
 
 /**
@@ -73,30 +114,60 @@ export async function ingestRestaurant(restaurantId: number, jobId: number, slee
   await sql`update listing set fetch_status = 'fetching', fetch_error = null where restaurant_id = ${restaurantId} ${scope}`;
   try {
     let depthOf: (l: ListingRow) => number = () => sample!;
+    let fetchListings = listings;
+    const failedSources = new Set<string>();
+    let firstVendorFailure: unknown;
     if (sample) {
       await setStep(jobId, "fetching Reviews", { sample });
     } else {
       await setStep(jobId, "probing Listings");
-      const probes = await runVendorTasks(listings, () => 10, jobId, sleep);
+      const probeBatch = await runVendorTasks(listings, () => 10, jobId, sleep);
+      const probeFailedIds = [...probeBatch.failures.keys()];
+      firstVendorFailure = probeBatch.failures.values().next().value;
+      if (probeFailedIds.length) await sql`
+        update listing set fetch_status = 'failed', fetch_error = ${SOURCE_FETCH_ERROR}
+        where id = any(${probeFailedIds})`;
+      for (const id of probeFailedIds) {
+        const source = listings.find((l) => l.id === id)?.source;
+        if (source) failedSources.add(source);
+      }
       const expected = new Map<number, number>();
       for (const l of listings) {
-        const n = (l.source === "google" ? normaliseGoogle : normaliseTripadvisor)(probes.get(l.id));
+        const probe = probeBatch.results.get(l.id);
+        if (probe === undefined) continue;
+        const n = (l.source === "google" ? normaliseGoogle : normaliseTripadvisor)(probe);
         expected.set(l.id, n.facts.reviewCount ?? 0);
       }
-      await setStep(jobId, "fetching Reviews", { expected: Object.fromEntries(listings.map((l) => [l.source, expected.get(l.id)])) });
+      fetchListings = listings.filter((l) => !probeBatch.failures.has(l.id));
+      await setStep(jobId, "fetching Reviews", { expected: Object.fromEntries(fetchListings.map((l) => [l.source, expected.get(l.id)])) });
       depthOf = (l) => depthFor(expected.get(l.id) ?? 0);
     }
 
-    const full = await runVendorTasks(listings, depthOf, jobId, sleep);
+    const fullBatch = await runVendorTasks(fetchListings, depthOf, jobId, sleep);
+    const fullFailedIds = [...fullBatch.failures.keys()];
+    firstVendorFailure ??= fullBatch.failures.values().next().value;
+    if (fullFailedIds.length) await sql`
+      update listing set fetch_status = 'failed', fetch_error = ${SOURCE_FETCH_ERROR}
+      where id = any(${fullFailedIds})`;
+    for (const id of fullFailedIds) {
+      const source = fetchListings.find((l) => l.id === id)?.source;
+      if (source) failedSources.add(source);
+    }
     const summary: Record<string, { fetched: number; inserted: number; droppedThirdParty: number }> = {};
-    for (const l of listings) {
-      const n = (l.source === "google" ? normaliseGoogle : normaliseTripadvisor)(full.get(l.id));
-      full.delete(l.id); // drop the raw vendor payload as soon as it is whitelisted
+    for (const l of fetchListings) {
+      const result = fullBatch.results.get(l.id);
+      if (result === undefined) continue;
+      const n = (l.source === "google" ? normaliseGoogle : normaliseTripadvisor)(result);
+      fullBatch.results.delete(l.id); // drop the raw vendor payload as soon as it is whitelisted
       const { inserted } = await storeListingFetch(l.id, n);
       summary[l.source] = { fetched: n.reviews.length, inserted, droppedThirdParty: n.droppedThirdParty };
       await setStep(jobId, "fetching Reviews", { fetched: { ...summary } });
     }
-    await setStep(jobId, "Reviews stored", { fetched: summary }, "Reviews fetched");
+    if (!Object.keys(summary).length && firstVendorFailure) {
+      if (firstVendorFailure instanceof PipelineError) throw firstVendorFailure;
+      throw new PipelineError("vendor_error", SOURCE_FETCH_ERROR, { cause: firstVendorFailure });
+    }
+    await setStep(jobId, "Reviews stored", { fetched: summary, failedSources: [...failedSources] }, "Reviews fetched");
     return summary;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -224,6 +295,7 @@ export async function runLookup(
     const ingest = from === "ingest" ? await ingestRestaurant(restaurantId, jobId, sleep, opts.sample) : null;
     stage = "extract";
     const extraction = from !== "judge" ? await extractRestaurant(restaurantId, jobId, sleep, opts.extractLimit) : null;
+    const questionIds = await raiseSourceRetryQuestions(db(), restaurantId);
     stage = "judge";
     const judged = await judgeRestaurant(restaurantId, jobId);
     await finishJob(jobId);
@@ -253,6 +325,43 @@ export async function runListingFetch(
   } catch (e) {
     await finishJob(jobId, toPipelineError(e));
     throw e;
+  }
+}
+
+/** Retries one failed Crowd Source, then extracts its new Reviews and appends a re-judged Verdict. */
+export async function runSourceRetry(
+  restaurantId: number,
+  listingId: number,
+  questionId: number,
+  sleep: Sleep,
+  opts: { triggerRunId?: string; jobId?: number } = {},
+) {
+  const jobId = opts.jobId ?? await createJob("listing_fetch", restaurantId, opts.triggerRunId);
+  if (opts.jobId) await db()`update job set status = 'running', trigger_run_id = ${opts.triggerRunId ?? null}, updated_at = now() where id = ${jobId}`;
+  let stage: LookupStage = "ingest";
+  try {
+    const [beforeRetry] = await db()`select fetch_status from listing where id = ${listingId} and restaurant_id = ${restaurantId}`;
+    let ingest: Awaited<ReturnType<typeof ingestRestaurant>> | null = null;
+    if (beforeRetry?.fetch_status === "failed") {
+      await setStep(jobId, "retrying failed Source");
+      ingest = await ingestRestaurant(restaurantId, jobId, sleep, undefined, listingId);
+    } else {
+      await setStep(jobId, "re-judging fetched Reviews");
+    }
+    const [listing] = await db()`select fetch_status from listing where id = ${listingId} and restaurant_id = ${restaurantId}`;
+    if (listing?.fetch_status !== "fetched") throw new PipelineError("vendor_error", SOURCE_FETCH_ERROR);
+    stage = "extract";
+    await setStep(jobId, "extracting new Reviews");
+    const extraction = await extractRestaurant(restaurantId, jobId, sleep);
+    stage = "judge";
+    const judged = await judgeRestaurant(restaurantId, jobId, "owner_answer");
+    await db()`update owner_question set status = 'answered', settled_at = now()
+      where id = ${questionId} and restaurant_id = ${restaurantId} and kind = 'retry_source' and status = 'open'`;
+    await finishJob(jobId);
+    return { jobId, ingest, extraction, ...judged };
+  } catch (error) {
+    await finishJob(jobId, toPipelineError(error), stage);
+    throw error;
   }
 }
 

@@ -148,7 +148,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       order by id desc limit 1`.then((rows) => rows[0]),
     db()`
       select id, source_code, kind, payload from owner_question
-      where restaurant_id = ${page.restaurant.id} and status = 'open' and kind in ('format', 'listing_match')
+      where restaurant_id = ${page.restaurant.id} and status = 'open' and kind in ('format', 'listing_match', 'retry_source')
       order by id`,
     db()`select source_code, match_provenance from listing where restaurant_id = ${page.restaurant.id}`,
   ]);
@@ -188,6 +188,15 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
           prompt: formatQuestionPrompt(payload.googleCategory, payload.proposedFormat),
           proposedFormat: payload.proposedFormat,
           googleCategory: payload.googleCategory,
+        };
+      }
+      if (q.kind === "retry_source") {
+        const name = page.sources.find((source) => source.code === q.source_code)?.name ?? String(q.source_code);
+        return {
+          id: Number(q.id),
+          kind: "retry_source" as const,
+          source: q.source_code as "google" | "tripadvisor",
+          prompt: `Retry ${name}`,
         };
       }
       const candidates = questionCandidates(q.payload);

@@ -4,6 +4,11 @@ const usage = { input_tokens: 100, output_tokens: 40, cache_creation_input_token
 const sources = { google: fixture.googleReviews, tripadvisor: fixture.tripadvisorReviews };
 export const fakeRestaurantFacts = { googleCategoryDisagrees: false };
 export const fakeVendorCalls = { reviewPosts: 0 };
+export const sourceFetchFailureState: { source: "google" | "tripadvisor" | null; taskPostFailures: number; taskGetFailures: number } = {
+  source: null,
+  taskPostFailures: 0,
+  taskGetFailures: 0,
+};
 
 function response(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
@@ -33,6 +38,14 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
   }
   const source = match[1] as keyof typeof sources;
   const operation = match[2]!;
+  if (operation === "task_post" && sourceFetchFailureState.source === source && sourceFetchFailureState.taskPostFailures > 0) {
+    sourceFetchFailureState.taskPostFailures--;
+    return Promise.resolve(new Response("temporary vendor failure", { status: 503 }));
+  }
+  if (operation.startsWith("task_get/") && sourceFetchFailureState.source === source && sourceFetchFailureState.taskGetFailures > 0) {
+    sourceFetchFailureState.taskGetFailures--;
+    return Promise.resolve(new Response("temporary vendor failure", { status: 503 }));
+  }
   if (operation === "task_post" && vendorFailureState.armed) {
     vendorFailureState.armed = false;
     return Promise.resolve(response({

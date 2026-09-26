@@ -202,6 +202,10 @@ body{margin:0;padding:16px 16px 64px}
 .settings-section .btn{margin-top:2px}
 .owner-questions{display:grid;gap:12px;margin-top:8px}
 .owner-question{display:grid;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.source-retry-banners{display:grid;gap:10px;margin:0 0 18px}
+.source-retry-banner{justify-content:space-between;border-left:4px solid var(--warn);background:var(--warn-bg);color:var(--ink)}
+.source-retry-banner p{flex:1;min-width:min(100%,260px)}
+.source-retry-banner .error{flex-basis:100%}
 .owner-question h3{font-size:15px;font-weight:650}
 .owner-question-candidates{display:grid;gap:10px;list-style:none;padding:0;margin:0}
 .owner-question-candidate{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--line)}

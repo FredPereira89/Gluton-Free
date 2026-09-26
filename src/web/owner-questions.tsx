@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { OwnerQuestion } from "@/lib/api-contract";
+import { acceptedJobSchema } from "@/lib/api-contract";
 
 function formatDistance(meters: number | null): string {
   if (meters === null) return "Distance unavailable";
@@ -60,7 +61,7 @@ export function OwnerQuestions({ slug, questions }: { slug: string; questions: O
   }
 
   return <div className="owner-questions" aria-live="polite">
-    {questions.map((question) => question.kind === "format" ? (
+    {questions.filter((question) => question.kind !== "retry_source").map((question) => question.kind === "format" ? (
       <article className="owner-question" key={question.id}>
         <h3>{question.prompt}</h3>
         <p className="small muted">Proposed Format: <strong>{question.proposedFormat.replaceAll("_", " ")}</strong></p>
@@ -108,5 +109,74 @@ export function OwnerQuestions({ slug, questions }: { slug: string; questions: O
         {error && <p className="error" role="alert">{error}</p>}
       </article>
     ))}
+  </div>;
+}
+
+export function SourceRetryBanners({ slug, questions }: { slug: string; questions: OwnerQuestion[] }) {
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState<number | null>(null);
+  const [activeJobId, setActiveJobId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeJobId === null) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    async function poll() {
+      try {
+        const response = await fetch(`/api/v1/jobs/${activeJobId}`, { cache: "no-store" });
+        if (!response.ok) throw new Error("Job unavailable");
+        const job = await response.json() as { status?: string };
+        if (!active) return;
+        if (job.status === "succeeded" || job.status === "failed") {
+          setActiveJobId(null);
+          router.refresh();
+        } else {
+          timer = setTimeout(() => void poll(), 5000);
+        }
+      } catch {
+        if (active) timer = setTimeout(() => void poll(), 5000);
+      }
+    }
+    void poll();
+    return () => { active = false; if (timer) clearTimeout(timer); };
+  }, [activeJobId, router]);
+
+  async function retry(question: Extract<OwnerQuestion, { kind: "retry_source" }>) {
+    setSubmitting(question.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/restaurants/${encodeURIComponent(slug)}/listings/${encodeURIComponent(question.source)}/retry`, {
+        method: "POST",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { detail?: string; title?: string } | null;
+        throw new Error(body?.detail ?? body?.title ?? "Could not retry this Source. Try again.");
+      }
+      const accepted = acceptedJobSchema.parse(await response.json());
+      setActiveJobId(accepted.id);
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not retry this Source. Try again.");
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  const retryQuestions = questions.filter((question): question is Extract<OwnerQuestion, { kind: "retry_source" }> => question.kind === "retry_source");
+  if (!retryQuestions.length) return null;
+  return <div className="source-retry-banners" aria-live="polite">
+    {retryQuestions.map((question) => {
+      const sourceName = question.prompt.replace(/^Retry /, "");
+      return <section className="banner source-retry-banner" key={question.id} role="alert">
+        <p><strong>{sourceName} could not be fetched.</strong> This Source is missing from the Review window. Retry it to include its Reviews in a new Verdict.</p>
+        <button type="button" className="btn" disabled={submitting !== null || activeJobId !== null}
+          onClick={() => void retry(question)}>
+          {submitting === question.id || activeJobId !== null ? `Retrying ${sourceName}…` : question.prompt}
+        </button>
+        {error && <p className="error" role="alert">{error}</p>}
+      </section>;
+    })}
   </div>;
 }
