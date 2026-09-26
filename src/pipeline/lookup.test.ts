@@ -957,6 +957,59 @@ describe("Lookup pipeline", () => {
     expect(after).toMatchObject({ format: "fine_dining", format_provenance: "owner" });
   }, 30_000);
 
+  it("re-proposes the Format from post-change Reviews when confirming a proposed new concept Change point, raising a Format question on disagreement", async () => {
+    const database = sql!;
+    const { runRejudge } = await import("./lookup");
+    const { POST: startLookup } = await import("@/app/api/v1/lookups/route");
+    const { POST: confirm } = await import("@/app/api/v1/restaurants/[slug]/change-points/route");
+
+    // The Google Listing's real categories (from the fixture) are needed later to detect a
+    // disagreeing Format reading, so the Restaurant is created through the full lookup, not
+    // by hand.
+    fakeChangeMarker.value = "new_concept";
+    let restaurantSlug: string;
+    try {
+      const started = await startLookup(new Request("http://localhost/api/v1/lookups", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ googlePlaceId: "invented-change-point-confirm-place", listings: [] }),
+      }));
+      expect(started.status).toBe(202);
+      ({ restaurantSlug } = await started.json() as { restaurantSlug: string });
+    } finally {
+      fakeChangeMarker.value = "none";
+    }
+    const [restaurant] = await database`select id from restaurant where slug = ${restaurantSlug}`;
+    const restaurantId = Number(restaurant!.id);
+    const [proposal] = await database`
+      select id, payload from owner_question where restaurant_id = ${restaurantId} and kind = 'change_point' and status = 'open'`;
+    expect(proposal?.payload).toMatchObject({ kind: "new_concept" });
+
+    // Confirming the proposal re-proposes the Format from Reviews since the change (ADR 0007):
+    // dated today, at least the newest fixture Reviews fall on or after it.
+    const conceptChangeDate = new Date().toISOString().slice(0, 10);
+    fakeRestaurantFacts.googleCategoryDisagrees = true;
+    try {
+      const confirmed = await confirm(new Request(`http://localhost/api/v1/restaurants/${restaurantSlug}/change-points`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "new_concept", date: conceptChangeDate, questionId: Number(proposal!.id) }),
+      }), { params: Promise.resolve({ slug: restaurantSlug }) });
+      expect(confirmed.status).toBe(202);
+      const { id: jobId } = await confirmed.json() as { id: number };
+      const [point] = await database`select provenance, kind from change_point where restaurant_id = ${restaurantId}`;
+      expect(point).toMatchObject({ provenance: "proposed_confirmed", kind: "new_concept" });
+
+      await runRejudge(restaurantId, async () => {}, { jobId, cause: "owner_answer" });
+      const [after] = await database`select format, format_provenance from restaurant where id = ${restaurantId}`;
+      expect(after).toMatchObject({ format: "tasca", format_provenance: "llm" });
+
+      const [formatQuestion] = await database`
+        select payload from owner_question where restaurant_id = ${restaurantId} and kind = 'format' and status = 'open'`;
+      expect(formatQuestion?.payload).toMatchObject({ proposedFormat: "tasca" });
+    } finally {
+      fakeRestaurantFacts.googleCategoryDisagrees = false;
+    }
+  }, 30_000);
+
   it("dismisses a Format question while preserving and pinning its proposed Format", async () => {
     fakeRestaurantFacts.googleCategoryDisagrees = true;
     try {
