@@ -39,9 +39,12 @@ export async function declareChangePoint(slug: string, body: z.infer<typeof crea
     if (body.questionId) {
       const [question] = await tx`
         update owner_question set status = 'answered', settled_at = now()
-        where id = ${body.questionId} and restaurant_id = ${restaurantId} and status = 'open'
-        returning id`;
+        where id = ${body.questionId} and restaurant_id = ${restaurantId} and status = 'open' and kind = 'change_point'
+        returning payload`;
       if (!question) throw new ApiError(404, "not_found", "Owner question not found or already settled");
+      if ((question.payload as { kind: string }).kind !== body.kind) {
+        throw new ApiError(400, "invalid_request", "Use the proposed Change point kind");
+      }
     }
     const provenance = body.questionId ? "proposed_confirmed" : "declared";
     await tx`

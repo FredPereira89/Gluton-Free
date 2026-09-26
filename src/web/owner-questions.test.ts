@@ -44,4 +44,17 @@ describe("OwnerQuestions", () => {
     expect(html).toContain("Keep proposed Format");
     expect(html).toContain("seafood restaurant");
   });
+
+  it("shows a proposed Change point with an editable date and both owner answers", () => {
+    const changeQuestion: OwnerQuestion = {
+      id: 11, kind: "change_point", prompt: "Did this Restaurant change around 2025-05-01?",
+      proposedKind: "renovated", proposedDate: "2025-05-01", reason: "mentions", mentionCount: 3,
+    };
+    const html = renderToStaticMarkup(createElement(OwnerQuestions, { slug: "casa-do-bacalhau", questions: [changeQuestion] }));
+    expect(html).toContain("Renovated");
+    expect(html).toContain('type="date"');
+    expect(html).toContain('value="2025-05-01"');
+    expect(html).toContain("Confirm and re-judge");
+    expect(html).toContain("Reject proposal");
+  });
 });

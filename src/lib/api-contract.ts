@@ -75,7 +75,12 @@ const retrySourceOwnerQuestionSchema = z.strictObject({
   source: z.enum(["google", "tripadvisor"]),
   prompt: z.string(),
 });
-export const ownerQuestionSchema = z.discriminatedUnion("kind", [listingOwnerQuestionSchema, formatOwnerQuestionSchema, retrySourceOwnerQuestionSchema]);
+const changePointOwnerQuestionSchema = z.strictObject({
+  id: z.number().int(), kind: z.literal("change_point"), prompt: z.string(),
+  proposedKind: z.enum(CHANGE_POINT_KINDS), proposedDate: z.iso.date(),
+  reason: z.enum(["gap", "mentions"]), mentionCount: z.number().int().nonnegative(),
+});
+export const ownerQuestionSchema = z.discriminatedUnion("kind", [listingOwnerQuestionSchema, formatOwnerQuestionSchema, retrySourceOwnerQuestionSchema, changePointOwnerQuestionSchema]);
 export type OwnerQuestion = z.infer<typeof ownerQuestionSchema>;
 
 export const restaurantBundleSchema = z.strictObject({
@@ -109,9 +114,9 @@ export type RestaurantBundle = z.infer<typeof restaurantBundleSchema>;
 export const createChangePointBodySchema = z.strictObject({
   kind: z.enum(CHANGE_POINT_KINDS),
   date: z.iso.date(),
-  // Settles the Owner question that proposed this Change point (issue #59), once that kind exists.
   questionId: z.number().int().positive().optional(),
 });
+export const rejectChangePointResponseSchema = z.strictObject({ settled: z.literal(true) });
 
 export const createDistinctionBodySchema = z.strictObject({
   guide: z.enum(["Michelin", "Guia Repsol"]),
@@ -400,6 +405,11 @@ export const routes = {
     method: "POST", path: "/api/v1/restaurants/{slug}/change-points", auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1) }), body: createChangePointBodySchema },
     responses: { 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  rejectChangePoint: {
+    method: "POST", path: "/api/v1/owner-questions/{id}/reject-change-point", auth: "owner",
+    request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
+    responses: { 200: rejectChangePointResponseSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema },
   },
   deleteChangePoint: {
     method: "DELETE", path: "/api/v1/restaurants/{slug}/change-points/{id}", auth: "owner",

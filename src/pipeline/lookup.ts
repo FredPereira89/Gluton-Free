@@ -12,6 +12,7 @@ import { depthFor, getReviewTask, postReviewTask, type DfsSource, type ReviewTas
 import { normaliseGoogle, normaliseTripadvisor } from "@/ingest/normalise";
 import { storeListingFetch } from "@/ingest/store";
 import { db } from "@/lib/db";
+import { raiseChangePointProposal } from "@/lib/change-point-proposal";
 import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage, type LookupStage } from "@/lib/job";
 import { raiseFailedLookupQuestion, raiseFormatQuestion, raiseSourceRetryQuestions } from "@/lib/owner-question";
 import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
@@ -285,6 +286,7 @@ export async function judgeRestaurant(restaurantId: number, jobId: number, cause
   const explainUsage = emptyUsage("explain", JUDGE_MODEL, false);
   const verdictId = await issueVerdict(restaurantId, jobId, explainUsage, cause);
   await addLlmUsage(jobId, explainUsage);
+  await raiseChangePointProposal(restaurantId);
   await setStep(jobId, "Verdict issued", { verdictId }, "judged and explained");
   await sendPush("verdict_ready", restaurantId);
   await setStep(jobId, "notified", undefined, "notified");

@@ -152,7 +152,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       order by id desc limit 1`.then((rows) => rows[0]),
     db()`
       select id, source_code, kind, payload from owner_question
-      where restaurant_id = ${page.restaurant.id} and status = 'open' and kind in ('format', 'listing_match', 'retry_source')
+      where restaurant_id = ${page.restaurant.id} and status = 'open' and kind in ('format', 'listing_match', 'retry_source', 'change_point')
       order by id`,
     db()`select source_code, match_provenance from listing where restaurant_id = ${page.restaurant.id}`,
     db()`
@@ -190,6 +190,15 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
     } : null,
     ownerQuestions: job?.kind === "lookup" && (job.status === "queued" || job.status === "running") ? [] : openQuestions.map((q) => {
+      if (q.kind === "change_point") {
+        const payload = q.payload as { kind: ChangePointKind; date: string; reason: "gap" | "mentions"; mentionCount: number };
+        return {
+          id: Number(q.id), kind: "change_point" as const,
+          prompt: `Did this Restaurant change around ${payload.date}?`,
+          proposedKind: payload.kind, proposedDate: payload.date,
+          reason: payload.reason, mentionCount: payload.mentionCount,
+        };
+      }
       if (q.kind === "format") {
         const payload = formatQuestionPayloadSchema.parse(q.payload);
         return {
