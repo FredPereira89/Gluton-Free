@@ -8,6 +8,18 @@ export function LookupProgress({ jobId }: { jobId: number }) {
   const router = useRouter();
   const [job, setJob] = useState<JobResponse | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  async function retry() {
+    setRetrying(true);
+    try {
+      const response = await fetch(`/api/v1/jobs/${jobId}/retry`, { method: "POST" });
+      if (response.ok) setRetryCount((n) => n + 1);
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -32,14 +44,17 @@ export function LookupProgress({ jobId }: { jobId: number }) {
     void poll();
     const timer = setInterval(() => { void poll(); }, 5000);
     return () => { active = false; clearInterval(timer); };
-  }, [jobId, router]);
+  }, [jobId, router, retryCount]);
 
   return <section className="sec lookup-progress" aria-live="polite">
     <h2>Lookup progress</h2>
     <p className="small muted">The lookup continues if you leave this page.</p>
     {job?.etaSeconds !== null && job?.etaSeconds !== undefined && <p>About {Math.ceil(job.etaSeconds / 60)} minutes left</p>}
     {unavailable && <p className="small muted">Progress is temporarily unavailable. Retrying…</p>}
-    {job?.status === "failed" && <p role="alert" className="error">Lookup failed: {job.error ?? "please try again later"}</p>}
+    {job?.status === "failed" && <p role="alert" className="error">
+      Lookup failed: {job.error?.detail ?? "please try again later"}
+      {" "}<button type="button" onClick={() => void retry()} disabled={retrying}>{retrying ? "Retrying…" : "Retry"}</button>
+    </p>}
     <ol>{(job?.steps ?? []).map((step) => <li key={step.name}>
       {step.name} <span className="small muted">{step.status}</span>
     </li>)}</ol>

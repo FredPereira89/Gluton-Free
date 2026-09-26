@@ -1,4 +1,5 @@
 import { db } from "./db";
+import type { PipelineError } from "./pipeline-error";
 
 export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot" | "listing_fetch" | "rejudge";
 export const LOOKUP_STAGES = ["Listings matched", "Reviews fetched", "window extracted", "flags verified", "signals checked", "judged and explained", "notified"] as const;
@@ -42,9 +43,28 @@ export async function addLlmUsage(jobId: number, usage: LlmUsage) {
     where id = ${jobId}`;
 }
 
-export async function finishJob(jobId: number, error?: string) {
+/** Marks a Job failed because its background task could not be started (never a vendor or pipeline failure). */
+export async function markJobStartFailed(jobId: number, detail: string) {
   await db()`
-    update job set status = ${error ? "failed" : "succeeded"}, error = ${error ?? null},
+    update job set status = 'failed', error_code = 'job_start_failed', error_detail = ${detail},
       finished_at = now(), updated_at = now()
     where id = ${jobId}`;
+}
+
+export type LookupStage = "ingest" | "extract" | "judge";
+
+export async function finishJob(jobId: number, error?: PipelineError, failedStage?: LookupStage) {
+  const sql = db();
+  await sql`
+    update job set status = ${error ? "failed" : "succeeded"},
+      error_code = ${error?.code ?? null}, error_detail = ${error?.detail ?? null},
+      failed_stage = ${error ? failedStage ?? null : null},
+      finished_at = now(), updated_at = now()
+    where id = ${jobId}`;
+  if (!error) {
+    await sql`
+      update owner_question set status = 'dismissed', settled_at = now()
+      where kind = 'failed_lookup' and status = 'open'
+        and restaurant_id = (select restaurant_id from job where id = ${jobId})`;
+  }
 }

@@ -27,6 +27,7 @@ export async function loadJobStatus(id: number): Promise<JobResponse | null> {
       fetchedCount: source.fetched_count, fetchStatus: source.fetch_status,
     })),
     facts: progress, etaSeconds, vendorUsd: Number(job.vendor_cost_usd),
-    llmUsd: usage.reduce((sum, entry) => sum + (Number(entry.cost_usd) || 0), 0), error: job.error,
+    llmUsd: usage.reduce((sum, entry) => sum + (Number(entry.cost_usd) || 0), 0),
+    error: job.error_code ? { code: job.error_code, detail: job.error_detail } : null,
   });
 }

@@ -3,9 +3,24 @@ import { readdirSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
-import { fakeAnthropic, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch } from "./vendor-fakes";
+import { fakeAnthropic, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, vendorFailureState } from "./vendor-fakes";
 
 const triggerControl = vi.hoisted(() => ({ failListingUndo: false }));
+
+const extractFailureState: { armed: boolean } = { armed: false };
+vi.mock("@/analysis/extract", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/analysis/extract")>();
+  return {
+    ...original,
+    extractSync: async (...args: Parameters<typeof original.extractSync>) => {
+      if (extractFailureState.armed) {
+        extractFailureState.armed = false;
+        throw new Error("invented Anthropic outage during extraction");
+      }
+      return original.extractSync(...args);
+    },
+  };
+});
 
 vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
@@ -24,8 +39,8 @@ vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, 
   } else if (id === "owner-listing-undo") {
     // The worker waits for the API transaction to commit before reading the detached Listing set.
   } else {
-    const p = payload as { restaurantId: number; jobId: number };
-    await runLookup(p.restaurantId, async () => {}, { jobId: p.jobId });
+    const p = payload as { restaurantId: number; jobId: number; from?: "ingest" | "extract" | "judge" };
+    await runLookup(p.restaurantId, async () => {}, { jobId: p.jobId, from: p.from });
   }
   return { id: "invented-trigger-run" };
 }) } }));
@@ -256,6 +271,105 @@ describe("Lookup pipeline", () => {
     expect((await refused.json()).code).toBe("not_auto_accepted");
     const [tripadvisor] = await database`select 1 from listing where restaurant_id = ${restaurantId} and source_code = 'tripadvisor'`;
     expect(tripadvisor).toBeDefined();
+  }, 30_000);
+
+  it("retries a failed extraction stage without a second vendor charge", async () => {
+    const database = sql!;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-retry-bistro', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only'), ('tripadvisor', 'Tripadvisor', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'google', 'invented-retry-google-place', 'https://example.invalid/google', 'pasted'),
+             (${restaurantId}, 'tripadvisor', 'invented-retry-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+
+    const { runLookup } = await import("./lookup");
+    extractFailureState.armed = true;
+    await expect(runLookup(restaurantId, async () => {})).rejects.toThrow("invented Anthropic outage during extraction");
+    expect(extractFailureState.armed).toBe(false);
+
+    const [failed] = await database`
+      select id, status, error_code, error_detail, failed_stage, vendor_cost_usd from job
+      where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    expect(failed).toMatchObject({ status: "failed", error_code: "internal_error", failed_stage: "extract" });
+    expect(failed!.error_detail).not.toMatch(/Anthropic|outage/i);
+    const vendorCostAfterFailure = Number(failed!.vendor_cost_usd);
+    expect(vendorCostAfterFailure).toBeGreaterThan(0);
+
+    const [question] = await database`select payload from owner_question where restaurant_id = ${restaurantId} and kind = 'failed_lookup'`;
+    expect(question!.payload).toMatchObject({ jobId: Number(failed!.id), code: "internal_error", detail: failed!.error_detail });
+
+    const retried = await runLookup(restaurantId, async () => {}, { jobId: Number(failed!.id), from: "extract" });
+    const [succeeded] = await database`select status, vendor_cost_usd from job where id = ${retried.jobId}`;
+    expect(succeeded!.status).toBe("succeeded");
+    expect(Number(succeeded!.vendor_cost_usd)).toBe(vendorCostAfterFailure);
+  }, 30_000);
+
+  it("classifies a DataForSEO balance error into a plain-words code and detail, never the vendor payload", async () => {
+    const database = sql!;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-balance-diner', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'google', 'invented-balance-google-place', 'https://example.invalid/google', 'pasted')`;
+
+    const { runLookup } = await import("./lookup");
+    vendorFailureState.armed = true;
+    await expect(runLookup(restaurantId, async () => {})).rejects.toThrow(/balance/i);
+    expect(vendorFailureState.armed).toBe(false);
+
+    const [job] = await database`
+      select id, status, error_code, error_detail, failed_stage, vendor_cost_usd from job
+      where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    expect(job).toMatchObject({ status: "failed", error_code: "vendor_balance_low", failed_stage: "ingest" });
+    expect(job!.error_detail).toBe("DataForSEO balance $0.03, this lookup needs about $0.12. Top up then retry.");
+    expect(job!.error_detail).not.toMatch(/status_code|task_post|api\.dataforseo|Authorization/i);
+    expect(Number(job!.vendor_cost_usd)).toBe(0);
+
+    const [question] = await database`select payload from owner_question where restaurant_id = ${restaurantId} and kind = 'failed_lookup'`;
+    expect(Object.keys(question!.payload as object).sort()).toEqual(["code", "detail", "jobId"]);
+    expect(question!.payload).toMatchObject({ jobId: Number(job!.id), code: "vendor_balance_low" });
+
+    const { GET } = await import("@/app/api/v1/jobs/[id]/route");
+    const { routes } = await import("@/lib/api-contract");
+    const jobResponse = await GET(new Request(`http://localhost/api/v1/jobs/${job!.id}`), { params: Promise.resolve({ id: String(job!.id) }) });
+    const parsed = routes.job.responses[200].parse(await jobResponse.json());
+    expect(parsed.status).toBe("failed");
+    expect(parsed.error).toEqual({ code: "vendor_balance_low", detail: job!.error_detail });
+  }, 30_000);
+
+  it("resumes a failed Lookup through POST /api/v1/jobs/:id/retry", async () => {
+    const database = sql!;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance)
+      values ('fictional-retry-api-diner', ${fixture.restaurant}, 'Lisbon', 'tasca', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${restaurantId}, 'google', 'invented-retry-api-google-place', 'https://example.invalid/google', 'pasted')`;
+
+    const { runLookup } = await import("./lookup");
+    extractFailureState.armed = true;
+    await expect(runLookup(restaurantId, async () => {})).rejects.toThrow();
+    const [failed] = await database`select id from job where restaurant_id = ${restaurantId} order by id desc limit 1`;
+
+    const { POST } = await import("@/app/api/v1/jobs/[id]/retry/route");
+    const retry = () => POST(new Request(`http://localhost/api/v1/jobs/${failed!.id}/retry`, { method: "POST" }), { params: Promise.resolve({ id: String(failed!.id) }) });
+    const response = await retry();
+    expect(response.status).toBe(202);
+
+    const [succeeded] = await database`select status from job where id = ${failed!.id}`;
+    expect(succeeded!.status).toBe("succeeded");
+
+    const again = await retry();
+    expect(again.status).toBe(409);
+    expect((await again.json()).code).toBe("not_failed");
   }, 30_000);
 
   it("serves the invented Apify fixture and rejects every unknown external URL", async () => {

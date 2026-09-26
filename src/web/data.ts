@@ -144,11 +144,11 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
   const [job, openQuestions, listingProvenance] = await Promise.all([
     db()`
       select id, kind, status, step, created_at from job
-      where restaurant_id = ${page.restaurant.id} and status in ('queued', 'running')
+      where restaurant_id = ${page.restaurant.id}
       order by id desc limit 1`.then((rows) => rows[0]),
     db()`
       select id, source_code, kind, payload from owner_question
-      where restaurant_id = ${page.restaurant.id} and status = 'open'
+      where restaurant_id = ${page.restaurant.id} and status = 'open' and kind in ('format', 'listing_match')
       order by id`,
     db()`select source_code, match_provenance from listing where restaurant_id = ${page.restaurant.id}`,
   ]);
@@ -175,10 +175,10 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
     critics: page.critics,
     series: page.verdict?.blocks.rollup.series ?? [],
     changePoints: [],
-    activeJob: job ? {
+    activeJob: job && job.status !== "succeeded" ? {
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
     } : null,
-    ownerQuestions: job?.kind === "lookup" ? [] : openQuestions.map((q) => {
+    ownerQuestions: job?.kind === "lookup" && (job.status === "queued" || job.status === "running") ? [] : openQuestions.map((q) => {
       if (q.kind === "format") {
         const payload = formatQuestionPayloadSchema.parse(q.payload);
         return {

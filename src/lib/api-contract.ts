@@ -90,7 +90,7 @@ export const restaurantBundleSchema = z.strictObject({
   critics: z.array(z.strictObject({ publication: z.string(), title: z.string(), url: z.url(), publishedOn: z.string().nullable() })),
   series: RollupSchema.shape.series,
   changePoints: z.array(z.strictObject({ occurredOn: z.string(), description: z.string() })),
-  activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]), status: z.enum(["queued", "running"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
+  activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]), status: z.enum(["queued", "running", "failed"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
   ownerQuestions: z.array(ownerQuestionSchema),
 });
 export const quoteTranslationResponseSchema = z.strictObject({ textEn: z.string().min(1) });
@@ -230,7 +230,8 @@ export const jobResponseSchema = z.strictObject({
   step: z.string().nullable(), steps: z.array(z.strictObject({ name: z.string(), status: z.enum(["pending", "running", "done"]) })),
   sources: z.array(z.strictObject({ code: z.string(), name: z.string(), stars: z.number().nullable(), reviewCount: z.number().int().nullable(), textCount: z.number().int().nullable(), fetchedCount: z.number().int().nullable(), fetchStatus: z.string() })),
   facts: z.record(z.string(), z.unknown()), etaSeconds: z.number().int().nonnegative().nullable(),
-  vendorUsd: z.number().nonnegative(), llmUsd: z.number().nonnegative(), error: z.string().nullable(),
+  vendorUsd: z.number().nonnegative(), llmUsd: z.number().nonnegative(),
+  error: z.strictObject({ code: z.string(), detail: z.string() }).nullable(),
 });
 export type JobResponse = z.infer<typeof jobResponseSchema>;
 
@@ -330,6 +331,11 @@ export const routes = {
     method: "GET", path: "/api/v1/jobs/{id}", auth: "owner",
     request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
     responses: { 200: jobResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  retryJob: {
+    method: "POST", path: "/api/v1/jobs/{id}/retry", auth: "owner",
+    request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
+    responses: { 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   answerListing: {
     method: "PUT", path: "/api/v1/restaurants/{slug}/listings/{source}", auth: "owner",
