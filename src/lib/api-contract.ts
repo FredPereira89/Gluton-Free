@@ -462,6 +462,16 @@ export const routes = {
     request: { body: pushSubscriptionBodySchema },
     responses: { 201: pushSubscriptionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
   },
+  startBaselineSpotCheck: {
+    method: "POST", path: "/api/v1/baseline-checks/start", auth: "owner",
+    request: {},
+    responses: { 200: z.strictObject({ started: z.literal(true) }), 401: problemSchema, 403: problemSchema, 409: problemSchema, 500: problemSchema },
+  },
+  answerBaselineSpotCheck: {
+    method: "POST", path: "/api/v1/baseline-checks/answer", auth: "owner",
+    request: { body: z.strictObject({ id: z.number().int().positive().safe(), agreed: z.boolean() }) },
+    responses: { 200: z.strictObject({ saved: z.literal(true) }), 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema },
+  },
   deletePushSubscription: {
     method: "DELETE", path: "/api/v1/push-subscriptions/{id}", auth: "owner",
     request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },

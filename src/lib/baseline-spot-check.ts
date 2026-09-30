@@ -37,10 +37,9 @@ export async function spotCheckState(): Promise<{ items: SpotCheckItem[]; availa
       order by c.kind, c.id`,
     sql`
       select
-        (select count(*)::int from restaurant r join listing g on g.restaurant_id = r.id and g.source_code = 'google'
-          where r.baseline_sampled and r.format_provenance = 'llm') as formats,
-        (select count(*)::int from restaurant r join listing t on t.restaurant_id = r.id and t.source_code = 'tripadvisor'
-          where r.baseline_sampled and t.match_provenance = 'auto_accepted') as matches`,
+        count(*) filter (where format_eligible)::int as formats,
+        count(*) filter (where tripadvisor_listing_id is not null)::int as matches
+      from baseline_spot_check_eligible`,
   ]);
   return {
     items: rows.map((row) => ({
@@ -61,24 +60,21 @@ export async function startSpotCheck(): Promise<void> {
     if ((await tx`select 1 from baseline_spot_check limit 1`).length) return;
     const [counts] = await tx`
       select
-        (select count(*)::int from restaurant r join listing g on g.restaurant_id = r.id and g.source_code = 'google'
-          where r.baseline_sampled and r.format_provenance = 'llm') as formats,
-        (select count(*)::int from restaurant r join listing t on t.restaurant_id = r.id and t.source_code = 'tripadvisor'
-          where r.baseline_sampled and t.match_provenance = 'auto_accepted') as matches`;
+        count(*) filter (where format_eligible)::int as formats,
+        count(*) filter (where tripadvisor_listing_id is not null)::int as matches
+      from baseline_spot_check_eligible`;
     if (!counts || Number(counts.formats) < SPOT_CHECK_TARGETS.format || Number(counts.matches) < SPOT_CHECK_TARGETS.tripadvisor_match) {
       throw new ApiError(409, "baseline_sample_incomplete", "The baseline needs at least 50 Formats and 30 Tripadvisor matches before the checklist can start");
     }
     await tx`
       insert into baseline_spot_check (kind, restaurant_id, proposed_format)
-      select 'format', r.id, r.format from restaurant r
-      join listing g on g.restaurant_id = r.id and g.source_code = 'google'
-      where r.baseline_sampled and r.format_provenance = 'llm'
+      select 'format', restaurant_id, format from baseline_spot_check_eligible
+      where format_eligible
       order by random() limit ${SPOT_CHECK_TARGETS.format}`;
     await tx`
       insert into baseline_spot_check (kind, restaurant_id, listing_id, listing_url)
-      select 'tripadvisor_match', r.id, t.id, t.url from restaurant r
-      join listing t on t.restaurant_id = r.id and t.source_code = 'tripadvisor'
-      where r.baseline_sampled and t.match_provenance = 'auto_accepted'
+      select 'tripadvisor_match', restaurant_id, tripadvisor_listing_id, tripadvisor_url
+      from baseline_spot_check_eligible where tripadvisor_listing_id is not null
       order by random() limit ${SPOT_CHECK_TARGETS.tripadvisor_match}`;
   });
 }

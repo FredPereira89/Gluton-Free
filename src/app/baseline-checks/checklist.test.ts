@@ -3,9 +3,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import { AuthError, requireOwner } from "@/lib/auth";
 import { closeDb } from "@/lib/db";
+import { routes } from "@/lib/api-contract";
 import { spotCheckRate, spotCheckState } from "@/lib/baseline-spot-check";
-import { POST as start } from "./start/route";
-import { POST as answer } from "./answer/route";
+import { POST as start } from "../api/v1/baseline-checks/start/route";
+import { POST as answer } from "../api/v1/baseline-checks/answer/route";
 
 vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
@@ -34,8 +35,8 @@ beforeAll(async () => {
   execFileSync(process.execPath, ["--import", "tsx", "scripts/migrate.ts"], { cwd: process.cwd(), env: process.env });
   await sql`
     insert into restaurant (slug, name, city, format, format_provenance, baseline_sampled)
-    select 'baseline-' || n, 'Baseline ' || n, 'Lisbon', 'tasca', 'llm', true
-    from generate_series(1, 55) n`;
+    select 'baseline-' || n, 'Baseline ' || n, 'Lisbon', 'tasca', 'llm', n <= 55
+    from generate_series(1, 60) n`;
   await sql`
     insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
     select id, 'google', 'google-' || id, 'https://example.test/google/' || id, 'auto_accepted'
@@ -43,7 +44,7 @@ beforeAll(async () => {
   await sql`
     insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
     select id, 'tripadvisor', 'trip-' || id, 'https://example.test/trip/' || id, 'auto_accepted'
-    from restaurant where id <= 35`;
+    from restaurant where id <= 35 or id > 55`;
 }, 60_000);
 
 afterAll(async () => {
@@ -55,37 +56,43 @@ afterAll(async () => {
 });
 
 function postStart() {
-  return new Request("http://localhost/baseline-checks/start", { method: "POST", headers: { origin: "http://localhost" } });
+  return new Request("http://localhost/api/v1/baseline-checks/start", { method: "POST", headers: { origin: "http://localhost" } });
 }
 
-function postAnswer(id: number, value: string) {
-  const body = new FormData();
-  body.set("id", String(id));
-  body.set("answer", value);
-  return new Request("http://localhost/baseline-checks/answer", { method: "POST", headers: { origin: "http://localhost" }, body });
+function postAnswer(id: number, value: unknown) {
+  return new Request("http://localhost/api/v1/baseline-checks/answer", {
+    method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" },
+    body: JSON.stringify({ id, agreed: value }),
+  });
 }
 
 describe("baseline spot-check handlers", () => {
   it("draws and saves one random-sized checklist, then stores answers and reports both acceptance bars", async () => {
-    expect((await start(postStart())).status).toBe(303);
+    const started = await start(postStart());
+    expect(started.status).toBe(200);
+    expect(routes.startBaselineSpotCheck.responses[200].parse(await started.json())).toEqual({ started: true });
     const first = await spotCheckState();
+    expect(first.available).toEqual({ format: 55, tripadvisor_match: 35 });
     expect(first.items.filter((item) => item.kind === "format")).toHaveLength(50);
     expect(first.items.filter((item) => item.kind === "tripadvisor_match")).toHaveLength(30);
     expect(new Set(first.items.map((item) => item.id)).size).toBe(80);
-    expect((await start(postStart())).status).toBe(303);
+    expect(first.items.every((item) => Number(item.slug.replace("baseline-", "")) <= 55)).toBe(true);
+    expect((await start(postStart())).status).toBe(200);
     expect((await spotCheckState()).items.map((item) => item.id)).toEqual(first.items.map((item) => item.id));
 
     for (const kind of ["format", "tripadvisor_match"] as const) {
       const group = first.items.filter((item) => item.kind === kind);
       for (const [index, item] of group.entries()) {
-        expect((await answer(postAnswer(item.id, index === 0 ? "reject" : "confirm"))).status).toBe(303);
+        const saved = await answer(postAnswer(item.id, index !== 0));
+        expect(saved.status).toBe(200);
+        expect(routes.answerBaselineSpotCheck.responses[200].parse(await saved.json())).toEqual({ saved: true });
       }
     }
     const completed = await spotCheckState();
     expect(spotCheckRate(completed.items, "format")).toMatchObject({ answered: 50, confirmed: 49, rate: 98, passes: true });
     expect(spotCheckRate(completed.items, "tripadvisor_match")).toMatchObject({ answered: 30, confirmed: 29, passes: true });
     const rejected = completed.items.find((item) => item.agreed === false)!;
-    expect((await answer(postAnswer(rejected.id, "confirm"))).status).toBe(303);
+    expect((await answer(postAnswer(rejected.id, true))).status).toBe(200);
     expect((await spotCheckState()).items.find((item) => item.id === rejected.id)?.agreed).toBe(true);
   });
 
@@ -93,6 +100,6 @@ describe("baseline spot-check handlers", () => {
     const item = (await spotCheckState()).items[0]!;
     expect((await answer(postAnswer(item.id, "maybe"))).status).toBe(400);
     vi.mocked(requireOwner).mockRejectedValueOnce(new AuthError(401, "unauthenticated", "No session"));
-    expect((await answer(postAnswer(item.id, "reject"))).status).toBe(401);
+    expect((await answer(postAnswer(item.id, false))).status).toBe(401);
   });
 });

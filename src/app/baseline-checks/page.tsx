@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { SPOT_CHECK_BARS, SPOT_CHECK_TARGETS, spotCheckRate, spotCheckState, type SpotCheckItem, type SpotCheckKind } from "@/lib/baseline-spot-check";
+import { SpotCheckActions, StartSpotCheck } from "@/web/baseline-spot-checks";
 
 export const metadata: Metadata = { title: "Baseline spot checks · Gluton-Free", robots: { index: false, follow: false } };
 
@@ -37,11 +38,7 @@ function Check({ item }: { item: SpotCheckItem }) {
         {googleUrl && <a href={googleUrl} target="_blank" rel="noopener noreferrer">Google Listing ↗</a>}
         {tripadvisorUrl && <a href={tripadvisorUrl} target="_blank" rel="noopener noreferrer">Tripadvisor Listing ↗</a>}
       </div>
-      <form action="/baseline-checks/answer" method="post" className="spot-actions">
-        <input type="hidden" name="id" value={item.id} />
-        <button type="submit" name="answer" value="confirm" className="btn">Confirm</button>
-        <button type="submit" name="answer" value="reject" className="btn btn-secondary">Reject</button>
-      </form>
+      <SpotCheckActions id={item.id} />
     </li>
   );
 }
@@ -57,7 +54,7 @@ export default async function BaselineChecksPage() {
       {!started && <div className="spot-start">
         <p>Available: {available.format} confirmed baseline Formats; {available.tripadvisor_match} automatic Tripadvisor matches.</p>
         {available.format >= SPOT_CHECK_TARGETS.format && available.tripadvisor_match >= SPOT_CHECK_TARGETS.tripadvisor_match
-          ? <form action="/baseline-checks/start" method="post"><button className="btn" type="submit">Draw random checklist</button></form>
+          ? <StartSpotCheck />
           : <p className="muted">Run the Lisbon baseline first. The checklist needs at least 50 Formats and 30 Tripadvisor matches.</p>}
       </div>}
       {started && (["format", "tripadvisor_match"] as const).map((kind) => {

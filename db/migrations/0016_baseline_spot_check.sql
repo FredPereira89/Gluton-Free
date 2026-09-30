@@ -1,12 +1,16 @@
 -- Keep the paid Lisbon sample distinguishable from later owner Lookups.
 alter table restaurant add column baseline_sampled boolean not null default false;
 
--- Earlier baseline runs did not record membership. Their Google Listing and
--- LLM-confirmed Format identify the stored sample for a one-time backfill.
-update restaurant r set baseline_sampled = true
-where r.city = 'Lisbon' and r.format_provenance = 'llm'
-  and exists (select 1 from listing l where l.restaurant_id = r.id
-    and l.source_code = 'google' and l.match_provenance = 'auto_accepted');
+-- Do not infer membership from Listings: owner Lookups use the same provenance.
+create view baseline_spot_check_eligible with (security_invoker = true) as
+select r.id as restaurant_id, r.format,
+  (r.format_provenance = 'llm') as format_eligible,
+  t.id as tripadvisor_listing_id, t.url as tripadvisor_url
+from restaurant r
+join listing g on g.restaurant_id = r.id and g.source_code = 'google'
+left join listing t on t.restaurant_id = r.id and t.source_code = 'tripadvisor'
+  and t.match_provenance = 'auto_accepted'
+where r.baseline_sampled;
 
 create table baseline_spot_check (
   id bigint generated always as identity primary key,
