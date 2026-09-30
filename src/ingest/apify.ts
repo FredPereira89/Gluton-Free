@@ -51,7 +51,19 @@ type NearbyRestaurant = {
   reviewCount?: number | null;
 };
 
-type RunInfo = { id?: string; defaultDatasetId?: string; status?: string; usageTotalUsd?: number };
+type RunInfo = {
+  id?: string; defaultDatasetId?: string; status?: string; usageTotalUsd?: number;
+  chargedEventCounts?: Record<string, number>;
+  pricingInfo?: { pricingPerEvent?: { actorChargeEvents?: Record<string, { eventPriceUsd?: number }> } };
+};
+
+/** What Apify charged: the reported total, or the events it counted at their list price if that is higher. */
+function runCost(info: RunInfo | undefined): number {
+  if (!info) return 0;
+  const prices = info.pricingInfo?.pricingPerEvent?.actorChargeEvents ?? {};
+  const events = Object.entries(info.chargedEventCounts ?? {}).reduce((sum, [name, count]) => sum + count * (prices[name]?.eventPriceUsd ?? 0), 0);
+  return Math.max(info.usageTotalUsd ?? 0, events);
+}
 
 async function apify(path: string, init?: { body?: unknown }): Promise<{ status: number; data: unknown }> {
   const res = await fetch(`${BASE}${path}`, {
@@ -75,7 +87,7 @@ async function runActor(actorName: string, input: Record<string, unknown>, maxTo
       await apify(`/actor-runs/${run.id}/abort`, { body: {} }).catch(() => undefined);
       // The last poll predates the abort: read the run again for what Apify finally charged.
       const settled = await apify(`/actor-runs/${run.id}`).catch(() => null);
-      cost = (settled?.data as { data?: RunInfo } | null)?.data?.usageTotalUsd ?? cost;
+      cost = Math.max(cost, runCost((settled?.data as { data?: RunInfo } | null)?.data));
       throw new ApifyError("The TheFork run did not finish in time.", cost);
     }
     const polled = await apify(`/actor-runs/${run.id}?waitForFinish=${WAIT_FOR_FINISH_S}`);
@@ -87,6 +99,10 @@ async function runActor(actorName: string, input: Record<string, unknown>, maxTo
   if (run.status !== "SUCCEEDED" || !run.defaultDatasetId) throw new ApifyError(`The TheFork run ended as ${run.status}.`, cost);
   const dataset = await apify(`/datasets/${run.defaultDatasetId}/items?clean=true&format=json`);
   if (dataset.status >= 300 || !Array.isArray(dataset.data)) throw new ApifyError(`Apify dataset read failed (HTTP ${dataset.status}).`, cost);
+  // The status poll can report SUCCEEDED before Apify adds the per-result charges (only the start fee was in):
+  // the run is read again now that its dataset is out.
+  const settled = await apify(`/actor-runs/${run.id}`).catch(() => null);
+  cost = Math.max(cost, runCost((settled?.data as { data?: RunInfo } | null)?.data));
   return { items: dataset.data, costUsd: cost };
 }
 

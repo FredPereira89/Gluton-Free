@@ -8,7 +8,7 @@ import { pendingExtraction, saveAnalyses } from "@/analysis/store";
 import { reproposesFormat } from "@/domain/aspects";
 import { choosePriceTier } from "@/domain/restaurant-facts";
 import { verifyPendingFlags } from "@/analysis/verify";
-import { depthFor, getReviewTask, postReviewTask, type DfsSource, type ReviewTaskParams } from "@/ingest/dataforseo";
+import { getReviewTask, lookupDepthFor, postReviewTask, type DfsSource, type ReviewTaskParams } from "@/ingest/dataforseo";
 import { ApifyError, fetchTheForkListing } from "@/ingest/apify";
 import { normaliseGoogle, normaliseTheFork, normaliseTripadvisor } from "@/ingest/normalise";
 import { storeListingFetch } from "@/ingest/store";
@@ -129,7 +129,7 @@ async function fetchTheForkReviews(
 }
 
 /**
- * Fetches every Review of every Listing: a depth-10 probe for the count, then the full depth.
+ * Fetches the newest Reviews of every Listing, up to the Lookup depth cap: a depth-10 probe for the count, then that depth.
  * With `sample`, fetches only the newest `sample` Reviews per Listing and skips the probe.
  * With `listingId`, scopes the fetch to that one Listing (an owner-answered Listing joining late).
  */
@@ -169,7 +169,7 @@ export async function ingestRestaurant(restaurantId: number, jobId: number, slee
       }
       fetchListings = listings.filter((l) => !probeBatch.failures.has(l.id));
       await setStep(jobId, "fetching Reviews", { expected: Object.fromEntries(fetchListings.map((l) => [l.source, expected.get(l.id)])) });
-      depthOf = (l) => depthFor(expected.get(l.id) ?? 0);
+      depthOf = (l) => lookupDepthFor(expected.get(l.id) ?? 0);
     }
 
     const fullBatch = await runVendorTasks(fetchListings, depthOf, jobId, sleep);

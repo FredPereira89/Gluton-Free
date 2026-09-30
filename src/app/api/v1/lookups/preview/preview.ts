@@ -1,4 +1,4 @@
-import { depthFor, getTripadvisorSearch, type TripadvisorSearchItem } from "@/ingest/dataforseo";
+import { getTripadvisorSearch, lookupDepthFor, type TripadvisorSearchItem } from "@/ingest/dataforseo";
 import type { TheForkSearchItem } from "@/ingest/apify";
 import { PARAMS } from "@/verdict/rollup";
 import { nameSimilarity } from "../../search/input";
@@ -122,7 +122,7 @@ export function estimateLookup(listings: { reviewCount: number | null }[]): Look
   let seconds = 0;
   for (const listing of listings) {
     const predicted = predictTextReviews(listing.reviewCount);
-    const depth = depthFor(predicted);
+    const depth = lookupDepthFor(listing.reviewCount ?? 0);
     textReviews += predicted;
     costUsd += depth * COST_PER_DEPTH_UNIT_USD;
     seconds += depth * SECONDS_PER_DEPTH_UNIT;
