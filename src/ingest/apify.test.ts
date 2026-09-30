@@ -130,6 +130,20 @@ describe("the cost of a finished run", () => {
     expect((await searchTheFork({ lat: 1, lng: 2 })).costUsd).toBe(0.2501);
   });
 
+  it("counts every returned item at the per-result price when the total and the counters both lag", async () => {
+    // Belcanto-style: 25 restaurants at $0.01 billed, yet the run still shows only the start fee.
+    const restaurants = Array.from({ length: 25 }, (_, index) => ({ ...nearbyItem, url: `https://www.thefork.com/restaurant/invented-${index}-r${90200 + index}` }));
+    lagging({
+      usageTotalUsd: 0.0001, chargedEventCounts: { "apify-actor-start": 1 },
+      pricingInfo: { pricingPerEvent: { actorChargeEvents: {
+        "apify-actor-start": { eventPriceUsd: 0.0001, isOneTimeEvent: true }, "restaurant-scraped": { eventPriceUsd: 0.01 },
+      } } },
+    });
+    const lagged = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) => new URL(String(input)).pathname === "/v2/datasets/ds-1/items" ? json(restaurants) : lagged(input, init));
+    expect((await searchTheFork({ lat: 1, lng: 2 })).costUsd).toBeCloseTo(0.2501, 6);
+  });
+
   it("falls back to the counted events at their list price when the total still lags", async () => {
     lagging({
       usageTotalUsd: 0.0001, chargedEventCounts: { "apify-actor-start": 1, "apify-default-dataset-item": 25 },

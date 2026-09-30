@@ -54,15 +54,23 @@ type NearbyRestaurant = {
 type RunInfo = {
   id?: string; defaultDatasetId?: string; status?: string; usageTotalUsd?: number;
   chargedEventCounts?: Record<string, number>;
-  pricingInfo?: { pricingPerEvent?: { actorChargeEvents?: Record<string, { eventPriceUsd?: number }> } };
+  pricingInfo?: { pricingPerEvent?: { actorChargeEvents?: Record<string, { eventPriceUsd?: number; isOneTimeEvent?: boolean }> } };
 };
 
-/** What Apify charged: the reported total, or the events it counted at their list price if that is higher. */
-function runCost(info: RunInfo | undefined): number {
+/**
+ * What Apify charged, at least. Its totals and event counters lag the run by seconds, so the reported total
+ * is raised to the events counted at list price, and to the start fees plus every returned item at the
+ * cheapest per-result price (a search that returned 25 restaurants was recorded as $0.0001 against $0.25 billed).
+ */
+function runCost(info: RunInfo | undefined, items = 0): number {
   if (!info) return 0;
-  const prices = info.pricingInfo?.pricingPerEvent?.actorChargeEvents ?? {};
-  const events = Object.entries(info.chargedEventCounts ?? {}).reduce((sum, [name, count]) => sum + count * (prices[name]?.eventPriceUsd ?? 0), 0);
-  return Math.max(info.usageTotalUsd ?? 0, events);
+  const events = Object.entries(info.pricingInfo?.pricingPerEvent?.actorChargeEvents ?? {});
+  const counts = info.chargedEventCounts ?? {};
+  const counted = events.reduce((sum, [name, event]) => sum + (counts[name] ?? 0) * (event.eventPriceUsd ?? 0), 0);
+  const startFees = events.reduce((sum, [name, event]) => sum + (event.isOneTimeEvent ? (counts[name] ?? 0) * (event.eventPriceUsd ?? 0) : 0), 0);
+  const perResult = events.filter(([, event]) => !event.isOneTimeEvent && (event.eventPriceUsd ?? 0) > 0).map(([, event]) => event.eventPriceUsd!);
+  const fromItems = perResult.length ? startFees + items * Math.min(...perResult) : 0;
+  return Math.max(info.usageTotalUsd ?? 0, counted, fromItems);
 }
 
 async function apify(path: string, init?: { body?: unknown }): Promise<{ status: number; data: unknown }> {
@@ -100,9 +108,9 @@ async function runActor(actorName: string, input: Record<string, unknown>, maxTo
   const dataset = await apify(`/datasets/${run.defaultDatasetId}/items?clean=true&format=json`);
   if (dataset.status >= 300 || !Array.isArray(dataset.data)) throw new ApifyError(`Apify dataset read failed (HTTP ${dataset.status}).`, cost);
   // The status poll can report SUCCEEDED before Apify adds the per-result charges (only the start fee was in):
-  // the run is read again now that its dataset is out.
+  // the run is read again now that its dataset is out, and every returned item counts at its price.
   const settled = await apify(`/actor-runs/${run.id}`).catch(() => null);
-  cost = Math.max(cost, runCost((settled?.data as { data?: RunInfo } | null)?.data));
+  cost = Math.max(cost, runCost((settled?.data as { data?: RunInfo } | null)?.data, dataset.data.length));
   return { items: dataset.data, costUsd: cost };
 }
 
