@@ -45,7 +45,7 @@ export async function loadRollupInput(
     themes: (r.themes ?? []) as string[],
   }));
   const flagRows = await sql`
-    select f.review_id, f.type, f.flag_group, f.first_hand, f.verification, f.evidence, r.published_at, l.source_code
+    select f.review_id, f.type, f.flag_group, f.first_hand, f.verification, f.severity, f.evidence, r.published_at, l.source_code
     from review_flag f
     join review r on r.id = f.review_id
     join listing l on l.id = r.listing_id
@@ -56,6 +56,7 @@ export async function loadRollupInput(
     group: f.flag_group as "health" | "money",
     firstHand: f.first_hand as boolean,
     verification: f.verification as RollupFlag["verification"],
+    severity: f.severity as RollupFlag["severity"],
     publishedAt: f.published_at as Date,
     evidence: f.evidence as string,
     source: f.source_code as string,
