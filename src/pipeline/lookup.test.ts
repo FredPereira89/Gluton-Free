@@ -1250,18 +1250,25 @@ describe("Lookup pipeline", () => {
       Object.assign(process.env, env);
       apifyFakeState.runs.length = 0;
       apifyFakeState.mode = "ok";
+      apifyFakeState.distant = false;
       try {
         return await run();
       } finally {
         delete process.env.APIFY_TOKEN;
         for (const key of Object.keys(env)) delete process.env[key];
         apifyFakeState.mode = "ok";
+        apifyFakeState.distant = false;
       }
+    }
+    /** The fake TheFork restaurant has one fixed id and a Listing is unique per source and id: free it between tests. */
+    async function freeTheForkFixture() {
+      await sql!`delete from review where listing_id in (select id from listing where source_code = 'thefork')`;
+      await sql!`delete from listing where source_code = 'thefork'`;
     }
     const jobs = (restaurantId: number, kind: string) => sql!`
       select status, error_code, error_detail, vendor_cost_usd from job where restaurant_id = ${restaurantId} and kind = ${kind} order by id`;
 
-    it("finds nearby TheFork Listings, and Accept fetches normalised Reviews, feeds the Price tier and re-judges", async () => {
+    it("asks the owner about a loosely placed TheFork Listing, and Accept fetches normalised Reviews, feeds the Price tier and re-judges", async () => {
       const { loadRestaurantBundle } = await import("@/web/data");
       const { runTheForkMatch } = await import("./thefork-match");
       const { routes } = await import("@/lib/api-contract");
@@ -1272,6 +1279,7 @@ describe("Lookup pipeline", () => {
       const [verdictsBefore] = await sql!`select count(*)::int as n from verdict where restaurant_id = ${lookup.id}`;
 
       await withApify(async () => {
+        apifyFakeState.distant = true;
         await runTheForkMatch(lookup.id);
         const bundle = (await loadRestaurantBundle(lookup.slug))!;
         expect(bundle.unavailableSources).toEqual([]);
@@ -1281,8 +1289,8 @@ describe("Lookup pipeline", () => {
         }]);
         const question = bundle.ownerQuestions[0]!;
         const distance = question.kind === "listing_match" ? question.candidates[0]!.evidence.distanceMeters : null;
-        expect(distance).toBeGreaterThan(0);
-        expect(distance).toBeLessThan(100);
+        expect(distance).toBeGreaterThan(100);
+        expect(distance).toBeLessThan(300);
         expect(apifyFakeState.runs).toHaveLength(1);
         expect(apifyFakeState.runs[0]).toMatchObject({ maxTotalChargeUsd: "0.3", authorization: "Bearer invented-apify-token", input: { latitude: 38.7139, longitude: -9.1334, maxResults: 25 } });
         const [thefork] = await sql!`select 1 from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
@@ -1319,8 +1327,49 @@ describe("Lookup pipeline", () => {
       expect((await again.json()).code).toBe("already_settled");
     }, 60_000);
 
+    it("accepts a near-identical TheFork Listing on its own once the Lookup has finished, and fetches its Reviews", async () => {
+      const { loadRestaurantBundle } = await import("@/web/data");
+      const { runTheForkMatch } = await import("./thefork-match");
+      await freeTheForkFixture();
+      const lookup = await startLookup("invented-thefork-auto-accept-place");
+      await sql!`update restaurant set lat = 38.7139, lng = -9.1334 where id = ${lookup.id}`;
+      await withApify(async () => {
+        await runTheForkMatch(lookup.id);
+        expect(apifyFakeState.runs).toHaveLength(2);
+      });
+      const [listing] = await sql!`select id, place_ref, match_provenance from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(listing).toMatchObject({ place_ref: "90101", match_provenance: "auto_accepted" });
+      const [reviews] = await sql!`select count(*)::int as n from review where listing_id = ${listing!.id}`;
+      expect(reviews!.n).toBe(8);
+      const [question] = await sql!`select status from owner_question where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(question!.status).not.toBe("open");
+      expect((await loadRestaurantBundle(lookup.slug))!.ownerQuestions).toEqual([]);
+    }, 60_000);
+
+    it("holds a confident TheFork match while the Lookup runs, and the Lookup accepts it when it finishes", async () => {
+      const { runTheForkMatch } = await import("./thefork-match");
+      const { autoAcceptTheFork } = await import("@/lib/owner-question");
+      await freeTheForkFixture();
+      const lookup = await startLookup("invented-thefork-held-place");
+      await sql!`update restaurant set lat = 38.7139, lng = -9.1334 where id = ${lookup.id}`;
+      await sql!`update job set status = 'running' where restaurant_id = ${lookup.id} and kind = 'lookup'`;
+      await withApify(async () => {
+        await runTheForkMatch(lookup.id);
+        expect(apifyFakeState.runs).toHaveLength(1);
+        const [held] = await sql!`select status from owner_question where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+        expect(held!.status).toBe("open");
+        await sql!`update job set status = 'succeeded' where restaurant_id = ${lookup.id} and kind = 'lookup'`;
+        expect(await autoAcceptTheFork(lookup.id)).toBe(true);
+        expect(apifyFakeState.runs).toHaveLength(2);
+        expect(await autoAcceptTheFork(lookup.id)).toBe(false);
+      });
+      const [listing] = await sql!`select match_provenance from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(listing).toMatchObject({ match_provenance: "auto_accepted" });
+    }, 60_000);
+
     it("settles Neither without a fetch, and a second answer is already_settled", async () => {
       const lookup = await withApify(async () => {
+        apifyFakeState.distant = true;
         const started = await startLookup("invented-thefork-none-place");
         const [question] = await sql!`select source_code, status from owner_question where restaurant_id = ${started.id}`;
         expect(question).toMatchObject({ source_code: "thefork", status: "open" });

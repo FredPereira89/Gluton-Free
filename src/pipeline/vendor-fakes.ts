@@ -21,8 +21,10 @@ export const vendorFailureState: { armed: boolean } = { armed: false };
 /** Apify's TheFork actor: every run starts READY, finishes on the first status poll, and reports what it charged. */
 export const apifyFakeState: {
   mode: "ok" | "run_failed";
+  /** Moves the nearby TheFork restaurants about 220 m north of the Restaurant: a match too loose to accept on its own. */
+  distant: boolean;
   runs: { input: Record<string, unknown>; maxTotalChargeUsd: string | null; authorization: string | null }[];
-} = { mode: "ok", runs: [] };
+} = { mode: "ok", distant: false, runs: [] };
 export const APIFY_FAKE_SEARCH_COST_USD = 0.06;
 export const APIFY_FAKE_REVIEWS_COST_USD = 0.1;
 export const APIFY_FAKE_FAILED_COST_USD = 0.01;
@@ -45,7 +47,9 @@ function fakeApify(url: URL, init?: RequestInit): Response | null {
       usageTotalUsd: reviews ? APIFY_FAKE_REVIEWS_COST_USD : APIFY_FAKE_SEARCH_COST_USD,
     } });
   }
-  if (url.pathname === "/v2/datasets/thefork-search/items") return response(fixture.thefork.nearby);
+  if (url.pathname === "/v2/datasets/thefork-search/items") return response(apifyFakeState.distant
+    ? fixture.thefork.nearby.map((item) => ({ ...item, geolocation: { ...item.geolocation, latitude: item.geolocation.latitude + 0.002 } }))
+    : fixture.thefork.nearby);
   if (url.pathname === "/v2/datasets/thefork-reviews/items") {
     return response([{
       ...fixture.thefork.search[0],
