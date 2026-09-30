@@ -11,6 +11,8 @@ const TASK_SECRETS = [
   "VAPID_PRIVATE_KEY",
   "VAPID_SUBJECT",
 ] as const;
+// TheFork matching (Apify) is optional: without a token it reports itself unavailable and the Lookup is unaffected.
+const OPTIONAL_TASK_SECRETS = ["APIFY_TOKEN", "APIFY_THEFORK_ACTOR"] as const;
 
 export default defineConfig({
   project: process.env.TRIGGER_PROJECT_REF ?? "",
@@ -27,7 +29,8 @@ export default defineConfig({
       syncEnvVars(() => {
         const missing = TASK_SECRETS.filter((k) => !process.env[k]);
         if (missing.length) throw new Error(`missing env for deploy: ${missing.join(", ")}`);
-        return TASK_SECRETS.map((name) => ({ name, value: process.env[name]!, isSecret: true }));
+        return [...TASK_SECRETS, ...OPTIONAL_TASK_SECRETS.filter((k) => process.env[k])]
+          .map((name) => ({ name, value: process.env[name]!, isSecret: true }));
       }),
     ],
   },

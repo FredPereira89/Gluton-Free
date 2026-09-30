@@ -85,7 +85,7 @@ export async function raiseSourceRetryQuestions(sql: postgres.Sql, restaurantId:
 }
 
 export function questionPrompt(sourceCode: string): string {
-  const source = sourceCode === "tripadvisor" ? "Tripadvisor" : sourceCode;
+  const source = ({ tripadvisor: "Tripadvisor", thefork: "TheFork" } as Record<string, string>)[sourceCode] ?? sourceCode;
   return `Which ${source} listing belongs to this Restaurant?`;
 }
 
@@ -120,7 +120,7 @@ export async function dismissFormatQuestion(id: number): Promise<Response> {
 /** Answers the most recent Owner question for that Source. Settles `none` outright; `accept` fetches the Listing and re-judges. */
 export async function answerListingQuestion(
   slug: string,
-  source: "google" | "tripadvisor",
+  source: "google" | "tripadvisor" | "thefork",
   answer: { answer: "accept"; placeRef: string } | { answer: "none" },
 ): Promise<Response> {
   const sql = db();

@@ -36,7 +36,7 @@ const bundleFixture: RestaurantBundle = {
     issuedAt: "2026-09-24T12:00:00.000Z", provisional: true, blocks: fixture.verdict!.blocks,
   },
   sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://maps.google.com/", rating: 4.5, reviewCount: 5, textCount: 2, newestAt: null, fetchStatus: "fetched" }],
-  distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
+  distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [], unavailableSources: [],
 };
 
 describe("API registry and OpenAPI", () => {

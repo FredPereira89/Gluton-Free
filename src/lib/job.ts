@@ -1,7 +1,7 @@
 import { db } from "./db";
 import type { PipelineError } from "./pipeline-error";
 
-export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot" | "listing_fetch" | "rejudge";
+export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot" | "listing_fetch" | "rejudge" | "source_match";
 export const LOOKUP_STAGES = ["Listings matched", "Reviews fetched", "window extracted", "flags verified", "signals checked", "judged and explained", "notified"] as const;
 export type LookupStageName = typeof LOOKUP_STAGES[number];
 

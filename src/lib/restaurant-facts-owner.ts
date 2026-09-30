@@ -24,7 +24,7 @@ export async function updateRestaurantFacts(slug: string, update: Update): Promi
     const formatChanged = format !== undefined && format !== restaurant.format;
 
     const [activeJob] = await tx`
-      select id from job where restaurant_id = ${restaurantId} and status in ('queued', 'running')
+      select id from job where restaurant_id = ${restaurantId} and kind <> 'source_match' and status in ('queued', 'running')
       order by id desc limit 1`;
     if (activeJob) throw new ApiError(409, "job_in_progress", "Wait for the current job to finish before changing Restaurant details");
 

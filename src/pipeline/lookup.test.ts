@@ -4,7 +4,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
 import { fakePushSends, fakeSendPush } from "./push-fake";
-import { fakeAnthropic, fakeChangeMarker, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState } from "./vendor-fakes";
+import {
+  APIFY_FAKE_FAILED_COST_USD, APIFY_FAKE_REVIEWS_COST_USD, APIFY_FAKE_SEARCH_COST_USD, apifyFakeState,
+  fakeAnthropic, fakeChangeMarker, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState,
+} from "./vendor-fakes";
 
 vi.mock("@/lib/push-send", () => ({ sendPush: (...args: Parameters<typeof fakeSendPush>) => fakeSendPush(...args) }));
 
@@ -43,6 +46,11 @@ vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, 
     // The worker waits for the API transaction to commit before reading the detached Listing set.
   } else if (id === "owner-change-point") {
     // The worker waits for the API transaction (the Change point insert/delete) to commit before re-judging.
+  } else if (id === "thefork-match") {
+    const p = payload as { restaurantId: number; jobId: number };
+    const { runTheForkMatch } = await import("./thefork-match");
+    // The real task's failure is already stored on the Job and must not fail the caller that started it.
+    await runTheForkMatch(p.restaurantId, { jobId: p.jobId }).catch(() => undefined);
   } else if (id === "owner-source-retry") {
     const p = payload as { restaurantId: number; listingId: number; questionId: number; jobId: number };
     await runSourceRetry(p.restaurantId, p.listingId, p.questionId, async () => {}, { jobId: p.jobId });
@@ -1209,6 +1217,175 @@ describe("Lookup pipeline", () => {
     const conflict = responses.find((response) => response.status === 409)!;
     expect((await conflict.json()).code).toBe("already_settled");
   }, 30_000);
+
+  describe("TheFork matching through Apify", () => {
+    async function startLookup(googlePlaceId: string) {
+      const { POST } = await import("@/app/api/v1/lookups/route");
+      const started = await POST(new Request("http://localhost/api/v1/lookups", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ googlePlaceId, listings: [] }),
+      }));
+      expect(started.status).toBe(202);
+      const { restaurantSlug } = await started.json() as { restaurantSlug: string };
+      const [restaurant] = await sql!`select id from restaurant where slug = ${restaurantSlug}`;
+      return { slug: restaurantSlug, id: Number(restaurant!.id) };
+    }
+    async function answerTheFork(slug: string, body: unknown) {
+      const { PUT } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/route");
+      return PUT(
+        new Request(`http://localhost/api/v1/restaurants/${slug}/listings/thefork`, {
+          method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+        }),
+        { params: Promise.resolve({ slug, source: "thefork" }) },
+      );
+    }
+    async function withApify<T>(run: () => Promise<T>, env: Record<string, string> = {}): Promise<T> {
+      process.env.APIFY_TOKEN = "invented-apify-token";
+      Object.assign(process.env, env);
+      apifyFakeState.runs.length = 0;
+      apifyFakeState.mode = "ok";
+      try {
+        return await run();
+      } finally {
+        delete process.env.APIFY_TOKEN;
+        for (const key of Object.keys(env)) delete process.env[key];
+        apifyFakeState.mode = "ok";
+      }
+    }
+    const jobs = (restaurantId: number, kind: string) => sql!`
+      select status, error_code, error_detail, vendor_cost_usd from job where restaurant_id = ${restaurantId} and kind = ${kind} order by id`;
+
+    it("finds nearby TheFork Listings, and Accept fetches normalised Reviews, feeds the Price tier and re-judges", async () => {
+      const { loadRestaurantBundle } = await import("@/web/data");
+      const { runTheForkMatch } = await import("./thefork-match");
+      const { routes } = await import("@/lib/api-contract");
+      const lookup = await startLookup("invented-thefork-flow-place");
+      // No token at Lookup time: TheFork matching reports itself unavailable, then a later search succeeds.
+      expect((await loadRestaurantBundle(lookup.slug))!.unavailableSources).toMatchObject([{ source: "thefork" }]);
+      await sql!`update restaurant set lat = 38.7139, lng = -9.1334 where id = ${lookup.id}`;
+      const [verdictsBefore] = await sql!`select count(*)::int as n from verdict where restaurant_id = ${lookup.id}`;
+
+      await withApify(async () => {
+        await runTheForkMatch(lookup.id);
+        const bundle = (await loadRestaurantBundle(lookup.slug))!;
+        expect(bundle.unavailableSources).toEqual([]);
+        expect(bundle.ownerQuestions).toMatchObject([{
+          source: "thefork", prompt: expect.stringContaining("TheFork"),
+          candidates: [{ placeRef: "90101", name: fixture.restaurant, evidence: { phoneMatch: null, nameSimilarity: 1 } }],
+        }]);
+        const question = bundle.ownerQuestions[0]!;
+        const distance = question.kind === "listing_match" ? question.candidates[0]!.evidence.distanceMeters : null;
+        expect(distance).toBeGreaterThan(0);
+        expect(distance).toBeLessThan(100);
+        expect(apifyFakeState.runs).toHaveLength(1);
+        expect(apifyFakeState.runs[0]).toMatchObject({ maxTotalChargeUsd: "0.15", authorization: "Bearer invented-apify-token" });
+        const [thefork] = await sql!`select 1 from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+        expect(thefork).toBeUndefined();
+
+        const accept = await answerTheFork(lookup.slug, { answer: "accept", placeRef: "90101" });
+        expect(accept.status).toBe(202);
+        routes.answerListing.responses[202].parse(await accept.json());
+        expect(apifyFakeState.runs).toHaveLength(2);
+        expect(apifyFakeState.runs[1]).toMatchObject({ maxTotalChargeUsd: "0.25", input: { maxReviews: 100, maxRestaurants: 1 } });
+      });
+
+      const [listing] = await sql!`select id, place_ref, match_provenance, price_level from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(listing).toMatchObject({ place_ref: "90101", match_provenance: "proposed_confirmed", price_level: "32" });
+      const stars = await sql!`select stars from review where listing_id = ${listing!.id} order by stars`;
+      expect(stars.map((row) => Number(row.stars))).toEqual([4, 4, 4, 5, 5, 5, 5, 5]);
+      const [pii] = await sql!`
+        select (select count(*)::int from review r where r::text like '%Invented Diner%') as reviews,
+               (select count(*)::int from listing l where l::text like '%Invented Diner%') as listings`;
+      expect(pii).toEqual({ reviews: 0, listings: 0 });
+      const [restaurant] = await sql!`select price_tier from restaurant where id = ${lookup.id}`;
+      expect(restaurant!.price_tier).toBe("€€€");
+      const [verdictsAfter] = await sql!`select count(*)::int as n from verdict where restaurant_id = ${lookup.id}`;
+      expect(verdictsAfter!.n).toBe(verdictsBefore!.n + 1);
+
+      const matchJobs = await jobs(lookup.id, "source_match");
+      expect(matchJobs.map((job) => job.status)).toEqual(["failed", "succeeded"]);
+      expect(Number(matchJobs[1]!.vendor_cost_usd)).toBeCloseTo(APIFY_FAKE_SEARCH_COST_USD, 6);
+      const [fetchJob] = await jobs(lookup.id, "listing_fetch");
+      expect(Number(fetchJob!.vendor_cost_usd)).toBeCloseTo(APIFY_FAKE_REVIEWS_COST_USD, 6);
+
+      const again = await answerTheFork(lookup.slug, { answer: "accept", placeRef: "90101" });
+      expect(again.status).toBe(409);
+      expect((await again.json()).code).toBe("already_settled");
+    }, 60_000);
+
+    it("settles Neither without a fetch, and a second answer is already_settled", async () => {
+      const lookup = await withApify(async () => {
+        const started = await startLookup("invented-thefork-none-place");
+        const [question] = await sql!`select source_code, status from owner_question where restaurant_id = ${started.id}`;
+        expect(question).toMatchObject({ source_code: "thefork", status: "open" });
+        const none = await answerTheFork(started.slug, { answer: "none" });
+        expect(none.status).toBe(202);
+        expect(await none.json()).toEqual({ settled: true });
+        // Only the search ran: Neither never fetches.
+        expect(apifyFakeState.runs).toHaveLength(1);
+        return started;
+      });
+      const [listing] = await sql!`select 1 from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(listing).toBeUndefined();
+      const [settled] = await sql!`select status from owner_question where restaurant_id = ${lookup.id}`;
+      expect(settled!.status).toBe("dismissed");
+      const again = await answerTheFork(lookup.slug, { answer: "none" });
+      expect(again.status).toBe(409);
+      expect((await again.json()).code).toBe("already_settled");
+    }, 60_000);
+
+    it("keeps the Lookup working and tells the owner when Apify access is missing", async () => {
+      apifyFakeState.runs.length = 0;
+      const { loadRestaurantBundle } = await import("@/web/data");
+      const lookup = await startLookup("invented-thefork-no-token-place");
+      const [lookupJob] = await jobs(lookup.id, "lookup");
+      expect(lookupJob!.status).toBe("succeeded");
+      const [verdicts] = await sql!`select count(*)::int as n from verdict where restaurant_id = ${lookup.id}`;
+      expect(verdicts!.n).toBe(1);
+      const [matchJob] = await jobs(lookup.id, "source_match");
+      expect(matchJob).toMatchObject({ status: "failed", error_code: "apify_not_configured" });
+      const bundle = (await loadRestaurantBundle(lookup.slug))!;
+      expect(bundle.unavailableSources).toEqual([{ source: "thefork", detail: expect.stringContaining("not configured") }]);
+      expect(bundle.ownerQuestions).toEqual([]);
+      expect(apifyFakeState.runs).toHaveLength(0);
+    }, 60_000);
+
+    it("tells the owner TheFork matching was unavailable when its job never finished", async () => {
+      const { loadRestaurantBundle } = await import("@/web/data");
+      const lookup = await startLookup("invented-thefork-stuck-place");
+      await sql!`delete from job where restaurant_id = ${lookup.id} and kind = 'source_match'`;
+      const [job] = await sql!`insert into job (kind, restaurant_id, status) values ('source_match', ${lookup.id}, 'queued') returning id`;
+      expect((await loadRestaurantBundle(lookup.slug))!.unavailableSources).toEqual([]);
+      await sql!`update job set updated_at = now() - interval '1 hour' where id = ${job!.id}`;
+      expect((await loadRestaurantBundle(lookup.slug))!.unavailableSources).toMatchObject([{ source: "thefork", detail: expect.stringContaining("did not finish") }]);
+    }, 60_000);
+
+    it("records the cost of a failed Apify run without failing the Lookup", async () => {
+      const { loadRestaurantBundle } = await import("@/web/data");
+      const lookup = await withApify(async () => {
+        apifyFakeState.mode = "run_failed";
+        return startLookup("invented-thefork-run-failed-place");
+      });
+      const [lookupJob] = await jobs(lookup.id, "lookup");
+      expect(lookupJob!.status).toBe("succeeded");
+      const [matchJob] = await jobs(lookup.id, "source_match");
+      expect(matchJob).toMatchObject({ status: "failed", error_code: "vendor_error", error_detail: expect.stringContaining("TheFork matching was unavailable") });
+      expect(Number(matchJob!.vendor_cost_usd)).toBeCloseTo(APIFY_FAKE_FAILED_COST_USD, 6);
+      expect((await loadRestaurantBundle(lookup.slug))!.unavailableSources).toMatchObject([{ source: "thefork" }]);
+      const [questions] = await sql!`select count(*)::int as n from owner_question where restaurant_id = ${lookup.id}`;
+      expect(questions!.n).toBe(0);
+    }, 60_000);
+
+    it("does not search once the daily vendor spend cap is reached", async () => {
+      const { runTheForkMatch } = await import("./thefork-match");
+      const lookup = await startLookup("invented-thefork-cap-place");
+      await withApify(async () => {
+        await expect(runTheForkMatch(lookup.id)).rejects.toMatchObject({ code: "spend_cap_reached" });
+        expect(apifyFakeState.runs).toHaveLength(0);
+      }, { VENDOR_DAILY_CAP_USD: "0.0001" });
+      const matchJobs = await jobs(lookup.id, "source_match");
+      expect(matchJobs.at(-1)).toMatchObject({ status: "failed", error_code: "spend_cap_reached" });
+    }, 60_000);
+  });
 
   it("proposes a Change point after lookup, waits for three new mentions after rejection, and re-judges an edited confirmation", async () => {
     const database = sql!;

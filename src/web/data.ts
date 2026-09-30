@@ -145,10 +145,10 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
 export async function loadRestaurantBundle(slug: string): Promise<RestaurantBundle | null> {
   const page = await loadVerdictPage(slug);
   if (!page) return null;
-  const [job, openQuestions, listingProvenance, changePoints] = await Promise.all([
+  const [job, openQuestions, listingProvenance, changePoints, sourceMatch] = await Promise.all([
     db()`
       select id, kind, status, step, created_at from job
-      where restaurant_id = ${page.restaurant.id}
+      where restaurant_id = ${page.restaurant.id} and kind <> 'source_match'
       order by id desc limit 1`.then((rows) => rows[0]),
     db()`
       select id, source_code, kind, payload from owner_question
@@ -158,6 +158,12 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
     db()`
       select id, kind, date from change_point where restaurant_id = ${page.restaurant.id} and deleted_at is null
       order by date desc, id desc`,
+    // Only the newest TheFork match attempt counts: a later success clears an earlier failure.
+    // A run that never finished (lost trigger, killed worker) is reported as unavailable, not silence.
+    db()`
+      select status, error_detail, updated_at < now() - interval '15 minutes' as stale from job
+      where restaurant_id = ${page.restaurant.id} and kind = 'source_match'
+      order by id desc limit 1`.then((rows) => rows[0]),
   ]);
   const matchProvenanceBySource = new Map(listingProvenance.map((listing) => [listing.source_code as string, listing.match_provenance as string]));
   return restaurantBundleSchema.parse({
@@ -189,6 +195,11 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
     activeJob: job && job.status !== "succeeded" ? {
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
     } : null,
+    unavailableSources: sourceMatch?.status === "failed"
+      ? [{ source: "thefork" as const, detail: (sourceMatch.error_detail as string | null) ?? "TheFork matching was unavailable." }]
+      : sourceMatch && sourceMatch.stale && (sourceMatch.status === "queued" || sourceMatch.status === "running")
+        ? [{ source: "thefork" as const, detail: "TheFork matching was unavailable: the search did not finish." }]
+        : [],
     ownerQuestions: job?.kind === "lookup" && (job.status === "queued" || job.status === "running") ? [] : openQuestions.map((q) => {
       if (q.kind === "change_point") {
         const payload = q.payload as { kind: ChangePointKind; date: string; reason: "gap" | "mentions"; mentionCount: number };
@@ -215,7 +226,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
         return {
           id: Number(q.id),
           kind: "retry_source" as const,
-          source: q.source_code as "google" | "tripadvisor",
+          source: q.source_code as "google" | "tripadvisor" | "thefork",
           prompt: `Retry ${name}`,
         };
       }

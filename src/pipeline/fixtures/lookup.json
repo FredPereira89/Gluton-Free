@@ -21,6 +21,26 @@
     "A tasty herb pasta and a bright lemon dessert. Everyone was friendly."
   ],
   "apify": { "items": [{ "id": "invented-editorial-item", "title": "Invented dining note" }] },
+  "thefork": {
+    "search": [
+      { "id": 90101, "name": "Fictional Copper Spoon", "url": "https://www.thefork.com/restaurant/invented-copper-spoon-r90101",
+        "street": "1 Imaginary Lane", "locality": "Lisbon", "latitude": 38.7140, "longitude": -9.1330,
+        "thefork_rating": 9.2, "thefork_review_count": 12, "avg_price": 32 },
+      { "id": 90102, "name": "Invented Sushi Corner", "url": "https://www.thefork.com/restaurant/invented-sushi-corner-r90102",
+        "street": "2 Imaginary Lane", "locality": "Lisbon", "latitude": 38.7141, "longitude": -9.1331,
+        "thefork_rating": 8.1, "thefork_review_count": 40, "avg_price": 25 }
+    ],
+    "reviews": [
+      { "text": "Beautifully seasoned beans and a warm welcome from the team.", "rating": 10, "reviewer": "Invented Diner Alpha" },
+      { "text": "The stew arrived hot and the bread was fresh. Friendly service.", "rating": 9, "reviewer": "Invented Diner Beta" },
+      { "text": "Generous portions and a lovely citrus dessert.", "rating": 8, "reviewer": "Invented Diner Gamma" },
+      { "text": "Fresh vegetables, quick service, calm room.", "rating": 10, "reviewer": "Invented Diner Delta" },
+      { "text": "Good rice dish, a little slow to be seated.", "rating": 7, "reviewer": "Invented Diner Epsilon" },
+      { "text": "The mushroom plate was the highlight of the evening.", "rating": 9, "reviewer": "Invented Diner Zeta" },
+      { "text": "Attentive staff and a tasty herb soup.", "rating": 10, "reviewer": "Invented Diner Eta" },
+      { "text": "Simple food done well, fair prices.", "rating": 8, "reviewer": "Invented Diner Theta" }
+    ]
+  },
   "anthropic": {
     "analysis": {
       "lang": "en", "food": 1, "service": 1, "ambience": null, "value": null,

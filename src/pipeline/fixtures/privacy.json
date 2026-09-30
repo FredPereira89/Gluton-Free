@@ -20,6 +20,15 @@
     "url": "https://www.tripadvisor.com/invented-tripadvisor-permalink-pii",
     "responses": [{ "text": "INVENTED_TRIPADVISOR_OWNER_REPLY_PII", "staff_name": "Invented Staff PII" }]
   },
+  "thefork": {
+    "review": {
+      "reviewer_name": "Invented Reviewer F PII",
+      "reviewer_id": "INVENTED_THEFORK_REVIEWER_ID_PII",
+      "reviewer_url": "https://profiles.example.invalid/invented-thefork-pii",
+      "reviewer_avatar": "https://avatars.example.invalid/invented-thefork-pii.png",
+      "restaurant_reply": "INVENTED_THEFORK_OWNER_REPLY_PII"
+    }
+  },
   "thirdPartyReviews": [
     { "review_id": "invented-other-type", "type": "tripadvisor_review_search", "review_text": "INVENTED_OTHER_TYPE_REVIEW", "timestamp": "2026-09-01T00:00:00Z", "rating": { "value": 5 } },
     { "review_id": "invented-other-source", "type": "google_reviews_search", "source": "Tripadvisor", "review_text": "INVENTED_OTHER_SOURCE_REVIEW", "timestamp": "2026-09-01T00:00:00Z", "rating": { "value": 5 } },

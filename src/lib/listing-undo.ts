@@ -4,7 +4,7 @@ import { db } from "./db";
 import { ApiError } from "./problem";
 
 /** Removes an auto-accepted Listing and queues a Verdict from the remaining Sources. */
-export async function undoAutoAcceptedListing(slug: string, source: "google" | "tripadvisor"): Promise<Response> {
+export async function undoAutoAcceptedListing(slug: string, source: "google" | "tripadvisor" | "thefork"): Promise<Response> {
   const jobId = await db().begin(async (tx) => {
     const [restaurant] = await tx`select id from restaurant where slug = ${slug} for update`;
     if (!restaurant) throw new ApiError(404, "not_found", "Restaurant not found");
@@ -20,7 +20,7 @@ export async function undoAutoAcceptedListing(slug: string, source: "google" | "
     }
 
     const [activeJob] = await tx`
-      select id from job where restaurant_id = ${restaurantId} and status in ('queued', 'running')
+      select id from job where restaurant_id = ${restaurantId} and kind <> 'source_match' and status in ('queued', 'running')
       order by id desc limit 1`;
     if (activeJob) throw new ApiError(409, "job_in_progress", "Wait for the current job to finish before undoing a Listing");
 
