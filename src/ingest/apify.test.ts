@@ -163,6 +163,45 @@ describe("the cost of a finished run", () => {
     expect((await searchTheFork({ lat: 1, lng: 2 })).costUsd).toBeCloseTo(0.2501, 6);
   });
 
+  // The pricing Apify really reports for each actor (copied from settled runs), with the counters still at the start fee.
+  const pricing = {
+    reviews: {
+      "apify-actor-start": { eventPriceUsd: 0.00005, isOneTimeEvent: true },
+      "apify-default-dataset-item": { eventPriceUsd: 0.00001 },
+      "review-scraped": { eventPriceUsd: 0.00299, isOneTimeEvent: false, isPrimaryEvent: true },
+    },
+    search: {
+      "apify-actor-start": { eventPriceUsd: 0.0001, isPrimaryEvent: false },
+      "apify-default-dataset-item": { eventPriceUsd: 0.01, isPrimaryEvent: true },
+    },
+    profile: {
+      "apify-actor-start": { eventPriceUsd: 0.00005, isOneTimeEvent: true },
+      "restaurant-scraped": { eventPriceUsd: 0.00299, isOneTimeEvent: false, isPrimaryEvent: true },
+      "review-scraped": { eventPriceUsd: 0.00199, isOneTimeEvent: false },
+    },
+  };
+  async function costOf(actor: keyof typeof pricing, itemCount: number) {
+    lagging({ usageTotalUsd: 0.0001, chargedEventCounts: { "apify-actor-start": 1 }, pricingInfo: { pricingPerEvent: { actorChargeEvents: pricing[actor] } } });
+    const lagged = vi.mocked(fetch).getMockImplementation()!;
+    const rows = Array.from({ length: itemCount }, (_, index) => ({ ...nearbyItem, url: `https://www.thefork.com/restaurant/invented-${index}-r${90300 + index}` }));
+    vi.mocked(fetch).mockImplementation(async (input, init) => new URL(String(input)).pathname === "/v2/datasets/ds-1/items" ? json(rows) : lagged(input, init));
+    return (await searchTheFork({ lat: 1, lng: 2 })).costUsd;
+  }
+
+  it("prices a Reviews run at the review price plus the result price, not the cheapest event", async () => {
+    // Dote: 50 reviews billed $0.15005 while the run still showed only the start fee.
+    expect(await costOf("reviews", 50)).toBeCloseTo(0.15005, 6);
+  });
+
+  it("prices a search run at its restaurant price although its start event is not flagged one-time", async () => {
+    expect(await costOf("search", 25)).toBeCloseTo(0.2501, 6);
+  });
+
+  it("never prices a profile run above what it bills", async () => {
+    // One restaurant: $0.00299 plus the start fee; the reviews beyond 50 are not billed at maxReviews 0.
+    expect(await costOf("profile", 1)).toBeCloseTo(0.00304, 6);
+  });
+
   it("falls back to the counted events at their list price when the total still lags", async () => {
     lagging({
       usageTotalUsd: 0.0001, chargedEventCounts: { "apify-actor-start": 1, "apify-default-dataset-item": 25 },
