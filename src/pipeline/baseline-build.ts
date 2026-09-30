@@ -7,7 +7,7 @@ import { BASELINE_REVIEW_MAX_USD_PER_TEN } from "./baseline";
 import { BaselineSpendBudget } from "./baseline-budget";
 import type { LlmUsage } from "@/lib/job";
 
-export const FROZEN_BASELINE_EXTRACTOR_VERSION = "claude-haiku-4-5|extract-v2|themes-v1";
+export const FROZEN_BASELINE_EXTRACTOR_VERSION = "claude-haiku-4-5|extract-v4|themes-v1";
 export const BASELINE_OVERSAMPLE_PERCENT = 30;
 export const BASELINE_REVIEW_WINDOW_MONTHS = 24;
 export const BASELINE_REVIEW_FETCH_MAX_DEPTH = 4_490;

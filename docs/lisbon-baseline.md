@@ -8,7 +8,7 @@ npx tsx --env-file=.env.local scripts/baseline-lisbon.ts --dry-run
 
 The default `--dry-run` creates a pollable baseline Job and writes no Restaurant data. It still makes billable DataForSEO and Anthropic calls. Trigger.dev runs and checkpoints the long job; the command polls it and prints the final report. Add `--persist` to store the confirmed sample, its fetched Review windows and their analyses. Existing Google place IDs are reused; auto-assigned Formats are updated when Reviews correct a misfile.
 
-The job refuses to start paid work unless `EXTRACTOR_VERSION` matches the owner-approved version in `docs/extractor-freeze-2026-09-24.md`. That approved version is `claude-haiku-4-5|extract-v2|themes-v1`; the current source reports `extract-v4`, so the freeze must be reconciled before a live baseline can run.
+The job refuses to start paid work unless `EXTRACTOR_VERSION` matches the owner-approved version in `docs/extractor-freeze-2026-09-30.md`: `claude-haiku-4-5|extract-v4|themes-v1`.
 
 ## Sampling and extraction
 

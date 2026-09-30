@@ -269,6 +269,39 @@ describe("rollup", () => {
     expect(r.redFlags[0]!.forcesAvoid).toBe(false);
   });
 
+  it("shows but does not force Avoid on hygiene incidents such as a hair in the dessert", () => {
+    const reviews = many(100, (i) => great(i));
+    const flag = (r: RollupReview, m: number): RollupFlag => ({
+      reviewId: r.id, type: "hygiene", severity: "medium", group: "health", firstHand: true,
+      verification: "confirmed", publishedAt: monthsAgo(m),
+    });
+    const r = rollup({ now: NOW, format: "tasca", reviews, flags: [flag(reviews[0]!, 1), flag(reviews[1]!, 2), flag(reviews[2]!, 3)] });
+    expect(r.redFlags[0]).toMatchObject({ incidents12m: 3, forcesAvoid: false });
+    expect(r.tier).not.toBe("avoid");
+  });
+
+  it("forces Avoid on two high-severity other_safety incidents but not on low or medium ones", () => {
+    const reviews = many(100, (i) => great(i));
+    const flags = (severity: "low" | "medium" | "high"): RollupFlag[] => reviews.slice(0, 2).map((rv) => ({
+      reviewId: rv.id, type: "other_safety", severity, group: "health", firstHand: true,
+      verification: "confirmed", publishedAt: monthsAgo(1),
+    }));
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("high") }).tier).toBe("avoid");
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("medium") }).tier).not.toBe("avoid");
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("low") }).tier).not.toBe("avoid");
+  });
+
+  it("forces Avoid on two high-severity scam_overcharge incidents but not on low or medium ones", () => {
+    const reviews = many(100, (i) => great(i));
+    const flags = (severity: "low" | "medium" | "high"): RollupFlag[] => reviews.slice(0, 2).map((rv) => ({
+      reviewId: rv.id, type: "scam_overcharge", severity, group: "money", firstHand: true,
+      verification: "confirmed", publishedAt: monthsAgo(1),
+    }));
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("high") }).tier).toBe("avoid");
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("medium") }).tier).not.toBe("avoid");
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("low") }).tier).not.toBe("avoid");
+  });
+
   it("includes incidents on the exact 12-month and 6-month calendar boundaries", () => {
     const reviews = many(100, (i) => great(i));
     reviews[0]!.publishedAt = new Date("2025-09-01T00:00:00.000Z");
@@ -282,10 +315,10 @@ describe("rollup", () => {
     expect(r.tier).toBe("avoid");
   });
 
-  it("applies the same forcing rule to the money group", () => {
+  it("applies the same forcing rule to the money group at high severity", () => {
     const reviews = many(100, (i) => great(i));
     const flags: RollupFlag[] = reviews.slice(0, 2).map((r) => ({
-      reviewId: r.id, type: "scam_overcharge", group: "money", firstHand: true,
+      reviewId: r.id, type: "scam_overcharge", severity: "high", group: "money", firstHand: true,
       verification: "confirmed", publishedAt: monthsAgo(2),
     }));
     const r = rollup({ now: NOW, format: "tasca", reviews, flags });
@@ -345,7 +378,7 @@ describe("rollup", () => {
     const reviews = many(101, (i) => great(i, "google"));
     reviews[0]!.publishedAt = monthsAgo(10);
     const flags: RollupFlag[] = [reviews[0]!, reviews[1]!].map((r) => ({
-      reviewId: r.id, type: "hygiene", group: "health", firstHand: true,
+      reviewId: r.id, type: "food_poisoning", group: "health", firstHand: true,
       verification: "confirmed", publishedAt: r.publishedAt,
     }));
     const r = rollup({ now: NOW, format: "tasca", reviews, flags });
