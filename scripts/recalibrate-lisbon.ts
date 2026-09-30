@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { FORMATS } from "@/domain/baseline-format";
 import { BASELINE_TARGETS } from "@/pipeline/baseline-build";
+import { BASELINE_DATAFORSEO_CAP_USD, BASELINE_LLM_CAP_USD } from "@/pipeline/baseline-budget";
 import { closeDb, db } from "@/lib/db";
 import { loadPeerCandidates } from "@/verdict/snapshot-store";
 import { ACTIVE_RANKING_RULE, EXCEPTIONAL_POSTERIOR_THRESHOLD, MIN_PEERS, peerGroupKeys, type PeerGroupStat } from "@/verdict/peer";
@@ -144,7 +145,7 @@ async function main() {
     Math.abs(PARAMS.mustGoCut - cutoffFit.proposedMustGoCut) < 0.005);
   const recalibrationRecorded = Boolean(calibration && cutoffFit && ruleDecisionComplete && proposedCutsApplied && !calibration.revisitRedFlagGate);
   const spendRecorded = Boolean(job && dataForSeoCost !== null && anthropicCost !== null);
-  const spendsWithin = spendRecorded && dataForSeoCost! <= 50 && anthropicCost! <= 30;
+  const spendsWithin = spendRecorded && dataForSeoCost! <= BASELINE_DATAFORSEO_CAP_USD && anthropicCost! <= BASELINE_LLM_CAP_USD;
   const checks: Check[] = [
     check("Each Format meets its target Peers or records the selected fallback level", fallbackRecorded,
       baselineCount ? coverage.map(({ format, target, n, fallback }) =>
@@ -164,7 +165,7 @@ async function main() {
     check("Forced Avoid applies to no more than 5% of Peers", calibration !== null && calibration.forcedAvoidShare <= 0.05,
       calibration ? `${calibration.forcedAvoidPeers}/${calibration.qualifyingPeers} (${pct(calibration.forcedAvoidShare)}); 1% gate ${RED_FLAG_AVOID_SHARE_THRESHOLD}.` : "No real Peer sample."),
     check("Baseline spend stays within ceilings and database storage stays below 500 MB", Boolean(spendsWithin && sizeBytes < 500_000_000),
-      `DataForSEO ${money(dataForSeoCost)} / $50; Anthropic ${money(anthropicCost)} incl. PII audit / $30; database ${(sizeBytes / 1_000_000).toFixed(1)} / 500 MB.`),
+      `DataForSEO ${money(dataForSeoCost)} / $${BASELINE_DATAFORSEO_CAP_USD}; Anthropic ${money(anthropicCost)} incl. PII audit / $${BASELINE_LLM_CAP_USD}; database ${(sizeBytes / 1_000_000).toFixed(1)} / 500 MB.`),
   ];
 
   const shrinkage = calibration ? renderShrinkage(calibration.shrinkage) : "No real Peer data available; k was not fitted.";

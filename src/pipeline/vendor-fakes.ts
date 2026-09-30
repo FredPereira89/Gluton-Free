@@ -5,6 +5,9 @@ const sources = { google: fixture.googleReviews, tripadvisor: fixture.tripadviso
 export const fakeRestaurantFacts = { googleCategoryDisagrees: false };
 export const fakeChangeMarker = { value: "none" };
 export const fakeVendorCalls = { reviewPosts: 0 };
+type FakeBatchRequest = { custom_id: string; params: { messages: { content: string }[] } };
+const fakeBatches = new Map<string, FakeBatchRequest[]>();
+let fakeBatchSequence = 0;
 export const sourceFetchFailureState: { source: "google" | "tripadvisor" | null; taskPostFailures: number; taskGetFailures: number } = {
   source: null,
   taskPostFailures: 0,
@@ -158,9 +161,24 @@ export const fakeAnthropic = {
       stop_reason: "end_turn",
     }),
     batches: {
-      create: async () => { throw new Error("Unexpected Anthropic batch request"); },
-      retrieve: async () => { throw new Error("Unexpected Anthropic batch poll"); },
-      results: async () => { throw new Error("Unexpected Anthropic batch results request"); },
+      create: async ({ requests }: { requests: FakeBatchRequest[] }) => {
+        const id = `invented-batch-${++fakeBatchSequence}`;
+        fakeBatches.set(id, requests);
+        return { id };
+      },
+      retrieve: async () => ({ processing_status: "ended" }),
+      results: async (id: string) => (fakeBatches.get(id) ?? []).map((request) => {
+        const ids = [...request.params.messages[0]!.content.matchAll(/<review i="(\d+)"/g)].map((match) => Number(match[1]));
+        return {
+          custom_id: request.custom_id,
+          result: { type: "succeeded", message: {
+            usage,
+            content: [{ type: "text", text: JSON.stringify({ reviews: ids.map((reviewId) => ({
+              i: reviewId, ...fixture.anthropic.analysis, change: fakeChangeMarker.value,
+            })) }) }],
+          } },
+        };
+      }),
     },
   },
 };

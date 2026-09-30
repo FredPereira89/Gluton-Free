@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FORMATS } from "@/domain/baseline-format";
 import type { ExtractInput, Extracted } from "@/analysis/extract";
 import type { BaselineCandidate } from "./baseline";
-import { BaselineSpendBudget } from "./baseline-budget";
+import { BASELINE_DATAFORSEO_CAP_USD, BASELINE_LLM_CAP_USD, BaselineSpendBudget } from "./baseline-budget";
 import {
   BASELINE_TARGETS,
   FROZEN_BASELINE_EXTRACTOR_VERSION,
@@ -124,30 +124,30 @@ describe("Lisbon baseline Review-window build", () => {
 
     const result = await runBaselineBuild(candidates, providers, buildOptions());
 
-    expect(result.initialSampleCounts.tasca).toBe(65);
-    expect(result.initialSampleCounts.restaurante_tradicional).toBe(65);
-    expect(result.initialSampleCounts.marisqueira_cervejaria).toBe(39);
+    expect(result.initialSampleCounts.tasca).toBe(33);
+    expect(result.initialSampleCounts.restaurante_tradicional).toBe(33);
+    expect(result.initialSampleCounts.marisqueira_cervejaria).toBe(20);
     expect(result.initialSampleCounts.casa_de_fado).toBe(4);
     expect(providers.fetchReviews.mock.calls.flatMap(([requests]) => requests.map(({ candidate: item }) => item.placeId)).includes("tasca-099")).toBe(false);
-    expect(result.countsByFormat.casual_contemporary).toBeGreaterThanOrEqual(65);
+    expect(result.countsByFormat.casual_contemporary).toBeGreaterThanOrEqual(33);
     expect(result.candidates.every(({ candidate: item }) => item.formatProvenance === "llm")).toBe(true);
     expect(result.candidates.find(({ candidate: item }) => item.placeId === "casa_de_fado-000")).toBeDefined();
     expect(Object.keys(result.countsByFormat)).toHaveLength(FORMATS.length);
-    expect(BASELINE_TARGETS.cafe_pastelaria).toBe(50);
+    expect(BASELINE_TARGETS.cafe_pastelaria).toBe(25);
   });
 
   it("tops up after initial candidates have no usable Reviews", async () => {
     const candidates = Array.from({ length: 130 }, (_, index) => candidate(`tasca-${String(index).padStart(3, "0")}`, "tasca", index === 0 ? 5_000 : 70));
-    const { providers } = fakeProviders({ emptyFirstWave: 65 });
+    const { providers } = fakeProviders({ emptyFirstWave: 33 });
 
     const result = await runBaselineBuild(candidates, providers, buildOptions());
 
     expect(providers.fetchReviews).toHaveBeenCalledTimes(2);
-    expect(providers.fetchReviews.mock.calls.flatMap(([requests]) => requests).map(({ candidate: item }) => item.placeId)).toHaveLength(129);
-    expect(result.initialSampleCounts.tasca).toBe(65);
-    expect(result.countsByFormat.tasca).toBe(64);
+    expect(providers.fetchReviews.mock.calls.flatMap(([requests]) => requests).map(({ candidate: item }) => item.placeId)).toHaveLength(66);
+    expect(result.initialSampleCounts.tasca).toBe(33);
+    expect(result.countsByFormat.tasca).toBe(33);
     expect(result.shortByFormat.tasca).toBeUndefined();
-    expect(result.skippedWithoutText).toBe(65);
+    expect(result.skippedWithoutText).toBe(33);
     expect(result.fetchedDepthByPlaceId["tasca-001"]).toBe(70);
   });
 
@@ -236,7 +236,7 @@ describe("Lisbon baseline Review-window build", () => {
 
   it("reserves DataForSEO spend before starting a fetch", async () => {
     const { providers } = fakeProviders();
-    const spend = new BaselineSpendBudget({ dataforseo: 49.995 });
+    const spend = new BaselineSpendBudget({ dataforseo: BASELINE_DATAFORSEO_CAP_USD - 0.005 });
 
     await expect(runBaselineBuild(
       [candidate("fado-1", "casa_de_fado", 30)],
@@ -249,7 +249,7 @@ describe("Lisbon baseline Review-window build", () => {
 
   it("reserves Anthropic spend before submitting extraction batches", async () => {
     const { providers } = fakeProviders();
-    const spend = new BaselineSpendBudget({ llm: 29.999 });
+    const spend = new BaselineSpendBudget({ llm: BASELINE_LLM_CAP_USD - 0.001 });
 
     await expect(runBaselineBuild(
       [candidate("fado-1", "casa_de_fado", 30)],

@@ -8,10 +8,10 @@ import { pendingExtraction, saveAnalyses } from "@/analysis/store";
 import { reproposesFormat } from "@/domain/aspects";
 import { choosePriceTier } from "@/domain/restaurant-facts";
 import { verifyPendingFlags } from "@/analysis/verify";
-import { getReviewTask, lookupDepthFor, postReviewTask, type DfsSource, type ReviewTaskParams } from "@/ingest/dataforseo";
+import { depthFor, getReviewTask, lookupDepthFor, postReviewTask, type DfsSource, type ReviewTaskParams } from "@/ingest/dataforseo";
 import { ApifyError, fetchTheForkListing } from "@/ingest/apify";
 import { normaliseGoogle, normaliseTheFork, normaliseTripadvisor } from "@/ingest/normalise";
-import { storeListingFetch } from "@/ingest/store";
+import { reviewsPastCursor, storeListingFetch } from "@/ingest/store";
 import { db } from "@/lib/db";
 import { raiseChangePointProposal } from "@/lib/change-point-proposal";
 import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage, type LookupStage } from "@/lib/job";
@@ -37,8 +37,10 @@ const SOURCE_FETCH_ERROR = "The Reviews vendor could not complete this request. 
 type ListingRow = { id: number; source: DfsSource; placeRef: string };
 type TheForkRow = { id: number; url: string };
 
-function taskParams(l: ListingRow, depth: number): ReviewTaskParams {
-  return l.source === "google" ? { source: "google", placeId: l.placeRef, depth } : { source: "tripadvisor", urlPath: l.placeRef, depth };
+function taskParams(l: ListingRow, depth: number, priority: 1 | 2 = 2): ReviewTaskParams {
+  return l.source === "google"
+    ? { source: "google", placeId: l.placeRef, depth, priority }
+    : { source: "tripadvisor", urlPath: l.placeRef, depth, priority };
 }
 
 async function postReviewTaskWithRetries(params: ReviewTaskParams, sleep: Sleep): Promise<{ taskId: string; cost: number }> {
@@ -62,13 +64,14 @@ async function runVendorTasks(
   depthOf: (l: ListingRow) => number,
   jobId: number,
   sleep: Sleep,
+  priority: 1 | 2 = 2,
 ): Promise<{ results: Map<number, unknown>; failures: Map<number, unknown> }> {
   const posted = new Map<number, string>();
   const failures = new Map<number, unknown>();
   for (const l of listings) {
     let task: { taskId: string; cost: number };
     try {
-      task = await postReviewTaskWithRetries(taskParams(l, depthOf(l)), sleep);
+      task = await postReviewTaskWithRetries(taskParams(l, depthOf(l), priority), sleep);
     } catch (error) {
       failures.set(l.id, error);
       continue;
@@ -211,6 +214,110 @@ export async function ingestRestaurant(restaurantId: number, jobId: number, slee
   }
 }
 
+type RefreshListingRow = {
+  id: number;
+  source: DfsSource;
+  placeRef: string;
+  cursor: string | null;
+  newestReviewAt: Date | null;
+  reviewCount: number | null;
+};
+
+/** Fetches each Listing from its saved Review cursor, using DataForSEO's standard queue. */
+export async function ingestRefreshRestaurant(restaurantId: number, jobId: number, sleep: Sleep) {
+  const sql = db();
+  const rows = await sql`
+    select id, source_code, place_ref, url, fetch_cursor, newest_review_at, source_review_count
+    from listing where restaurant_id = ${restaurantId} order by id`;
+  const listings: RefreshListingRow[] = rows.filter((row) => row.source_code !== "thefork").map((row) => ({
+    id: Number(row.id), source: row.source_code as DfsSource, placeRef: row.place_ref as string,
+    cursor: row.fetch_cursor as string | null,
+    newestReviewAt: row.newest_review_at ? new Date(row.newest_review_at as Date) : null,
+    reviewCount: row.source_review_count === null ? null : Number(row.source_review_count),
+  }));
+  const theForkListings = rows.filter((row) => row.source_code === "thefork").map((row) => ({
+    id: Number(row.id), url: row.url as string, cursor: row.fetch_cursor as string | null,
+    newestReviewAt: row.newest_review_at ? new Date(row.newest_review_at as Date) : null,
+  }));
+  await sql`update listing set fetch_status = 'fetching', fetch_error = null where restaurant_id = ${restaurantId}`;
+
+  // The first ten newest Reviews include the saved cursor for the usual monthly
+  // delta. Only listings with more than ten new Reviews need a deeper second task.
+  const probe = await runVendorTasks(listings, () => 10, jobId, sleep, 1);
+  const results = new Map(probe.results);
+  const failures = new Map(probe.failures);
+  const deeper: RefreshListingRow[] = [];
+  const depthByListing = new Map<number, number>();
+  for (const listing of listings) {
+    const raw = probe.results.get(listing.id);
+    if (raw === undefined) continue;
+    const n = (listing.source === "google" ? normaliseGoogle : normaliseTripadvisor)(raw);
+    const currentCount = n.facts.reviewCount ?? listing.reviewCount ?? 0;
+    const delta = Math.max(0, currentCount - (listing.reviewCount ?? 0));
+    const depth = listing.cursor
+      ? delta > 10 ? depthFor(delta + 10) : 10
+      : lookupDepthFor(currentCount);
+    if (depth <= 10) continue;
+    deeper.push(listing);
+    depthByListing.set(listing.id, depth);
+  }
+  if (deeper.length) {
+    const full = await runVendorTasks(deeper, (listing) => depthByListing.get(listing.id)!, jobId, sleep, 1);
+    for (const [id, result] of full.results) results.set(id, result);
+    for (const [id, error] of full.failures) failures.set(id, error);
+  }
+
+  const failedSources = new Set<string>();
+  let firstVendorFailure = failures.values().next().value as unknown;
+  const failedIds = [...failures.keys()];
+  if (failedIds.length) {
+    await sql`update listing set fetch_status = 'failed', fetch_error = ${SOURCE_FETCH_ERROR} where id = any(${failedIds})`;
+    for (const id of failedIds) {
+      const source = listings.find((listing) => listing.id === id)?.source;
+      if (source) failedSources.add(source);
+    }
+  }
+
+  const summary: Record<string, { fetched: number; inserted: number; droppedThirdParty: number }> = {};
+  for (const listing of listings) {
+    const raw = results.get(listing.id);
+    if (raw === undefined) continue;
+    const normalise = listing.source === "google" ? normaliseGoogle : normaliseTripadvisor;
+    const n = normalise(raw);
+    results.delete(listing.id);
+    const newReviews = reviewsPastCursor(n.reviews, listing.cursor, listing.newestReviewAt);
+    const { inserted } = await storeListingFetch(listing.id, { ...n, reviews: newReviews });
+    summary[listing.source] = { fetched: newReviews.length, inserted, droppedThirdParty: n.droppedThirdParty };
+    if (failures.has(listing.id)) {
+      await sql`update listing set fetch_status = 'failed', fetch_error = ${SOURCE_FETCH_ERROR} where id = ${listing.id}`;
+    }
+  }
+
+  for (const listing of theForkListings) {
+    try {
+      if ((await spendCapStatus()).atCap) throw new PipelineError("spend_cap_reached", "Daily vendor spend cap reached. Retry after it resets.");
+      const fetched = await fetchTheForkListing(listing.url);
+      await addVendorCost(jobId, fetched.costUsd);
+      const n = normaliseTheFork(fetched.item);
+      const newReviews = reviewsPastCursor(n.reviews, listing.cursor, listing.newestReviewAt);
+      const { inserted } = await storeListingFetch(listing.id, { ...n, reviews: newReviews });
+      summary.thefork = { fetched: newReviews.length, inserted, droppedThirdParty: 0 };
+    } catch (error) {
+      if (error instanceof ApifyError && error.costUsd) await addVendorCost(jobId, error.costUsd);
+      firstVendorFailure ??= error;
+      await sql`update listing set fetch_status = 'failed', fetch_error = ${SOURCE_FETCH_ERROR} where id = ${listing.id}`;
+      failedSources.add("thefork");
+    }
+  }
+
+  if (!Object.keys(summary).length && firstVendorFailure) {
+    if (firstVendorFailure instanceof PipelineError) throw firstVendorFailure;
+    throw new PipelineError("vendor_error", SOURCE_FETCH_ERROR, { cause: firstVendorFailure });
+  }
+  await setStep(jobId, "Reviews stored", { fetched: summary, failedSources: [...failedSources] }, "Reviews fetched");
+  return summary;
+}
+
 async function save(results: Map<number, Extracted>, items: ExtractInput[]) {
   await saveAnalyses(results, new Map(items.map((i) => [i.id, i.text])));
 }
@@ -219,21 +326,30 @@ async function save(results: Map<number, Extracted>, items: ExtractInput[]) {
  * Extracts Aspects for pending text Reviews in an optional per-Source window: newest by sync, the rest by batch, then a sync retry.
  * With `limit`, extracts only the newest `limit` pending Reviews, by sync (a quick end-to-end check).
  */
-export async function extractRestaurant(restaurantId: number, jobId: number, sleep: Sleep, limit?: number, window?: { since: Date; maxPerSource: number }) {
+export async function extractRestaurant(
+  restaurantId: number,
+  jobId: number,
+  sleep: Sleep,
+  limit?: number,
+  window?: { since: Date; maxPerSource: number },
+  batchOnly = false,
+) {
   const all = await pendingExtraction(restaurantId, window);
   const pending = limit ? all.slice(0, limit) : all;
-  const first = pending.slice(0, limit ?? SYNC_FIRST);
-  const rest = pending.slice(first.length);
+  const first = batchOnly ? [] : pending.slice(0, limit ?? SYNC_FIRST);
+  const rest = batchOnly ? pending : pending.slice(first.length);
 
-  await setStep(jobId, "extracting newest Reviews", { extraction: { pending: pending.length } });
-  const syncUsage = emptyUsage("extract", EXTRACT_MODEL, false);
-  await save(await extractSync(first, syncUsage), first);
-  await addLlmUsage(jobId, syncUsage);
+  if (first.length) {
+    await setStep(jobId, "extracting newest Reviews", { extraction: { pending: pending.length } });
+    const syncUsage = emptyUsage("extract", EXTRACT_MODEL, false);
+    await save(await extractSync(first, syncUsage), first);
+    await addLlmUsage(jobId, syncUsage);
+  }
 
   if (rest.length) {
-    await setStep(jobId, "extracting older Reviews (batch)");
+    await setStep(jobId, batchOnly ? "extracting new Reviews (batch)" : "extracting older Reviews (batch)");
     const batchId = await submitBatch(rest);
-    await setStep(jobId, "extracting older Reviews (batch)", { extraction: { pending: pending.length, batchId } });
+    await setStep(jobId, batchOnly ? "extracting new Reviews (batch)" : "extracting older Reviews (batch)", { extraction: { pending: pending.length, batchId } });
     for (let waited = 0; !(await batchEnded(batchId)); waited += POLL_BATCH_S) {
       if (waited > MAX_WAIT_S) throw new Error(`batch ${batchId} did not end within 3 hours`);
       await sleep(POLL_BATCH_S);

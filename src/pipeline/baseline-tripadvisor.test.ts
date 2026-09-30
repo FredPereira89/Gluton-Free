@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BaselineBuiltCandidate } from "./baseline-build";
-import { BaselineSpendBudget } from "./baseline-budget";
+import { BASELINE_DATAFORSEO_CAP_USD, BaselineSpendBudget } from "./baseline-budget";
 import { runBaselineTripadvisor, type BaselineTripadvisorProviders } from "./baseline-tripadvisor";
 
 const now = new Date("2026-09-30T12:00:00Z");
@@ -121,7 +121,7 @@ describe("baseline Tripadvisor pipeline", () => {
     const search = vi.fn(async () => ({ items: [], costUsd: 0 }));
     await expect(runBaselineTripadvisor([restaurant("sampled", "Casa Azul", "Rua Azul 7, Lisboa")], {
       search, fetch: vi.fn(),
-    }, { now, spend: new BaselineSpendBudget({ dataforseo: 49.999 }) })).rejects.toThrow("spend ceiling");
+    }, { now, spend: new BaselineSpendBudget({ dataforseo: BASELINE_DATAFORSEO_CAP_USD - 0.001 }) })).rejects.toThrow("spend ceiling");
     expect(search).not.toHaveBeenCalled();
   });
 });

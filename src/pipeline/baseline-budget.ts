@@ -1,5 +1,5 @@
-export const BASELINE_DATAFORSEO_CAP_USD = 50;
-export const BASELINE_LLM_CAP_USD = 30;
+export const BASELINE_DATAFORSEO_CAP_USD = 25;
+export const BASELINE_LLM_CAP_USD = 15;
 
 export type BaselineSpendKind = "dataforseo" | "llm";
 export type SettleSpend = (actualUsd: number) => Promise<void>;

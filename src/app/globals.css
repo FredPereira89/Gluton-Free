@@ -119,6 +119,7 @@ table.src th.num{text-align:right}
 .acc.personal{background:var(--warn-bg);color:var(--warn)} .acc.public{background:var(--t-good-bg);color:var(--t-good)}
 
 .banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);color:var(--ink);border-radius:6px;padding:9px 12px;font-size:13.5px}
+.refresh-banner{border-left:4px solid var(--accent)}
 .banner .spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--accent);border-top-color:transparent;animation:spin 1s linear infinite}
 @media (prefers-reduced-motion:reduce){.banner .spin{animation:none}}
 .check{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}

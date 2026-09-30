@@ -24,6 +24,21 @@ describe("Restaurant details (issue #53)", () => {
   });
 });
 
+describe("Monthly refresh (issue #72)", () => {
+  it("keeps the current Verdict visible with a new-Reviews banner while refreshing", async () => {
+    const page = bundle(0);
+    page.activeJob = {
+      id: 72, kind: "refresh", status: "running", step: "reading new Reviews",
+      createdAt: now.toISOString(), newReviews: 8,
+    };
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).toContain("8 new Reviews being read");
+    expect(html).toContain("The food is good.");
+    expect(html).toContain('role="status"');
+  });
+});
+
 describe("Distinctions (issue #61)", () => {
   it("shows the guide, level, edition, link and Tier disclaimer outside the explanation", async () => {
     const page = bundle(0);

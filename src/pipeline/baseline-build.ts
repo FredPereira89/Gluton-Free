@@ -13,16 +13,16 @@ export const BASELINE_REVIEW_WINDOW_MONTHS = 24;
 export const BASELINE_REVIEW_FETCH_MAX_DEPTH = 4_490;
 
 export const BASELINE_TARGETS: Partial<Record<BaselineFormat, number>> = {
-  tasca: 50,
-  restaurante_tradicional: 50,
-  casual_contemporary: 50,
-  international_casual: 50,
-  cafe_pastelaria: 50,
-  snack_street: 50,
-  marisqueira_cervejaria: 30,
-  churrasqueira: 30,
-  fine_dining: 30,
-  brunch_all_day_cafe: 30,
+  tasca: 25,
+  restaurante_tradicional: 25,
+  casual_contemporary: 25,
+  international_casual: 25,
+  cafe_pastelaria: 25,
+  snack_street: 25,
+  marisqueira_cervejaria: 15,
+  churrasqueira: 15,
+  fine_dining: 15,
+  brunch_all_day_cafe: 15,
 };
 
 export type BaselineWindowReview = NormalisedReview & { text: string };
@@ -37,7 +37,7 @@ export type BaselineBuiltCandidate = {
 
 export type BaselineFormatInput = {
   candidate: BaselineCandidate;
-  reviews: BaselineWindowReview[];
+  reviews: NormalisedReview[];
 };
 
 export type BaselineBuildProviders = {
@@ -144,7 +144,7 @@ function subtractMonths(date: Date, months: number): Date {
 }
 
 export function selectBaselineReviewWindow(reviews: NormalisedReview[], now: Date): {
-  reviews: BaselineWindowReview[];
+  reviews: NormalisedReview[];
   start: Date | null;
 } {
   const cutoff = subtractMonths(now, BASELINE_REVIEW_WINDOW_MONTHS);

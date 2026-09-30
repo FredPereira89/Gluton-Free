@@ -105,7 +105,11 @@ export const restaurantBundleSchema = z.strictObject({
   })),
   series: RollupSchema.shape.series,
   changePoints: z.array(z.strictObject({ id: z.number().int().positive().safe(), occurredOn: z.string(), description: z.string() })),
-  activeJob: z.strictObject({ id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]), status: z.enum(["queued", "running", "failed"]), step: z.string().nullable(), createdAt: z.iso.datetime() }).nullable(),
+  activeJob: z.strictObject({
+    id: z.number().int(), kind: z.enum(["lookup", "refresh", "baseline", "snapshot", "listing_fetch", "rejudge"]),
+    status: z.enum(["queued", "running", "failed"]), step: z.string().nullable(), createdAt: z.iso.datetime(),
+    newReviews: z.number().int().nonnegative().optional(),
+  }).nullable(),
   ownerQuestions: z.array(ownerQuestionSchema),
   // Sources whose background matching could not run, so the owner knows a Source is missing for that reason.
   unavailableSources: z.array(z.strictObject({ source: z.enum(["thefork"]), detail: z.string() })),
