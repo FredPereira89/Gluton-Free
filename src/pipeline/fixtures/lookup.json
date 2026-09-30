@@ -22,6 +22,12 @@
   ],
   "apify": { "items": [{ "id": "invented-editorial-item", "title": "Invented dining note" }] },
   "thefork": {
+    "nearby": [
+      { "id": "00000000-0000-4000-8000-000000090101", "name": "Fictional Copper Spoon", "url": "https://www.thefork.com/restaurant/invented-copper-spoon-r90101",
+        "geolocation": { "latitude": 38.7140, "longitude": -9.1330 }, "averagePrice": 32, "rating": 9.2, "reviewCount": 12 },
+      { "id": "00000000-0000-4000-8000-000000090102", "name": "Invented Sushi Corner", "url": "https://www.thefork.com/restaurant/invented-sushi-corner-r90102",
+        "geolocation": { "latitude": 38.7141, "longitude": -9.1331 }, "averagePrice": 25, "rating": 8.1, "reviewCount": 40 }
+    ],
     "search": [
       { "id": 90101, "name": "Fictional Copper Spoon", "url": "https://www.thefork.com/restaurant/invented-copper-spoon-r90101",
         "street": "1 Imaginary Lane", "locality": "Lisbon", "latitude": 38.7140, "longitude": -9.1330,

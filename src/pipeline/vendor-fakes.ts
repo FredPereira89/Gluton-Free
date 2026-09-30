@@ -29,10 +29,11 @@ export const APIFY_FAKE_FAILED_COST_USD = 0.01;
 
 function fakeApify(url: URL, init?: RequestInit): Response | null {
   const headers = new Headers(init?.headers);
-  if (init?.method === "POST" && url.pathname === "/v2/acts/parsebird~thefork-scraper/runs") {
+  const actorRun = /^\/v2\/acts\/(mscraper~thefork-restaurant-scraper|parsebird~thefork-scraper)\/runs$/.exec(url.pathname);
+  if (init?.method === "POST" && actorRun) {
     const input = JSON.parse(String(init.body)) as Record<string, unknown>;
     apifyFakeState.runs.push({ input, maxTotalChargeUsd: url.searchParams.get("maxTotalChargeUsd"), authorization: headers.get("authorization") });
-    const reviews = Array.isArray(input.startUrls);
+    const reviews = actorRun[1] === "parsebird~thefork-scraper";
     return response({ data: { id: reviews ? "run-reviews" : "run-search", defaultDatasetId: reviews ? "thefork-reviews" : "thefork-search", status: "READY", usageTotalUsd: 0 } });
   }
   const run = /^\/v2\/actor-runs\/(run-search|run-reviews)$/.exec(url.pathname);
@@ -44,7 +45,7 @@ function fakeApify(url: URL, init?: RequestInit): Response | null {
       usageTotalUsd: reviews ? APIFY_FAKE_REVIEWS_COST_USD : APIFY_FAKE_SEARCH_COST_USD,
     } });
   }
-  if (url.pathname === "/v2/datasets/thefork-search/items") return response(fixture.thefork.search);
+  if (url.pathname === "/v2/datasets/thefork-search/items") return response(fixture.thefork.nearby);
   if (url.pathname === "/v2/datasets/thefork-reviews/items") {
     return response([{
       ...fixture.thefork.search[0],
@@ -69,7 +70,7 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
     return Promise.resolve(response({ status_code: 20000, status_message: "Ok", tasks: [{
       id: "invented-business", status_code: 20000, status_message: "Ok", cost: 0.003,
       result: [{ items: [{ type: "google_business_info", place_id: placeId, title: fixture.restaurant,
-        address: "1 Imaginary Lane, Mouraria, Lisbon", address_info: { city: "Lisbon", district: "Mouraria" },
+        address: "1 Imaginary Lane, Mouraria, Lisbon", latitude: 38.7139, longitude: -9.1334, address_info: { city: "Lisbon", district: "Mouraria" },
         rating: { value: 4.5, votes_count: 16 }, category: "Tasca restaurant", category_ids: [], price_level: "moderate" }] }],
     }] }));
   }

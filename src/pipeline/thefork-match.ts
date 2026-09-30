@@ -19,7 +19,7 @@ export async function runTheForkMatch(restaurantId: number, opts: { jobId?: numb
   try {
     if (!apifyConfigured()) throw new PipelineError("apify_not_configured", "TheFork matching is unavailable: Apify access is not configured.");
     if ((await spendCapStatus()).atCap) throw new PipelineError("spend_cap_reached", "TheFork matching is unavailable: the daily vendor spend cap was reached.");
-    const [restaurant] = await sql`select name, city, address, lat, lng from restaurant where id = ${restaurantId}`;
+    const [restaurant] = await sql`select name, lat, lng from restaurant where id = ${restaurantId}`;
     if (!restaurant) throw new PipelineError("not_found", "Restaurant not found");
     const [known] = await sql`select 1 from listing where restaurant_id = ${restaurantId} and source_code = 'thefork'`;
     if (known) {
@@ -27,10 +27,13 @@ export async function runTheForkMatch(restaurantId: number, opts: { jobId?: numb
       return { jobId, candidates: 0 };
     }
 
+    if (restaurant.lat == null || restaurant.lng == null) {
+      throw new PipelineError("vendor_error", "TheFork matching was unavailable: the restaurant has no coordinates to search around.");
+    }
     await setStep(jobId, "searching TheFork");
     let found: Awaited<ReturnType<typeof searchTheFork>>;
     try {
-      found = await searchTheFork(restaurant.address ?? `${restaurant.name}, ${restaurant.city}`);
+      found = await searchTheFork({ lat: Number(restaurant.lat), lng: Number(restaurant.lng) });
     } catch (error) {
       if (error instanceof ApifyError && error.costUsd) await addVendorCost(jobId, error.costUsd);
       throw new PipelineError("vendor_error", "TheFork matching was unavailable: the TheFork search failed.", { cause: error });

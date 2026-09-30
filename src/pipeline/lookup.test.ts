@@ -1277,7 +1277,7 @@ describe("Lookup pipeline", () => {
         expect(distance).toBeGreaterThan(0);
         expect(distance).toBeLessThan(100);
         expect(apifyFakeState.runs).toHaveLength(1);
-        expect(apifyFakeState.runs[0]).toMatchObject({ maxTotalChargeUsd: "0.15", authorization: "Bearer invented-apify-token" });
+        expect(apifyFakeState.runs[0]).toMatchObject({ maxTotalChargeUsd: "0.3", authorization: "Bearer invented-apify-token", input: { latitude: 38.7139, longitude: -9.1334, maxResults: 25 } });
         const [thefork] = await sql!`select 1 from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
         expect(thefork).toBeUndefined();
 
@@ -1285,7 +1285,7 @@ describe("Lookup pipeline", () => {
         expect(accept.status).toBe(202);
         routes.answerListing.responses[202].parse(await accept.json());
         expect(apifyFakeState.runs).toHaveLength(2);
-        expect(apifyFakeState.runs[1]).toMatchObject({ maxTotalChargeUsd: "0.25", input: { maxReviews: 100, maxRestaurants: 1 } });
+        expect(apifyFakeState.runs[1]).toMatchObject({ maxTotalChargeUsd: "0.25", input: { startUrls: ["https://www.thefork.com/restaurant/invented-copper-spoon-r90101"], maxReviews: 100, maxRestaurants: 1 } });
       });
 
       const [listing] = await sql!`select id, place_ref, match_provenance, price_level from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
@@ -1357,6 +1357,18 @@ describe("Lookup pipeline", () => {
       expect((await loadRestaurantBundle(lookup.slug))!.unavailableSources).toEqual([]);
       await sql!`update job set updated_at = now() - interval '1 hour' where id = ${job!.id}`;
       expect((await loadRestaurantBundle(lookup.slug))!.unavailableSources).toMatchObject([{ source: "thefork", detail: expect.stringContaining("did not finish") }]);
+    }, 60_000);
+
+    it("reports TheFork matching unavailable, and spends nothing, for a restaurant without coordinates", async () => {
+      const { runTheForkMatch } = await import("./thefork-match");
+      const lookup = await startLookup("invented-thefork-no-coordinates-place");
+      await sql!`update restaurant set lat = null, lng = null where id = ${lookup.id}`;
+      await withApify(async () => {
+        await expect(runTheForkMatch(lookup.id)).rejects.toMatchObject({ code: "vendor_error" });
+        expect(apifyFakeState.runs).toHaveLength(0);
+      });
+      const matchJobs = await jobs(lookup.id, "source_match");
+      expect(matchJobs.at(-1)).toMatchObject({ status: "failed", error_detail: expect.stringContaining("no coordinates") });
     }, 60_000);
 
     it("records the cost of a failed Apify run without failing the Lookup", async () => {
