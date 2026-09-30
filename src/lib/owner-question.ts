@@ -167,11 +167,16 @@ export async function answerListingQuestion(
     return { listingId: Number(listing!.id), fetchJobId: Number(job!.id) };
   });
 
+  return startListingFetch(restaurantId, listingId, fetchJobId);
+}
+
+/** Starts the fetch-and-re-judge task for a Listing whose `listing_fetch` Job was just queued. */
+export async function startListingFetch(restaurantId: number, listingId: number, fetchJobId: number): Promise<Response> {
   try {
     const handle = await tasks.trigger("owner-listing-answer", { restaurantId, listingId, fetchJobId }, {
       idempotencyKey: `listing-answer-${fetchJobId}`,
     });
-    await sql`update job set trigger_run_id = ${handle.id}, updated_at = now() where id = ${fetchJobId}`;
+    await db()`update job set trigger_run_id = ${handle.id}, updated_at = now() where id = ${fetchJobId}`;
   } catch (error) {
     await markJobStartFailed(fetchJobId, "Could not start listing fetch");
     throw error;

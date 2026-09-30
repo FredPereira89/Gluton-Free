@@ -1,38 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { acceptedJobSchema } from "@/lib/api-contract";
+import { useJobRefresh } from "./use-job-refresh";
 
 /** Says why TheFork matching is unavailable and lets the owner run it again; the page refreshes once the new Job ends. */
 export function TheForkUnavailable({ slug, detail }: { slug: string; detail: string }) {
-  const router = useRouter();
   const [jobId, setJobId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (jobId === null) return;
-    let active = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    async function poll() {
-      try {
-        const response = await fetch(`/api/v1/jobs/${jobId}`, { cache: "no-store" });
-        if (!response.ok) throw new Error("Job unavailable");
-        const job = await response.json() as { status?: string };
-        if (!active) return;
-        if (job.status === "succeeded" || job.status === "failed") {
-          setJobId(null);
-          router.refresh();
-          return;
-        }
-      } catch {
-        // Keep polling: the page refreshes once the Job ends.
-      }
-      if (active) timer = setTimeout(() => void poll(), 5000);
-    }
-    void poll();
-    return () => { active = false; if (timer) clearTimeout(timer); };
-  }, [jobId, router]);
+  useJobRefresh(jobId, () => setJobId(null));
 
   async function searchAgain() {
     setError(null);
