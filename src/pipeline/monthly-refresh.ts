@@ -4,14 +4,9 @@ import { createJob, finishJob, setStep } from "@/lib/job";
 import { raiseSourceRetryQuestions } from "@/lib/owner-question";
 import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
 import { sendPush } from "@/lib/push-send";
-import { MONTH_MS, PARAMS } from "@/verdict/rollup";
+import { PARAMS, reviewWindowCutoff } from "@/verdict/rollup";
 import { runPeerSnapshotPublish } from "./snapshot-publish";
 import { extractRestaurant, ingestRefreshRestaurant, judgeRestaurant, type Sleep } from "./lookup";
-
-function reviewWindowSince(now: Date, changePointAt: Date | null): Date {
-  const since = new Date(now.getTime() - PARAMS.reviewWindowMaxAgeMonths * MONTH_MS);
-  return changePointAt && changePointAt > since ? changePointAt : since;
-}
 
 async function newestChangePointAt(restaurantId: number): Promise<Date | null> {
   const [row] = await db()`
@@ -39,7 +34,7 @@ export async function runRestaurantRefresh(
 
     const now = opts.now ?? new Date();
     const window = {
-      since: reviewWindowSince(now, await newestChangePointAt(restaurantId)),
+      since: reviewWindowCutoff(now, await newestChangePointAt(restaurantId)),
       maxPerSource: PARAMS.reviewWindowCap,
     };
     const toRead = await pendingExtraction(restaurantId, window);
