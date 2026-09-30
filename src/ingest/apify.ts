@@ -1,12 +1,14 @@
-// Apify: TheFork search (mscraper/thefork-restaurant-scraper, by coordinates) and Reviews
-// (parsebird/thefork-scraper, by restaurant URL), both pay per event.
+// Apify: TheFork search (mscraper/thefork-restaurant-scraper, by coordinates), profile
+// (parsebird/thefork-scraper) and Reviews (clearpath/thefork-restaurant-reviews), all pay per event.
 // Items may carry reviewer names; callers must whitelist them through normalise.ts in memory
 // and never log or persist them. Every run is capped with maxTotalChargeUsd and reports its cost.
 import { PipelineError } from "@/lib/pipeline-error";
 import { PARAMS } from "@/verdict/rollup";
 
 const BASE = "https://api.apify.com/v2";
-const DEFAULT_REVIEWS_ACTOR = "parsebird/thefork-scraper";
+const DEFAULT_PROFILE_ACTOR = "parsebird/thefork-scraper";
+/** Returns the whole Review history, one row per Review; parsebird's page only exposes about 20. */
+const REVIEWS_ACTOR = "clearpath/thefork-restaurant-reviews";
 /** Searches by latitude/longitude and returns the restaurants around that point. parsebird's actor lists a whole city by popularity. */
 const SEARCH_ACTOR = "mscraper/thefork-restaurant-scraper";
 const WAIT_FOR_FINISH_S = 60;
@@ -14,8 +16,10 @@ const MAX_WAIT_ATTEMPTS = 5;
 
 /** Nearby search: one page of 25 restaurants at $0.01 each, no Reviews. */
 export const APIFY_SEARCH_MAX_USD = 0.3;
-/** One profile with its first 50 Reviews is about $0.003, each Review past 50 about $0.002. */
-export const APIFY_REVIEWS_MAX_USD = 0.25;
+/** One profile without Reviews is about $0.003. */
+export const APIFY_PROFILE_MAX_USD = 0.1;
+/** The newest 100 Reviews at about $0.003 each. */
+export const APIFY_REVIEWS_MAX_USD = 0.5;
 export const APIFY_SEARCH_MAX_RESTAURANTS = 25;
 /** The newest Reviews to fetch for an accepted TheFork Listing: the Review window cap. */
 export const APIFY_REVIEWS_PER_LISTING = PARAMS.reviewWindowCap;
@@ -109,11 +113,29 @@ export async function searchTheFork(point: { lat: number; lng: number }): Promis
   return { items: found, costUsd };
 }
 
-/** One TheFork restaurant with its newest Reviews. The raw item carries reviewer names: whitelist it at once. */
+/** One row per Review from the Reviews actor. Reviewer fields are never read here. */
+type ReviewRow = { review_id?: string | number | null; rating_value?: number | null; meal_date?: string | null; review_body?: string | null };
+
+/**
+ * One TheFork restaurant with its newest Reviews, from two runs in parallel: the profile actor gives the rating,
+ * count, address and price but stops at about 20 Reviews; the Reviews actor pages through the whole history.
+ * Raw items may carry reviewer names: only whitelisted fields leave this function.
+ */
 export async function fetchTheForkListing(url: string): Promise<{ item: unknown; costUsd: number }> {
-  const { items, costUsd } = await runActor(process.env.APIFY_THEFORK_ACTOR ?? DEFAULT_REVIEWS_ACTOR, {
-    startUrls: [url], language: "en", maxRestaurants: 1, maxReviews: APIFY_REVIEWS_PER_LISTING, maxPhotos: 0,
-  }, APIFY_REVIEWS_MAX_USD);
-  if (!items.length) throw new ApifyError("TheFork returned no restaurant for that Listing.", costUsd);
-  return { item: items[0], costUsd };
+  const [profile, rows] = await Promise.allSettled([
+    runActor(process.env.APIFY_THEFORK_ACTOR ?? DEFAULT_PROFILE_ACTOR, {
+      startUrls: [url], language: "en", maxRestaurants: 1, maxReviews: 0, maxPhotos: 0,
+    }, APIFY_PROFILE_MAX_USD),
+    runActor(REVIEWS_ACTOR, {
+      restaurantUrl: url, reviewLanguage: "all", sortBy: "newest", maxReviews: APIFY_REVIEWS_PER_LISTING,
+    }, APIFY_REVIEWS_MAX_USD),
+  ]);
+  const spent = [profile, rows].reduce((sum, run) => sum + (run.status === "fulfilled" ? run.value.costUsd : run.reason instanceof ApifyError ? run.reason.costUsd : 0), 0);
+  if (profile.status === "rejected") throw new ApifyError(profile.reason instanceof Error ? profile.reason.message : "The TheFork run failed.", spent);
+  if (rows.status === "rejected") throw new ApifyError(rows.reason instanceof Error ? rows.reason.message : "The TheFork run failed.", spent);
+  if (!profile.value.items.length) throw new ApifyError("TheFork returned no restaurant for that Listing.", spent);
+  const reviews = (rows.value.items as ReviewRow[]).map((row) => ({
+    id: row.review_id, rating_value: row.rating_value, meal_date: row.meal_date, review_body: row.review_body,
+  }));
+  return { item: { ...(profile.value.items[0] as object), reviews }, costUsd: spent };
 }

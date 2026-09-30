@@ -60,11 +60,53 @@ describe("searchTheFork", () => {
 });
 
 describe("fetchTheForkListing", () => {
-  it("passes the URL to the reviews actor as a plain string", async () => {
-    await fetchTheForkListing(nearbyItem.url);
-    const start = calls.find((call) => call.method === "POST" && call.path.endsWith("/runs"))!;
-    expect(start.path).toBe("/v2/acts/parsebird~thefork-scraper/runs");
-    expect(start.body).toMatchObject({ startUrls: [nearbyItem.url], maxRestaurants: 1 });
+  const rows = [
+    { review_id: 7, rating_value: 10, meal_date: "2026-08-01", review_body: "Superb.", reviewer_first_name: "Invented Name" },
+    { review_id: 8, rating_value: 6, meal_date: "2026-07-01", review_body: null },
+  ];
+
+  beforeEach(() => {
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = new URL(String(input));
+      calls.push({ method: init?.method ?? "GET", path: url.pathname, search: url.searchParams, body: init?.body ? JSON.parse(String(init.body)) : null });
+      if (init?.method === "POST" && url.pathname.endsWith("/runs")) {
+        const id = url.pathname.includes("clearpath") ? "run-rows" : "run-profile";
+        return json({ data: { id, defaultDatasetId: `ds-${id}`, status: "SUCCEEDED", usageTotalUsd: id === "run-rows" ? 0.3 : 0.01 } });
+      }
+      if (url.pathname === "/v2/datasets/ds-run-rows/items") return json(rows);
+      if (url.pathname === "/v2/datasets/ds-run-profile/items") return json([{ id: 90101, name: "Fictional Copper Spoon", reviews: [{ id: "stale" }] }]);
+      return json({}, 404);
+    });
+  });
+
+  it("takes the profile from one actor and the whole Review history from another, without reviewer fields", async () => {
+    const { item, costUsd } = await fetchTheForkListing(nearbyItem.url);
+    const starts = calls.filter((call) => call.method === "POST" && call.path.endsWith("/runs"));
+    expect(starts.map((call) => call.path).sort()).toEqual([
+      "/v2/acts/clearpath~thefork-restaurant-reviews/runs", "/v2/acts/parsebird~thefork-scraper/runs",
+    ]);
+    expect(starts.find((call) => call.path.includes("parsebird"))!.body).toMatchObject({ startUrls: [nearbyItem.url], maxRestaurants: 1, maxReviews: 0 });
+    expect(starts.find((call) => call.path.includes("clearpath"))!.body).toEqual({
+      restaurantUrl: nearbyItem.url, reviewLanguage: "all", sortBy: "newest", maxReviews: 100,
+    });
+    expect(item).toEqual({
+      id: 90101, name: "Fictional Copper Spoon",
+      reviews: [
+        { id: 7, rating_value: 10, meal_date: "2026-08-01", review_body: "Superb." },
+        { id: 8, rating_value: 6, meal_date: "2026-07-01", review_body: null },
+      ],
+    });
+    expect(costUsd).toBeCloseTo(0.31, 6);
+  });
+
+  it("reports what both runs cost when one of them fails", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = new URL(String(input));
+      if (init?.method === "POST" && url.pathname.includes("clearpath")) return json({ data: { id: "run-rows", defaultDatasetId: "ds-run-rows", status: "FAILED", usageTotalUsd: 0.02 } });
+      return original(input, init);
+    });
+    await expect(fetchTheForkListing(nearbyItem.url)).rejects.toMatchObject({ costUsd: expect.closeTo(0.03, 6) });
   });
 });
 
