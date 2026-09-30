@@ -325,8 +325,6 @@ export async function runBaselineBuild(
     if (confirmations.costUsd) await options.onLlmCost?.(confirmations.costUsd);
 
     for (const entry of fetched) {
-      const format = confirmations.formats.get(entry.candidate.placeId);
-      if (!format || !FORMATS.includes(format)) continue;
       const analyses = [...extraction.results.entries()].flatMap(([id, analysis]) => {
         if (candidateByTempId.get(id) !== entry.candidate.placeId) return [];
         const sourceReviewId = sourceReviewIdByTempId.get(id);
@@ -335,6 +333,9 @@ export async function runBaselineBuild(
       const textReviewCount = entry.reviewWindow.filter((review) => Boolean(review.text?.trim())).length;
       extractionAttempts += textReviewCount;
       failedExtractions += Math.max(0, textReviewCount - analyses.length);
+
+      const format = confirmations.formats.get(entry.candidate.placeId);
+      if (!format || !FORMATS.includes(format)) continue;
       if (analyses.length !== textReviewCount) {
         skippedExtraction++;
         continue;
