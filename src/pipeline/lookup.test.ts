@@ -5,7 +5,7 @@ import postgres from "postgres";
 import fixture from "./fixtures/lookup.json";
 import { fakePushSends, fakeSendPush } from "./push-fake";
 import {
-  APIFY_FAKE_FAILED_COST_USD, APIFY_FAKE_REVIEWS_COST_USD, APIFY_FAKE_SEARCH_COST_USD, apifyFakeState,
+  APIFY_FAKE_FAILED_COST_USD, APIFY_FAKE_REVIEWS_COST_USD, APIFY_FAKE_REVIEW_ROWS_COST_USD, APIFY_FAKE_SEARCH_COST_USD, apifyFakeState,
   fakeAnthropic, fakeChangeMarker, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState,
 } from "./vendor-fakes";
 
@@ -1299,8 +1299,11 @@ describe("Lookup pipeline", () => {
         const accept = await answerTheFork(lookup.slug, { answer: "accept", placeRef: "90101" });
         expect(accept.status).toBe(202);
         routes.answerListing.responses[202].parse(await accept.json());
-        expect(apifyFakeState.runs).toHaveLength(2);
-        expect(apifyFakeState.runs[1]).toMatchObject({ maxTotalChargeUsd: "0.25", input: { startUrls: ["https://www.thefork.com/restaurant/invented-copper-spoon-r90101"], maxReviews: 100, maxRestaurants: 1 } });
+        // Search, then the profile and the Review history in parallel; only the history asks for 100 Reviews.
+        expect(apifyFakeState.runs).toHaveLength(3);
+        const url = "https://www.thefork.com/restaurant/invented-copper-spoon-r90101";
+        expect(apifyFakeState.runs[1]).toMatchObject({ maxTotalChargeUsd: "0.1", input: { startUrls: [url], maxReviews: 0, maxRestaurants: 1 } });
+        expect(apifyFakeState.runs[2]).toMatchObject({ maxTotalChargeUsd: "0.5", input: { restaurantUrl: url, maxReviews: 100, sortBy: "newest" } });
       });
 
       const [listing] = await sql!`select id, place_ref, match_provenance, price_level from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
@@ -1320,7 +1323,7 @@ describe("Lookup pipeline", () => {
       expect(matchJobs.map((job) => job.status)).toEqual(["failed", "succeeded"]);
       expect(Number(matchJobs[1]!.vendor_cost_usd)).toBeCloseTo(APIFY_FAKE_SEARCH_COST_USD, 6);
       const [fetchJob] = await jobs(lookup.id, "listing_fetch");
-      expect(Number(fetchJob!.vendor_cost_usd)).toBeCloseTo(APIFY_FAKE_REVIEWS_COST_USD, 6);
+      expect(Number(fetchJob!.vendor_cost_usd)).toBeCloseTo(APIFY_FAKE_REVIEWS_COST_USD + APIFY_FAKE_REVIEW_ROWS_COST_USD, 6);
 
       const again = await answerTheFork(lookup.slug, { answer: "accept", placeRef: "90101" });
       expect(again.status).toBe(409);
@@ -1335,7 +1338,7 @@ describe("Lookup pipeline", () => {
       await sql!`update restaurant set lat = 38.7139, lng = -9.1334 where id = ${lookup.id}`;
       await withApify(async () => {
         await runTheForkMatch(lookup.id);
-        expect(apifyFakeState.runs).toHaveLength(2);
+        expect(apifyFakeState.runs).toHaveLength(3);
       });
       const [listing] = await sql!`select id, place_ref, match_provenance from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
       expect(listing).toMatchObject({ place_ref: "90101", match_provenance: "auto_accepted" });
@@ -1360,7 +1363,7 @@ describe("Lookup pipeline", () => {
         expect(held!.status).toBe("open");
         await sql!`update job set status = 'succeeded' where restaurant_id = ${lookup.id} and kind = 'lookup'`;
         expect(await autoAcceptTheFork(lookup.id)).toBe(true);
-        expect(apifyFakeState.runs).toHaveLength(2);
+        expect(apifyFakeState.runs).toHaveLength(3);
         expect(await autoAcceptTheFork(lookup.id)).toBe(false);
       });
       const [listing] = await sql!`select match_provenance from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;

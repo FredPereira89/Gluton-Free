@@ -27,37 +27,37 @@ export const apifyFakeState: {
 } = { mode: "ok", distant: false, runs: [] };
 export const APIFY_FAKE_SEARCH_COST_USD = 0.06;
 export const APIFY_FAKE_REVIEWS_COST_USD = 0.1;
+export const APIFY_FAKE_REVIEW_ROWS_COST_USD = 0.05;
 export const APIFY_FAKE_FAILED_COST_USD = 0.01;
 
 function fakeApify(url: URL, init?: RequestInit): Response | null {
   const headers = new Headers(init?.headers);
-  const actorRun = /^\/v2\/acts\/(mscraper~thefork-restaurant-scraper|parsebird~thefork-scraper)\/runs$/.exec(url.pathname);
+  const actorRun = /^\/v2\/acts\/(mscraper~thefork-restaurant-scraper|parsebird~thefork-scraper|clearpath~thefork-restaurant-reviews)\/runs$/.exec(url.pathname);
   if (init?.method === "POST" && actorRun) {
     const input = JSON.parse(String(init.body)) as Record<string, unknown>;
     apifyFakeState.runs.push({ input, maxTotalChargeUsd: url.searchParams.get("maxTotalChargeUsd"), authorization: headers.get("authorization") });
-    const reviews = actorRun[1] === "parsebird~thefork-scraper";
-    return response({ data: { id: reviews ? "run-reviews" : "run-search", defaultDatasetId: reviews ? "thefork-reviews" : "thefork-search", status: "READY", usageTotalUsd: 0 } });
+    const kind = actorRun[1] === "parsebird~thefork-scraper" ? "reviews" : actorRun[1] === "clearpath~thefork-restaurant-reviews" ? "review-rows" : "search";
+    return response({ data: { id: `run-${kind}`, defaultDatasetId: `thefork-${kind}`, status: "READY", usageTotalUsd: 0 } });
   }
-  const run = /^\/v2\/actor-runs\/(run-search|run-reviews)$/.exec(url.pathname);
+  const run = /^\/v2\/actor-runs\/(run-search|run-reviews|run-review-rows)$/.exec(url.pathname);
   if (run) {
-    const reviews = run[1] === "run-reviews";
+    const kind = run[1]!.replace(/^run-/, "");
     if (apifyFakeState.mode === "run_failed") return response({ data: { id: run[1], status: "FAILED", usageTotalUsd: APIFY_FAKE_FAILED_COST_USD } });
     return response({ data: {
-      id: run[1], status: "SUCCEEDED", defaultDatasetId: reviews ? "thefork-reviews" : "thefork-search",
-      usageTotalUsd: reviews ? APIFY_FAKE_REVIEWS_COST_USD : APIFY_FAKE_SEARCH_COST_USD,
+      id: run[1], status: "SUCCEEDED", defaultDatasetId: `thefork-${kind}`,
+      usageTotalUsd: kind === "reviews" ? APIFY_FAKE_REVIEWS_COST_USD : kind === "review-rows" ? APIFY_FAKE_REVIEW_ROWS_COST_USD : APIFY_FAKE_SEARCH_COST_USD,
     } });
   }
   if (url.pathname === "/v2/datasets/thefork-search/items") return response(apifyFakeState.distant
     ? fixture.thefork.nearby.map((item) => ({ ...item, geolocation: { ...item.geolocation, latitude: item.geolocation.latitude + 0.002 } }))
     : fixture.thefork.nearby);
-  if (url.pathname === "/v2/datasets/thefork-reviews/items") {
-    return response([{
-      ...fixture.thefork.search[0],
-      reviews: fixture.thefork.reviews.map((review, index) => ({
-        id: `invented-thefork-review-${index + 1}`, rating_value: review.rating, review_body: review.text,
-        meal_date: new Date(Date.now() - index * 86400_000).toISOString().slice(0, 10), reviewer_name: review.reviewer, likes: 0,
-      })),
-    }]);
+  // The profile actor carries no Reviews; the Reviews actor returns one row per Review.
+  if (url.pathname === "/v2/datasets/thefork-reviews/items") return response([{ ...fixture.thefork.search[0], reviews: [] }]);
+  if (url.pathname === "/v2/datasets/thefork-review-rows/items") {
+    return response(fixture.thefork.reviews.map((review, index) => ({
+      review_id: `invented-thefork-review-${index + 1}`, rating_value: review.rating, review_body: review.text,
+      meal_date: new Date(Date.now() - index * 86400_000).toISOString().slice(0, 10), reviewer_first_name: review.reviewer, likes: 0,
+    })));
   }
   return null;
 }
