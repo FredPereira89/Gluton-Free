@@ -28,3 +28,15 @@ export async function startTheForkMatch(restaurantId: number): Promise<void> {
     console.error("Could not record TheFork match Job", error instanceof Error ? error.message : error);
   }
 }
+
+/**
+ * Starts TheFork matching again when a Lookup is started for a Restaurant that already has one, but
+ * only if its last match failed (or never ran) and no TheFork Listing is known. A match that
+ * succeeded, is running, or was answered "none" is never repeated, so a double click costs nothing.
+ */
+export async function retryTheForkMatch(restaurantId: number): Promise<void> {
+  const [due] = await db()`
+    select 1 where not exists (select 1 from listing where restaurant_id = ${restaurantId} and source_code = 'thefork')
+      and coalesce((select status from job where restaurant_id = ${restaurantId} and kind = 'source_match' order by id desc limit 1), 'failed') = 'failed'`;
+  if (due) await startTheForkMatch(restaurantId);
+}

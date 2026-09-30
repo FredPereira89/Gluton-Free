@@ -1229,6 +1229,13 @@ describe("Lookup pipeline", () => {
       const [restaurant] = await sql!`select id from restaurant where slug = ${restaurantSlug}`;
       return { slug: restaurantSlug, id: Number(restaurant!.id) };
     }
+    async function startAgain(googlePlaceId: string) {
+      const { POST } = await import("@/app/api/v1/lookups/route");
+      const again = await POST(new Request("http://localhost/api/v1/lookups", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ googlePlaceId, listings: [] }),
+      }));
+      expect(again.status).toBe(200);
+    }
     async function answerTheFork(slug: string, body: unknown) {
       const { PUT } = await import("@/app/api/v1/restaurants/[slug]/listings/[source]/route");
       return PUT(
@@ -1347,6 +1354,24 @@ describe("Lookup pipeline", () => {
       expect(bundle.unavailableSources).toEqual([{ source: "thefork", detail: expect.stringContaining("not configured") }]);
       expect(bundle.ownerQuestions).toEqual([]);
       expect(apifyFakeState.runs).toHaveLength(0);
+    }, 60_000);
+
+    it("retries a failed TheFork match when the same Lookup is started again, but never twice in a row", async () => {
+      const lookup = await startLookup("invented-thefork-retry-place");
+      expect((await jobs(lookup.id, "source_match")).map((job) => job.status)).toEqual(["failed"]);
+
+      await withApify(async () => {
+        await startAgain("invented-thefork-retry-place");
+        expect((await jobs(lookup.id, "source_match")).map((job) => job.status)).toEqual(["failed", "succeeded"]);
+        const [question] = await sql!`select source_code, status from owner_question where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+        expect(question).toMatchObject({ source_code: "thefork", status: "open" });
+
+        await startAgain("invented-thefork-retry-place");
+        expect((await jobs(lookup.id, "source_match")).map((job) => job.status)).toEqual(["failed", "succeeded"]);
+        expect(apifyFakeState.runs).toHaveLength(1);
+      });
+      const lookups = await jobs(lookup.id, "lookup");
+      expect(lookups).toHaveLength(1);
     }, 60_000);
 
     it("tells the owner TheFork matching was unavailable when its job never finished", async () => {

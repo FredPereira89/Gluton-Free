@@ -8,12 +8,13 @@ import { db } from "./db";
 import { markJobStartFailed } from "./job";
 import { raiseListingQuestions } from "./owner-question";
 import { ApiError } from "./problem";
-import { startTheForkMatch } from "./thefork-match-start";
+import { retryTheForkMatch, startTheForkMatch } from "./thefork-match-start";
 import { sendPush } from "./push-send";
 import { recordSearchCost, spendCapStatus } from "./spend-cap";
 
 type Input = z.infer<typeof startLookupBodySchema>;
 type Started = { jobId: number; restaurantSlug: string; created: boolean };
+type Existing = Started & { restaurantId: number };
 type LookupTxResult =
   | { jobId: number; restaurantSlug: string; created: false; listingQuestionIds: number[] }
   | { jobId: number; restaurantSlug: string; created: true; restaurantId: number; listingQuestionIds: number[] };
@@ -23,17 +24,20 @@ function slugPart(text: string): string {
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 75) || "restaurant";
 }
 
-async function existing(placeId: string): Promise<Started | null> {
+async function existing(placeId: string): Promise<Existing | null> {
   const [row] = await db()`
-    select r.slug, j.id from listing l join restaurant r on r.id = l.restaurant_id
+    select r.id as restaurant_id, r.slug, j.id from listing l join restaurant r on r.id = l.restaurant_id
     left join lateral (select id from job where restaurant_id = r.id and kind = 'lookup' order by id desc limit 1) j on true
     where l.source_code = 'google' and l.place_ref = ${placeId}`;
-  return row?.id ? { jobId: Number(row.id), restaurantSlug: row.slug as string, created: false } : null;
+  return row?.id ? { jobId: Number(row.id), restaurantSlug: row.slug as string, created: false, restaurantId: Number(row.restaurant_id) } : null;
 }
 
 export async function startLookup(input: Input): Promise<Started> {
   const known = await existing(input.googlePlaceId);
-  if (known) return known;
+  if (known) {
+    await retryTheForkMatch(known.restaurantId);
+    return { jobId: known.jobId, restaurantSlug: known.restaurantSlug, created: false };
+  }
   const cap = await spendCapStatus();
   if (cap.atCap) throw new ApiError(429, "spend_cap_reached", "Daily vendor spend cap reached", { resetAt: cap.resetAt });
 
