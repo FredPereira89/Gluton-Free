@@ -227,7 +227,7 @@ describe("Lisbon baseline Review-window build", () => {
     await expect(runBaselineBuild(
       [candidate("tasca-1", "tasca")],
       providers,
-      buildOptions({ extractorVersion: "claude-haiku-4-5|extract-v4|themes-v1" }),
+      buildOptions({ extractorVersion: "claude-haiku-4-5|extract-v3|themes-v1" }),
     )).rejects.toThrow("owner-approved frozen");
 
     expect(providers.fetchReviews).not.toHaveBeenCalled();
