@@ -1,12 +1,22 @@
 # Lisbon baseline candidate sweep
 
-Run a billable candidate sweep on Trigger.dev without writing candidate Restaurants:
+Run the Lisbon baseline build on Trigger.dev without writing Restaurants, Listings, Reviews or analyses:
 
 ```powershell
 npx tsx --env-file=.env.local scripts/baseline-lisbon.ts --dry-run
 ```
 
-The default `--dry-run` creates a pollable baseline Job, but writes no candidate Restaurants or Listings. DataForSEO still charges for Business Listings searches and Google Reviews freshness checks. Trigger.dev runs and checkpoints the long sweep; the command polls its Job and prints the report when it finishes. Add `--persist` to insert eligible Restaurants and Google Listings after the sweep. Existing Google place IDs are skipped. The sweep does not fetch or analyse the full Review history.
+The default `--dry-run` creates a pollable baseline Job and writes no Restaurant data. It still makes billable DataForSEO and Anthropic calls. Trigger.dev runs and checkpoints the long job; the command polls it and prints the final report. Add `--persist` to store the confirmed sample, its fetched Review windows and their analyses. Existing Google place IDs are reused; auto-assigned Formats are updated when Reviews correct a misfile.
+
+The job refuses to start paid work unless `EXTRACTOR_VERSION` matches the owner-approved version in `docs/extractor-freeze-2026-09-24.md`. That approved version is `claude-haiku-4-5|extract-v2|themes-v1`; the current source reports `extract-v4`, so the freeze must be reconciled before a live baseline can run.
+
+## Sampling and extraction
+
+- Randomly sample within each auto-assigned Format: 65 candidates for each 50-Restaurant target and 39 for each 30-Restaurant target. The most-reviewed candidate in each regular Format is excluded. Every eligible casa de fado is included.
+- Fetch sampled Google Reviews newest first on normal priority, in batches of at most 100 Restaurants per POST. Expand depth only when rating-only rows leave fewer than 100 text Reviews in the active 24-month window; stop when the window is full or the source is exhausted. Keep every rating-only Review inside that window. DataForSEO caps depth at 4,490; `incompleteReviewWindowPlaceIds` flags windows still short at that limit.
+- Extract selected Review text with Anthropic's Batch API. The frozen extractor reads the entire selected Review window. A second Batch API request confirms each sampled Restaurant's Format using its newest 20 Review texts.
+- Move misfiled Restaurants into the confirmed Format. Randomly top up short Formats from the remaining candidates until the target is reached or that candidate pool is exhausted.
+- The build reserves cost before each paid request and stops at $50 DataForSEO or $30 Anthropic spend. Business Listings reservations include the July 2026 20% rate increase.
 
 ## Candidate rules
 
@@ -15,7 +25,7 @@ The default `--dry-run` creates a pollable baseline Job, but writes no candidate
 - Fetch the ten newest Google Reviews and keep a Listing only when one has a timestamp in the last 12 calendar months.
 - Assign one Format from Google categories and price tier with provenance `baseline_auto`. Google price tier is retained with Source provenance.
 
-`countsByFormat` contains every Format, including zero counts. `costsUsd` separates costs reported by the completed search and recency requests from the estimated cost of fetching the full Google Review set for kept candidates. The estimate follows the existing review-depth policy and excludes LLM costs.
+`countsByFormat` contains every confirmed Format, including zero counts. `shortByFormat` reports targets that could not be filled. `costsUsd` reports actual DataForSEO and Anthropic spend for the job.
 
 ## Format preassignment
 
@@ -23,6 +33,6 @@ The deterministic mapping follows the fixed Lisbon Format taxonomy in issue #6: 
 
 ## Data sources
 
-- [DataForSEO Business Listings Search](https://docs.dataforseo.com/v3/business_data-business_listings-search-live/) and [Google Reviews pricing](https://dataforseo.com/pricing/business-data/google-reviews-api).
+- [DataForSEO Business Listings Search](https://docs.dataforseo.com/v3/business_data-business_listings-search-live/), [Google Reviews pricing](https://dataforseo.com/pricing/business-data/google-reviews-api), and [July 2026 pricing update](https://dataforseo.com/update/pricing-update-in-dataforseo-apis).
 - [DataForSEO Business Listings category registry](https://docs.dataforseo.com/v3/business_data-business_listing-categories/) supplies the current category names; its response has no food/non-food flag.
 - Lisboa municipality boundary: [Câmara Municipal de Lisboa ArcGIS layer](https://services.arcgis.com/1dSrzEWVQn5kHHyK/arcgis/rest/services/Limite_Cartografia/FeatureServer/1), returned as WGS84 GeoJSON. The open data portal identifies the council-boundary dataset as CC0.

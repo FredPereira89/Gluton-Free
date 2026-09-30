@@ -1,14 +1,16 @@
 import { FORMATS, baselineFormat, isFoodCategoryId, type BaselineFormat } from "@/domain/baseline-format";
 import type { PriceTier } from "@/domain/restaurant-facts";
 import { sourcePriceTier } from "@/domain/restaurant-facts";
-import { depthFor, getReviewTask, postReviewTask } from "@/ingest/dataforseo";
-import { mergeBusinessListings, type BusinessListing, type VendorCostCallback } from "@/ingest/dataforseo-business-listings";
+import { depthFor, getReviewTask, postGoogleReviewTasks, postReviewTask } from "@/ingest/dataforseo";
+import { normaliseGoogle } from "@/ingest/normalise";
+import { mergeBusinessListings, type BusinessListing, type VendorCostCallback, type VendorCostReservation } from "@/ingest/dataforseo-business-listings";
 import { searchLisbonBusinessListings } from "@/ingest/dataforseo-business-listings";
 import { insideLisboaMunicipality } from "./lisboa-boundary";
 
 export const BASELINE_MIN_GOOGLE_REVIEWS = 25;
 export const BASELINE_REVIEW_SAMPLE_DEPTH = 10;
 export const GOOGLE_REVIEWS_PRIORITY_USD_PER_10 = 0.0015;
+export const BASELINE_REVIEW_MAX_USD_PER_TEN = 0.003;
 const POLL_SECONDS = 30;
 const MAX_WAIT_SECONDS = 3 * 60 * 60;
 const MAX_POLL_FAILURES = 3;
@@ -27,8 +29,16 @@ export type BaselineCandidate = {
   priceLevel: string | null;
   priceTier: PriceTier | null;
   format: BaselineFormat;
-  formatProvenance: "baseline_auto";
+  formatProvenance: "baseline_auto" | "llm";
   newestReviewAt: Date;
+};
+
+export type BaselineReviewFetchResult = {
+  reviews: ReturnType<typeof normaliseGoogle>["reviews"];
+  costUsd: number;
+  reviewCount?: number | null;
+  returnedCount?: number;
+  unavailable?: boolean;
 };
 
 export type BaselineDropReason = "not_food_category" | "missing_listing_data" | "outside_boundary" | "not_open" | "fewer_than_25_reviews" | "no_recent_google_review";
@@ -49,13 +59,14 @@ export type BaselineSweepReport = {
 export type BaselineSearchResult = { items: BusinessListing[]; costUsd: number };
 export type RecentReviewDates = { newestByPlaceId: Map<string, Date | null>; costUsd: number };
 export type BaselineProviders = {
-  searchListings: (onCost?: VendorCostCallback) => Promise<BaselineSearchResult>;
-  recentReviews: (placeIds: string[], sleep?: (seconds: number) => Promise<void>, onCost?: VendorCostCallback) => Promise<RecentReviewDates>;
+  searchListings: (onCost?: VendorCostCallback, reserveCost?: VendorCostReservation) => Promise<BaselineSearchResult>;
+  recentReviews: (placeIds: string[], sleep?: (seconds: number) => Promise<void>, onCost?: VendorCostCallback, reserveCost?: VendorCostReservation) => Promise<RecentReviewDates>;
 };
 
 export type BaselineSweepOptions = {
   sleep?: (seconds: number) => Promise<void>;
   onVendorCost?: VendorCostCallback;
+  reserveVendorCost?: VendorCostReservation;
   onProgress?: (step: string) => void | Promise<void>;
 };
 
@@ -122,7 +133,9 @@ export async function runBaselineSweep(
   options: BaselineSweepOptions = {},
 ): Promise<BaselineSweepReport> {
   await options.onProgress?.("Searching Google Business Listings");
-  const found = await providers.searchListings(options.onVendorCost);
+  const found = options.reserveVendorCost
+    ? await providers.searchListings(options.onVendorCost, options.reserveVendorCost)
+    : await providers.searchListings(options.onVendorCost);
   const unique = deduplicate(found.items);
   const dropped = emptyDropCounts();
   const toProbe: BusinessListing[] = [];
@@ -154,7 +167,9 @@ export async function runBaselineSweep(
 
   await options.onProgress?.("Checking recent Google Reviews");
   const freshness = toProbe.length
-    ? await providers.recentReviews(toProbe.map((item) => item.place_id!), options.sleep, options.onVendorCost)
+    ? options.reserveVendorCost
+      ? await providers.recentReviews(toProbe.map((item) => item.place_id!), options.sleep, options.onVendorCost, options.reserveVendorCost)
+      : await providers.recentReviews(toProbe.map((item) => item.place_id!), options.sleep, options.onVendorCost)
     : { newestByPlaceId: new Map<string, Date | null>(), costUsd: 0 };
   const cutoff = subtractTwelveMonths(now);
   const countsByFormat = Object.fromEntries(FORMATS.map((format) => [format, 0])) as Record<BaselineFormat, number>;
@@ -228,43 +243,120 @@ export async function recentGoogleReviewDates(
   placeIds: string[],
   sleep: (seconds: number) => Promise<void> = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1_000)),
   onCost?: VendorCostCallback,
+  reserveCost?: VendorCostReservation,
 ): Promise<RecentReviewDates> {
-  const posted = new Map<string, { taskId: string; failures: number }>();
+  const posted = new Map<string, { taskId: string; failures: number; costUsd: number; settle?: (actualUsd: number) => Promise<void> }>();
   const newestByPlaceId = new Map<string, Date | null>();
   let costUsd = 0;
   for (const placeId of placeIds) {
-    const task = await postReviewTask({ source: "google", placeId, depth: BASELINE_REVIEW_SAMPLE_DEPTH });
-    costUsd += task.cost;
-    await onCost?.(task.cost);
-    posted.set(placeId, { taskId: task.taskId, failures: 0 });
+    const settle = await reserveCost?.(BASELINE_REVIEW_MAX_USD_PER_TEN);
+    try {
+      const task = await postReviewTask({ source: "google", placeId, depth: BASELINE_REVIEW_SAMPLE_DEPTH, priority: 1 });
+      costUsd += task.cost;
+      await onCost?.(task.cost);
+      posted.set(placeId, { taskId: task.taskId, failures: 0, costUsd: task.cost, settle });
+    } catch (error) {
+      await settle?.(0);
+      throw error;
+    }
   }
 
-  for (let waited = 0; newestByPlaceId.size < posted.size; waited += POLL_SECONDS) {
-    if (waited > MAX_WAIT_SECONDS) throw new Error("Google Reviews recency checks exceeded the three-hour limit");
-    await sleep(POLL_SECONDS);
-    for (const [placeId, task] of posted) {
-      if (newestByPlaceId.has(placeId)) continue;
-      let result: Awaited<ReturnType<typeof getReviewTask>>;
-      try {
-        result = await getReviewTask("google", task.taskId);
-      } catch {
-        task.failures++;
-        if (task.failures >= MAX_POLL_FAILURES) throw new Error("DataForSEO could not return a Google Reviews recency check");
-        continue;
+  try {
+    for (let waited = 0; newestByPlaceId.size < posted.size; waited += POLL_SECONDS) {
+      if (waited > MAX_WAIT_SECONDS) throw new Error("Google Reviews recency checks exceeded the three-hour limit");
+      await sleep(POLL_SECONDS);
+      for (const [placeId, task] of posted) {
+        if (newestByPlaceId.has(placeId)) continue;
+        let result: Awaited<ReturnType<typeof getReviewTask>>;
+        try {
+          result = await getReviewTask("google", task.taskId);
+        } catch {
+          task.failures++;
+          if (task.failures >= MAX_POLL_FAILURES) throw new Error("DataForSEO could not return a Google Reviews recency check");
+          continue;
+        }
+        if (!result) continue;
+        costUsd += result.cost;
+        task.costUsd += result.cost;
+        await onCost?.(result.cost);
+        const settle = task.settle;
+        task.settle = undefined;
+        await settle?.(task.costUsd);
+        newestByPlaceId.set(placeId, newestTimestamp(result.result));
       }
-      if (!result) continue;
-      costUsd += result.cost;
-      await onCost?.(result.cost);
-      newestByPlaceId.set(placeId, newestTimestamp(result.result));
+    }
+  } finally {
+    for (const task of posted.values()) {
+      if (!task.settle) continue;
+      const settle = task.settle;
+      task.settle = undefined;
+      await settle(task.costUsd);
     }
   }
   return { newestByPlaceId, costUsd };
 }
 
+/** Fetches up to 100 sampled Restaurants together on DataForSEO's normal-priority queue. */
+export async function fetchBaselineGoogleReviewWindows(
+  requests: { candidate: BaselineCandidate; depth: number }[],
+  sleep: (seconds: number) => Promise<void> = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1_000)),
+): Promise<Map<string, BaselineReviewFetchResult>> {
+  if (!requests.length) return new Map();
+
+  const byPlaceId = new Map<string, BaselineReviewFetchResult>();
+  type PendingReviewTask = { placeId: string; taskId: string; cost: number; failures: number };
+  const pending = new Map<string, PendingReviewTask>();
+  for (let start = 0; start < requests.length; start += 100) {
+    const batch = requests.slice(start, start + 100);
+    const posted = await postGoogleReviewTasks(batch.map(({ candidate, depth }) => ({ placeId: candidate.placeId, depth })), 1);
+    for (const task of posted.posted) pending.set(task.placeId, { ...task, failures: 0 });
+    for (const failure of posted.failed) byPlaceId.set(failure.placeId, { reviews: [], costUsd: failure.cost, unavailable: true });
+  }
+
+  for (let waited = 0; pending.size > 0; waited += POLL_SECONDS) {
+    if (waited > MAX_WAIT_SECONDS) throw new Error("Google Reviews window fetch exceeded the three-hour limit");
+    await sleep(POLL_SECONDS);
+    const polled: { task: PendingReviewTask; result: Awaited<ReturnType<typeof getReviewTask>>; failed: boolean }[] = [];
+    for (const start of Array.from({ length: Math.ceil(pending.size / 100) }, (_, index) => index * 100)) {
+      const batch = [...pending.values()].slice(start, start + 100);
+      polled.push(...await Promise.all(batch.map(async (task) => {
+        try {
+          return { task, result: await getReviewTask("google", task.taskId), failed: false };
+        } catch {
+          return { task, result: null, failed: true };
+        }
+      })));
+    }
+    for (const item of polled) {
+      const { task, result } = item;
+      if (item.failed) {
+        task.failures++;
+        if (task.failures >= MAX_POLL_FAILURES) throw new Error("DataForSEO could not return a Google Reviews window");
+        continue;
+      }
+      if (!result) continue;
+      const current = pending.get(task.placeId);
+      if (!current) continue;
+      const normalized = normaliseGoogle(result.result);
+      const rawItems = result.result && typeof result.result === "object"
+        ? (result.result as { items?: unknown }).items
+        : null;
+      byPlaceId.set(task.placeId, {
+        reviews: normalized.reviews,
+        costUsd: current.cost + result.cost,
+        reviewCount: normalized.facts.reviewCount,
+        returnedCount: Array.isArray(rawItems) ? rawItems.length : 0,
+      });
+      pending.delete(task.placeId);
+    }
+  }
+  return byPlaceId;
+}
+
 export async function runLisbonBaselineSweep(now = new Date(), options: BaselineSweepOptions = {}): Promise<BaselineSweepReport> {
   const providers: BaselineProviders = {
-    searchListings: (onCost) => searchLisbonBusinessListings(onCost),
-    recentReviews: (placeIds, sleep, onCost) => recentGoogleReviewDates(placeIds, sleep, onCost),
+    searchListings: (onCost, reserveCost) => searchLisbonBusinessListings(onCost, reserveCost),
+    recentReviews: (placeIds, sleep, onCost, reserveCost) => recentGoogleReviewDates(placeIds, sleep, onCost, reserveCost),
   };
   return runBaselineSweep(providers, now, options);
 }

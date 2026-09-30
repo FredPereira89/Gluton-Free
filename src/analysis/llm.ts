@@ -11,6 +11,18 @@ const PRICE: Record<string, [number, number]> = {
   [JUDGE_MODEL]: [2, 10],
 };
 
+/** Conservative maximum for one Messages Batch request set, reserving every output token. */
+export function estimateBatchUpperBound(model: string, inputs: string[], maxOutputTokensPerRequest: number): number {
+  const prices = PRICE[model];
+  if (!prices) throw new Error(`No LLM pricing is configured for ${model}`);
+  const [inputPrice, outputPrice] = prices;
+  const encoder = new TextEncoder();
+  const inputTokensUpperBound = inputs.reduce((total, input) => total + encoder.encode(input).byteLength + 256, 0);
+  const outputTokensUpperBound = inputs.length * maxOutputTokensPerRequest;
+  // Batch inputs are priced at half rate; cache creation is at most 1.25x input.
+  return (0.5 * (inputTokensUpperBound * inputPrice * 1.25 + outputTokensUpperBound * outputPrice)) / 1_000_000;
+}
+
 let client: Anthropic | undefined;
 export function anthropic(): Anthropic {
   client ??= new Anthropic({ maxRetries: 4 });
