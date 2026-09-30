@@ -55,10 +55,12 @@ export function proposeTripadvisorListings(googleName: string, candidates: Tripa
   }));
 }
 
-// TheFork exposes coordinates but no phone, so phone match stays unknown. ADR-0005 would allow
-// auto-accepting a near-identical name within ~100 m, but TheFork matching runs beside the Lookup
-// (#63) and the issue asks for an Owner question, so every candidate is asked about.
+// TheFork exposes coordinates but no phone, so phone match stays unknown. ADR-0005 auto-accepts a
+// near-identical name within ~100 m, but only when exactly one candidate qualifies: two such
+// neighbours (a chain's twin branches) stay an Owner question.
 const MAX_THEFORK_DISTANCE_METERS = 300;
+const AUTO_ACCEPT_THEFORK_DISTANCE_METERS = 100;
+const AUTO_ACCEPT_THEFORK_NAME_SIMILARITY = 0.9;
 const MAX_THEFORK_CANDIDATES = 3;
 
 function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -84,10 +86,14 @@ export function proposeTheForkListings(
     if (matches.some((match) => String(match.item.id) === String(item.id))) continue;
     matches.push({ item, score, distance: here === null ? null : Math.round(here) });
   }
-  return matches.sort((a, b) => b.score - a.score).slice(0, MAX_THEFORK_CANDIDATES).map(({ item, score, distance }) => ({
-    source: "thefork", url: item.url!, placeRef: String(item.id), name: item.name!,
-    confidence: "uncertain", autoAccept: false, reviewCount: item.thefork_review_count ?? null,
-    evidence: { distanceMeters: distance, phoneMatch: null, nameSimilarity: score },
+  const isConfident = (match: { score: number; distance: number | null }) =>
+    match.distance !== null && match.distance <= AUTO_ACCEPT_THEFORK_DISTANCE_METERS && match.score >= AUTO_ACCEPT_THEFORK_NAME_SIMILARITY;
+  const onlyConfident = matches.filter(isConfident).length === 1 ? matches.find(isConfident) : undefined;
+  return matches.sort((a, b) => b.score - a.score).slice(0, MAX_THEFORK_CANDIDATES).map((match) => ({
+    source: "thefork", url: match.item.url!, placeRef: String(match.item.id), name: match.item.name!,
+    confidence: match === onlyConfident ? "confident" : "uncertain", autoAccept: match === onlyConfident,
+    reviewCount: match.item.thefork_review_count ?? null,
+    evidence: { distanceMeters: match.distance, phoneMatch: null, nameSimilarity: match.score },
   }));
 }
 

@@ -6,7 +6,7 @@ import { proposeTheForkListings } from "@/app/api/v1/lookups/preview/preview";
 import { ApifyError, apifyConfigured, searchTheFork } from "@/ingest/apify";
 import { db } from "@/lib/db";
 import { addVendorCost, createJob, finishJob, setStep } from "@/lib/job";
-import { raiseListingQuestions } from "@/lib/owner-question";
+import { autoAcceptTheFork, raiseListingQuestions } from "@/lib/owner-question";
 import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
 import { sendPush } from "@/lib/push-send";
 import { spendCapStatus } from "@/lib/spend-cap";
@@ -45,8 +45,11 @@ export async function runTheForkMatch(restaurantId: number, opts: { jobId?: numb
     );
     // sql.begin only resolves once the transaction commits, so a rolled-back question never notifies.
     const questionIds = candidates.length ? await sql.begin((tx) => raiseListingQuestions(tx, restaurantId, candidates)) : [];
+    // One confident candidate is accepted at once (ADR-0005) and then needs no push. While the Lookup still runs
+    // this does nothing, and the Lookup accepts it when it finishes.
+    const accepted = questionIds.length > 0 && await autoAcceptTheFork(restaurantId).catch(() => false);
     // A failed push must not mark the search failed once its questions are committed.
-    for (const questionId of questionIds) await sendPush("owner_question", restaurantId, questionId).catch(() => undefined);
+    if (!accepted) for (const questionId of questionIds) await sendPush("owner_question", restaurantId, questionId).catch(() => undefined);
     await setStep(jobId, "TheFork searched", { theFork: { searched: found.items.length, candidates: candidates.length } });
     // Not finishJob: its success path settles failed_lookup questions, which belong to the Lookup, not to this Job.
     await sql`update job set status = 'succeeded', finished_at = now(), updated_at = now() where id = ${jobId}`;

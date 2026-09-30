@@ -123,6 +123,7 @@ export async function answerListingQuestion(
   slug: string,
   source: ListingSource,
   answer: { answer: "accept"; placeRef: string } | { answer: "none" },
+  provenance: "proposed_confirmed" | "auto_accepted" = "proposed_confirmed",
 ): Promise<Response> {
   const sql = db();
   const [restaurant] = await sql`select id from restaurant where slug = ${slug}`;
@@ -159,7 +160,7 @@ export async function answerListingQuestion(
     if (!candidate) throw new ApiError(400, "invalid_request", "Choose one of the proposed Listings");
     const [listing] = await tx`
       insert into listing (restaurant_id, source_code, place_ref, url, match_provenance, source_review_count)
-      values (${restaurantId}, ${source}, ${candidate.placeRef}, ${candidate.url}, 'proposed_confirmed', ${candidate.reviewCount})
+      values (${restaurantId}, ${source}, ${candidate.placeRef}, ${candidate.url}, ${provenance}, ${candidate.reviewCount})
       returning id`;
     const [job] = await tx`
       insert into job (kind, restaurant_id, status, step) values ('listing_fetch', ${restaurantId}, 'queued', 'Listings matched') returning id`;
@@ -176,4 +177,27 @@ export async function answerListingQuestion(
     throw error;
   }
   return acceptedJobResponse(fetchJobId);
+}
+
+/**
+ * Accepts the one confident TheFork candidate of an open question, as ADR-0005 allows. TheFork
+ * matching and the Lookup run side by side, so whichever finishes second calls this; while the
+ * Lookup is still running nothing happens and the question stays open for the other caller.
+ * Returns whether a Listing was accepted.
+ */
+export async function autoAcceptTheFork(restaurantId: number): Promise<boolean> {
+  const [question] = await db()`
+    select r.slug, q.payload from owner_question q join restaurant r on r.id = q.restaurant_id
+    where q.restaurant_id = ${restaurantId} and q.source_code = 'thefork' and q.kind = 'listing_match' and q.status = 'open'
+    order by q.id desc limit 1`;
+  if (!question) return false;
+  const confident = questionCandidates(question.payload).filter((candidate) => candidate.autoAccept);
+  if (confident.length !== 1) return false;
+  try {
+    await answerListingQuestion(question.slug as string, "thefork", { answer: "accept", placeRef: confident[0]!.placeRef }, "auto_accepted");
+    return true;
+  } catch (error) {
+    if (error instanceof ApiError && (error.code === "lookup_in_progress" || error.code === "already_settled")) return false;
+    throw error;
+  }
 }

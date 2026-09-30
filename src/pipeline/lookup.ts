@@ -15,7 +15,7 @@ import { storeListingFetch } from "@/ingest/store";
 import { db } from "@/lib/db";
 import { raiseChangePointProposal } from "@/lib/change-point-proposal";
 import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage, type LookupStage } from "@/lib/job";
-import { raiseFailedLookupQuestion, raiseFormatQuestion, raiseSourceRetryQuestions } from "@/lib/owner-question";
+import { raiseFailedLookupQuestion, raiseFormatQuestion, raiseSourceRetryQuestions, autoAcceptTheFork } from "@/lib/owner-question";
 import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
 import { spendCapStatus } from "@/lib/spend-cap";
 import { sendPush } from "@/lib/push-send";
@@ -345,6 +345,8 @@ export async function runLookup(
     stage = "judge";
     const judged = await judgeRestaurant(restaurantId, jobId);
     await finishJob(jobId);
+    // TheFork matching finishes first and cannot accept while this Lookup runs: accept its confident candidate now.
+    await autoAcceptTheFork(restaurantId).catch(() => undefined);
     return { jobId, ingest, extraction, ...judged };
   } catch (e) {
     const error = toPipelineError(e);
@@ -405,6 +407,8 @@ export async function runSourceRetry(
     await db()`update owner_question set status = 'answered', settled_at = now()
       where id = ${questionId} and restaurant_id = ${restaurantId} and kind = 'retry_source' and status = 'open'`;
     await finishJob(jobId);
+    // TheFork matching finishes first and cannot accept while this Lookup runs: accept its confident candidate now.
+    await autoAcceptTheFork(restaurantId).catch(() => undefined);
     return { jobId, ingest, extraction, ...judged };
   } catch (error) {
     await finishJob(jobId, toPipelineError(error), stage);

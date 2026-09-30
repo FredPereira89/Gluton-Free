@@ -127,16 +127,33 @@ describe("proposeTheForkListings", () => {
   const restaurant = { name: "Casa do Bacalhau", lat: 38.7139, lng: -9.1334 };
   const nearby = { id: 101, name: "Casa do Bacalhau", url: "https://www.thefork.com/restaurant/casa-do-bacalhau-r101", latitude: 38.7141, longitude: -9.1334, thefork_review_count: 60 };
 
-  it("reports distance, name similarity and an unknown phone match, and never auto-accepts", () => {
+  it("reports distance and name similarity, and auto-accepts the one near-identical name within 100 m", () => {
     const [listing] = proposeTheForkListings(restaurant, [nearby]);
     expect(listing).toMatchObject({
       source: "thefork", placeRef: "101", url: nearby.url, name: "Casa do Bacalhau",
-      confidence: "uncertain", autoAccept: false, reviewCount: 60,
+      confidence: "confident", autoAccept: true, reviewCount: 60,
     });
     expect(listing!.evidence.phoneMatch).toBeNull();
     expect(listing!.evidence.nameSimilarity).toBe(1);
     expect(listing!.evidence.distanceMeters).toBeGreaterThan(15);
     expect(listing!.evidence.distanceMeters).toBeLessThan(30);
+  });
+
+  it("asks instead when the name is identical but the place is 100-300 m away", () => {
+    const [listing] = proposeTheForkListings(restaurant, [{ ...nearby, latitude: 38.7159 }]);
+    expect(listing!.evidence.distanceMeters).toBeGreaterThan(100);
+    expect(listing).toMatchObject({ confidence: "uncertain", autoAccept: false });
+  });
+
+  it("asks instead when the name is only similar, even right next door", () => {
+    const [listing] = proposeTheForkListings(restaurant, [{ ...nearby, name: "Casa Bacalhau Grill" }]);
+    expect(listing).toMatchObject({ confidence: "uncertain", autoAccept: false });
+  });
+
+  it("asks instead when two near-identical neighbours qualify, and when the distance is unknown", () => {
+    const twin = { ...nearby, id: 102, url: "https://www.thefork.com/restaurant/casa-do-bacalhau-r102", latitude: 38.7142 };
+    expect(proposeTheForkListings(restaurant, [nearby, twin]).map((listing) => listing.autoAccept)).toEqual([false, false]);
+    expect(proposeTheForkListings({ ...restaurant, lat: null, lng: null }, [nearby])[0]).toMatchObject({ autoAccept: false });
   });
 
   it("drops candidates that are far away or have an unrelated name, and ranks the rest by name", () => {
