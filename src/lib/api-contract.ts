@@ -439,6 +439,11 @@ export const routes = {
     request: { params: z.strictObject({ slug: z.string().min(1) }) },
     responses: { 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
   },
+  addTheForkLink: {
+    method: "POST", path: "/api/v1/restaurants/{slug}/thefork-link", auth: "owner",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: z.strictObject({ url: z.string().min(1).max(500) }) },
+    responses: { 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
   undoListing: {
     method: "DELETE", path: "/api/v1/restaurants/{slug}/listings/{source}", auth: "owner",
     request: { params: z.strictObject({ slug: z.string().min(1), source: z.enum(LISTING_SOURCES) }) },

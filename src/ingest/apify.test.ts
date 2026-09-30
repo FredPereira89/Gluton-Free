@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchTheForkListing, searchTheFork } from "./apify";
+import { fetchTheForkListing, parseTheForkUrl, searchTheFork } from "./apify";
 
 type Call = { method: string; path: string; search: URLSearchParams; body: unknown };
 
@@ -56,6 +56,25 @@ describe("searchTheFork", () => {
     vi.mocked(fetch).mockImplementationOnce(async () => json([{ ...nearbyItem, url: "https://www.thefork.com/restaurants/lisbon-c1" }, { name: "No url" }]));
     const { items } = await searchTheFork({ lat: 1, lng: 2 });
     expect(items).toEqual([]);
+  });
+});
+
+describe("parseTheForkUrl", () => {
+  it("keeps the restaurant id and drops the query and fragment", () => {
+    expect(parseTheForkUrl(" https://www.thefork.com/restaurant/invented-copper-spoon-r90101/?utm_source=x#reviews ")).toEqual({
+      placeRef: "90101", url: "https://www.thefork.com/restaurant/invented-copper-spoon-r90101",
+    });
+  });
+
+  it.each([
+    "https://www.thefork.com/restaurants/lisbon-c1",
+    "https://www.thefork.com/restaurant/invented-copper-spoon",
+    "http://www.thefork.com/restaurant/invented-copper-spoon-r90101",
+    "https://example.com/restaurant/invented-copper-spoon-r90101",
+    "https://www.thefork.com/restaurant/a/b-r1",
+    "not a url",
+  ])("rejects %s", (input) => {
+    expect(parseTheForkUrl(input)).toBeNull();
   });
 });
 
