@@ -439,6 +439,9 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
           <OwnerQuestions slug={page.restaurant.slug} questions={page.ownerQuestions} />
         </div>
       )}
+      {page.unavailableSources.map((unavailable) => (
+        <p className="small muted" role="status" key={unavailable.source}>{unavailable.detail}</p>
+      ))}
     </section>
   );
 }

@@ -8,6 +8,7 @@ import { db } from "./db";
 import { markJobStartFailed } from "./job";
 import { raiseListingQuestions } from "./owner-question";
 import { ApiError } from "./problem";
+import { startTheForkMatch } from "./thefork-match-start";
 import { sendPush } from "./push-send";
 import { recordSearchCost, spendCapStatus } from "./spend-cap";
 
@@ -103,5 +104,7 @@ export async function startLookup(input: Input): Promise<Started> {
     await markJobStartFailed(result.jobId, "Could not start lookup");
     throw error;
   }
+  // Beside the Lookup, never before or inside it: TheFork trouble must not touch the Verdict.
+  await startTheForkMatch(result.restaurantId);
   return result;
 }

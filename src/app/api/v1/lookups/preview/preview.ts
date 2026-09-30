@@ -1,10 +1,11 @@
 import { depthFor, getTripadvisorSearch, type TripadvisorSearchItem } from "@/ingest/dataforseo";
+import type { TheForkSearchItem } from "@/ingest/apify";
 import { PARAMS } from "@/verdict/rollup";
 import { nameSimilarity } from "../../search/input";
 
 export type PreviewEvidence = { distanceMeters: number | null; phoneMatch: boolean | null; nameSimilarity: number };
 export type PreviewListing = {
-  source: "google" | "tripadvisor";
+  source: "google" | "tripadvisor" | "thefork";
   url: string;
   placeRef: string;
   name: string;
@@ -51,6 +52,42 @@ export function proposeTripadvisorListings(googleName: string, candidates: Tripa
     confidence: "uncertain", autoAccept: false,
     reviewCount: item.reviews_count ?? item.rating?.votes_count ?? null,
     evidence: { distanceMeters: null, phoneMatch: null, nameSimilarity: score },
+  }));
+}
+
+// TheFork exposes coordinates but no phone, so phone match stays unknown. ADR-0005 would allow
+// auto-accepting a near-identical name within ~100 m, but TheFork matching runs beside the Lookup
+// (#63) and the issue asks for an Owner question, so every candidate is asked about.
+const MAX_THEFORK_DISTANCE_METERS = 300;
+const MAX_THEFORK_CANDIDATES = 3;
+
+function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const rad = Math.PI / 180;
+  const h = Math.sin(((b.lat - a.lat) * rad) / 2) ** 2
+    + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.sqrt(h));
+}
+
+/** Keeps TheFork restaurants that are near the Restaurant and share a plausible name. */
+export function proposeTheForkListings(
+  restaurant: { name: string; lat: number | null; lng: number | null },
+  candidates: TheForkSearchItem[],
+): PreviewListing[] {
+  const matches: { item: TheForkSearchItem; score: number; distance: number | null }[] = [];
+  for (const item of candidates) {
+    if (item.id == null || !item.name || !item.url) continue;
+    const score = nameSimilarity(restaurant.name, item.name);
+    const here = restaurant.lat != null && restaurant.lng != null && item.latitude != null && item.longitude != null
+      ? distanceMeters({ lat: restaurant.lat, lng: restaurant.lng }, { lat: item.latitude, lng: item.longitude })
+      : null;
+    if (score < MIN_PROPOSAL_NAME_SIMILARITY || (here !== null && here > MAX_THEFORK_DISTANCE_METERS)) continue;
+    if (matches.some((match) => String(match.item.id) === String(item.id))) continue;
+    matches.push({ item, score, distance: here === null ? null : Math.round(here) });
+  }
+  return matches.sort((a, b) => b.score - a.score).slice(0, MAX_THEFORK_CANDIDATES).map(({ item, score, distance }) => ({
+    source: "thefork", url: item.url!, placeRef: String(item.id), name: item.name!,
+    confidence: "uncertain", autoAccept: false, reviewCount: item.thefork_review_count ?? null,
+    evidence: { distanceMeters: distance, phoneMatch: null, nameSimilarity: score },
   }));
 }
 

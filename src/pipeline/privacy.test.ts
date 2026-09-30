@@ -28,6 +28,7 @@ let sql: postgres.Sql | undefined;
 const oldUrl = process.env.SUPABASE_DB_URL;
 const oldLogin = process.env.DATAFORSEO_LOGIN;
 const oldPassword = process.env.DATAFORSEO_PASSWORD;
+const oldApifyToken = process.env.APIFY_TOKEN;
 const unexpectedRequests: string[] = [];
 const logSpies: ReturnType<typeof vi.spyOn>[] = [];
 const logged: unknown[] = [];
@@ -40,6 +41,12 @@ async function privacyVendorFetch(input: RequestInfo | URL, init?: RequestInit):
   const url = new URL(String(input));
   if (url.pathname.includes("/storage/v1/")) unexpectedRequests.push(url.pathname);
   const response = await fakeVendorFetch(input, init);
+  if (url.pathname === "/v2/datasets/thefork-reviews/items") {
+    const items = await response.json();
+    for (const review of items[0].reviews) Object.assign(review, privacy.thefork.review);
+    items[0].raw_payload_marker = privacy.rawMarker;
+    return new Response(JSON.stringify(items), { status: 200, headers: { "content-type": "application/json" } });
+  }
   if (!url.pathname.includes("/task_get/")) return response;
   const body = await response.json();
   const result = body.tasks?.[0]?.result?.[0];
@@ -69,6 +76,7 @@ beforeAll(async () => {
   }
   process.env.DATAFORSEO_LOGIN = "invented-test-login";
   process.env.DATAFORSEO_PASSWORD = "invented-test-password";
+  process.env.APIFY_TOKEN = "invented-apify-token";
   containerId = docker("run", "--rm", "-d", "-e", "POSTGRES_PASSWORD=pipeline-privacy-test-only", "-p", "127.0.0.1::5432", "postgres:16-alpine");
   const port = Number(docker("port", containerId, "5432/tcp").match(/:(\d+)$/)?.[1]);
   if (!port) throw new Error("Docker did not assign a Postgres port");
@@ -101,6 +109,8 @@ afterAll(async () => {
     else process.env.DATAFORSEO_LOGIN = oldLogin;
     if (oldPassword === undefined) delete process.env.DATAFORSEO_PASSWORD;
     else process.env.DATAFORSEO_PASSWORD = oldPassword;
+    if (oldApifyToken === undefined) delete process.env.APIFY_TOKEN;
+    else process.env.APIFY_TOKEN = oldApifyToken;
   }
 });
 
@@ -115,17 +125,20 @@ describe("Lookup privacy", () => {
     await database`
       insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
       values (${restaurantId}, 'google', 'invented-google-place', 'https://example.invalid/google', 'pasted'),
-             (${restaurantId}, 'tripadvisor', 'invented-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted')`;
+             (${restaurantId}, 'tripadvisor', 'invented-tripadvisor-path', 'https://example.invalid/tripadvisor', 'pasted'),
+             (${restaurantId}, 'thefork', '90101', 'https://www.thefork.com/restaurant/invented-copper-spoon-r90101', 'pasted')`;
 
     const { runLookup } = await import("./lookup");
     const result = await runLookup(restaurantId, async () => {});
     expect(result.ingest?.google).toMatchObject({ inserted: 8, droppedThirdParty: 4 });
     expect(result.ingest?.tripadvisor).toMatchObject({ inserted: 8, droppedThirdParty: 0 });
+    expect(result.ingest?.thefork).toMatchObject({ inserted: 8, droppedThirdParty: 0 });
 
     const reviews = await database`select * from review order by source_review_id`;
-    expect(reviews).toHaveLength(16);
+    expect(reviews).toHaveLength(24);
     expect(reviews.map((review) => review.source_review_id)).toEqual([
       ...Array.from({ length: 8 }, (_, index) => `invented-google-${index + 1}`),
+      ...Array.from({ length: 8 }, (_, index) => `invented-thefork-review-${index + 1}`),
       ...Array.from({ length: 8 }, (_, index) => `invented-tripadvisor-${index + 1}`),
     ]);
     expect(Object.keys(reviews[0]!).sort()).toEqual([
@@ -149,6 +162,7 @@ describe("Lookup privacy", () => {
       privacy.tripadvisor.user_profile.avatar, privacy.tripadvisor.user_profile.profile_url,
       privacy.tripadvisor.url, privacy.tripadvisor.responses[0]!.text,
       privacy.tripadvisor.responses[0]!.staff_name, "Invented Staff Text PII",
+      ...Object.values(privacy.thefork.review), ...fixture.thefork.reviews.map((review) => review.reviewer),
       ...privacy.thirdPartyReviews.map((review) => review.review_text),
       ...privacy.thirdPartyReviews.map((review) => review.review_id),
     ];

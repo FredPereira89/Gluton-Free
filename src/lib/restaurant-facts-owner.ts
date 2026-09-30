@@ -7,6 +7,7 @@ import {
   restaurantFactsUpdateResponseSchema,
 } from "./api-contract";
 import { db } from "./db";
+import { findBlockingJob } from "./job";
 import { ApiError } from "./problem";
 
 type Update = z.infer<typeof restaurantFactsUpdateBodySchema>;
@@ -23,9 +24,7 @@ export async function updateRestaurantFacts(slug: string, update: Update): Promi
     const priceProvided = priceTier !== undefined;
     const formatChanged = format !== undefined && format !== restaurant.format;
 
-    const [activeJob] = await tx`
-      select id from job where restaurant_id = ${restaurantId} and status in ('queued', 'running')
-      order by id desc limit 1`;
+    const activeJob = await findBlockingJob(tx, restaurantId);
     if (activeJob) throw new ApiError(409, "job_in_progress", "Wait for the current job to finish before changing Restaurant details");
 
     if (format !== undefined && priceTier !== undefined) {

@@ -1,7 +1,8 @@
+import type postgres from "postgres";
 import { db } from "./db";
 import type { PipelineError } from "./pipeline-error";
 
-export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot" | "listing_fetch" | "rejudge";
+export type JobKind = "lookup" | "refresh" | "baseline" | "snapshot" | "listing_fetch" | "rejudge" | "source_match";
 export const LOOKUP_STAGES = ["Listings matched", "Reviews fetched", "window extracted", "flags verified", "signals checked", "judged and explained", "notified"] as const;
 export type LookupStageName = typeof LOOKUP_STAGES[number];
 
@@ -67,4 +68,15 @@ export async function finishJob(jobId: number, error?: PipelineError, failedStag
       where kind = 'failed_lookup' and status = 'open'
         and restaurant_id = (select restaurant_id from job where id = ${jobId})`;
   }
+}
+
+/**
+ * A queued or running job that must finish before the owner changes the Restaurant. `source_match`
+ * (TheFork matching) runs beside the Lookup and never blocks owner edits.
+ */
+export async function findBlockingJob(tx: postgres.TransactionSql, restaurantId: number): Promise<{ id: number } | undefined> {
+  const [job] = await tx`
+    select id from job where restaurant_id = ${restaurantId} and kind <> 'source_match' and status in ('queued', 'running')
+    order by id desc limit 1`;
+  return job ? { id: Number(job.id) } : undefined;
 }

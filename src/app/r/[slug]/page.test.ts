@@ -70,7 +70,7 @@ function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20):
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: null, blocks: { rollup: r, quotes: [] } },
     sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
       rating: 4.9, reviewCount: 20, textCount: 20, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
-    distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
+    distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [], unavailableSources: [],
   };
 }
 
@@ -95,7 +95,7 @@ function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBund
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: r.peerSnapshot?.id ?? null, blocks: { rollup: r, quotes: [] } },
     sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
       rating: 4.9, reviewCount, textCount: reviewCount, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
-    distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [],
+    distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [], unavailableSources: [],
   };
 }
 

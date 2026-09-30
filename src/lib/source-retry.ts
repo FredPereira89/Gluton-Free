@@ -1,11 +1,12 @@
 import { tasks } from "@trigger.dev/sdk";
 import { db } from "./db";
 import { acceptedJobResponse } from "./api-contract";
-import { markJobStartFailed } from "./job";
+import { findBlockingJob, markJobStartFailed } from "./job";
+import type { ListingSource } from "./listing-source";
 import { ApiError } from "./problem";
 
 /** Queues a retry for a failed Crowd Source while leaving its Owner question open until re-judging finishes. */
-export async function retrySource(slug: string, source: "google" | "tripadvisor"): Promise<Response> {
+export async function retrySource(slug: string, source: ListingSource): Promise<Response> {
   const sql = db();
   const { restaurantId, listingId, questionId, jobId } = await sql.begin(async (tx) => {
     const [restaurant] = await tx`select id from restaurant where slug = ${slug} for update`;
@@ -19,9 +20,7 @@ export async function retrySource(slug: string, source: "google" | "tripadvisor"
     if (!question) throw new ApiError(404, "not_found", "No retry question for that Source");
     if (question.status !== "open") throw new ApiError(409, "already_settled", "This Owner question was already settled");
 
-    const [activeJob] = await tx`
-      select id from job where restaurant_id = ${restaurantId} and status in ('queued', 'running')
-      order by id desc limit 1`;
+    const activeJob = await findBlockingJob(tx, restaurantId);
     if (activeJob) throw new ApiError(409, "job_in_progress", "A Restaurant job is already running. Try again after it finishes.");
 
     const [listing] = await tx`

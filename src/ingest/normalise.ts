@@ -208,3 +208,67 @@ export function normaliseTripadvisor(raw: unknown): Normalised {
     droppedThirdParty: 0,
   };
 }
+
+const theForkReview = z.object({
+  id: z.union([z.string(), z.number()]).nullish(),
+  rating_value: num,
+  meal_date: str,
+  review_body: str,
+});
+
+const theForkResult = z.object({
+  id: z.union([z.string(), z.number()]).nullish(),
+  name: str,
+  street: str,
+  locality: str,
+  thefork_rating: num,
+  thefork_review_count: num,
+  avg_price: num,
+  // reviewer_name and every other reviewer field are stripped here and never read.
+  reviews: z.array(theForkReview).nullish(),
+});
+
+const THEFORK_MAX_REVIEWS = 100;
+
+/** TheFork rates 0-10; the pipeline works on 1-5. */
+function theForkStars(v: number | null | undefined): number | null {
+  return typeof v === "number" && v > 0 ? Math.min(5, Math.max(1, Math.round(v / 2))) : null;
+}
+
+export function normaliseTheFork(raw: unknown): Normalised {
+  const r = theForkResult.parse(raw);
+  const reviews: NormalisedReview[] = [];
+  for (const it of r.reviews ?? []) {
+    const publishedAt = date(it.meal_date);
+    if (it.id == null || !publishedAt) continue;
+    reviews.push({
+      sourceReviewId: String(it.id),
+      stars: theForkStars(it.rating_value),
+      publishedAt,
+      language: null,
+      text: clean(it.review_body),
+      subRatings: null,
+      reviewerReviewCount: null,
+      localGuide: null,
+      reviewerContributions: null,
+      photoCount: null,
+      visitedOn: publishedAt.toISOString().slice(0, 10),
+      ownerReplied: false,
+    });
+  }
+  // The actor is asked for the newest 100, but its cap and order are not ours to trust: store no more.
+  reviews.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+  reviews.length = Math.min(reviews.length, THEFORK_MAX_REVIEWS);
+  return {
+    facts: {
+      title: r.name ?? null,
+      address: [r.street, r.locality].filter(Boolean).join(", ") || null,
+      placeRef: r.id == null ? null : String(r.id),
+      rating: typeof r.thefork_rating === "number" && r.thefork_rating > 0 ? Math.round(r.thefork_rating * 50) / 100 : null,
+      reviewCount: r.thefork_review_count ?? null,
+      priceLevel: typeof r.avg_price === "number" && r.avg_price > 0 ? String(r.avg_price) : null,
+    },
+    reviews,
+    droppedThirdParty: 0,
+  };
+}

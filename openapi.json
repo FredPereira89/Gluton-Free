@@ -3727,7 +3727,8 @@
                                 "type": "string",
                                 "enum": [
                                   "google",
-                                  "tripadvisor"
+                                  "tripadvisor",
+                                  "thefork"
                                 ]
                               },
                               "prompt": {
@@ -3799,6 +3800,28 @@
                           }
                         ]
                       }
+                    },
+                    "unavailableSources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "thefork"
+                            ]
+                          },
+                          "detail": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -3810,7 +3833,8 @@
                     "series",
                     "changePoints",
                     "activeJob",
-                    "ownerQuestions"
+                    "ownerQuestions",
+                    "unavailableSources"
                   ],
                   "additionalProperties": false
                 }
@@ -5461,7 +5485,8 @@
               "type": "string",
               "enum": [
                 "google",
-                "tripadvisor"
+                "tripadvisor",
+                "thefork"
               ]
             }
           }
@@ -5630,7 +5655,8 @@
               "type": "string",
               "enum": [
                 "google",
-                "tripadvisor"
+                "tripadvisor",
+                "thefork"
               ]
             }
           }
@@ -6714,7 +6740,8 @@
               "type": "string",
               "enum": [
                 "google",
-                "tripadvisor"
+                "tripadvisor",
+                "thefork"
               ]
             }
           }

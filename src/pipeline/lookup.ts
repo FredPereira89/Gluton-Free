@@ -9,13 +9,15 @@ import { reproposesFormat } from "@/domain/aspects";
 import { choosePriceTier } from "@/domain/restaurant-facts";
 import { verifyPendingFlags } from "@/analysis/verify";
 import { depthFor, getReviewTask, postReviewTask, type DfsSource, type ReviewTaskParams } from "@/ingest/dataforseo";
-import { normaliseGoogle, normaliseTripadvisor } from "@/ingest/normalise";
+import { ApifyError, fetchTheForkListing } from "@/ingest/apify";
+import { normaliseGoogle, normaliseTheFork, normaliseTripadvisor } from "@/ingest/normalise";
 import { storeListingFetch } from "@/ingest/store";
 import { db } from "@/lib/db";
 import { raiseChangePointProposal } from "@/lib/change-point-proposal";
 import { addLlmUsage, addVendorCost, createJob, finishJob, setStep, type LlmUsage, type LookupStage } from "@/lib/job";
 import { raiseFailedLookupQuestion, raiseFormatQuestion, raiseSourceRetryQuestions } from "@/lib/owner-question";
 import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
+import { spendCapStatus } from "@/lib/spend-cap";
 import { sendPush } from "@/lib/push-send";
 import { issueVerdict, loadNewestChangePoint } from "@/verdict/issue";
 import { PARAMS } from "@/verdict/rollup";
@@ -33,6 +35,7 @@ const MAX_TASK_GET_FAILURES = 3;
 const SOURCE_FETCH_ERROR = "The Reviews vendor could not complete this request. Retry in a few minutes.";
 
 type ListingRow = { id: number; source: DfsSource; placeRef: string };
+type TheForkRow = { id: number; url: string };
 
 function taskParams(l: ListingRow, depth: number): ReviewTaskParams {
   return l.source === "google" ? { source: "google", placeId: l.placeRef, depth } : { source: "tripadvisor", urlPath: l.placeRef, depth };
@@ -104,6 +107,27 @@ async function runVendorTasks(
   return { results, failures };
 }
 
+/** Fetches and stores one TheFork Listing under the daily spend cap. Returns the failure, or undefined on success. */
+async function fetchTheForkReviews(
+  listing: TheForkRow,
+  jobId: number,
+  summary: Record<string, { fetched: number; inserted: number; droppedThirdParty: number }>,
+): Promise<unknown> {
+  try {
+    if ((await spendCapStatus()).atCap) throw new PipelineError("spend_cap_reached", "Daily vendor spend cap reached. Retry after it resets.");
+    const fetched = await fetchTheForkListing(listing.url);
+    await addVendorCost(jobId, fetched.costUsd);
+    const normalised = normaliseTheFork(fetched.item); // drops reviewer identity; the raw item goes out of scope here
+    const { inserted } = await storeListingFetch(listing.id, normalised);
+    summary.thefork = { fetched: normalised.reviews.length, inserted, droppedThirdParty: 0 };
+    return undefined;
+  } catch (error) {
+    if (error instanceof ApifyError && error.costUsd) await addVendorCost(jobId, error.costUsd);
+    await db()`update listing set fetch_status = 'failed', fetch_error = ${SOURCE_FETCH_ERROR} where id = ${listing.id}`;
+    return error;
+  }
+}
+
 /**
  * Fetches every Review of every Listing: a depth-10 probe for the count, then the full depth.
  * With `sample`, fetches only the newest `sample` Reviews per Listing and skips the probe.
@@ -112,8 +136,10 @@ async function runVendorTasks(
 export async function ingestRestaurant(restaurantId: number, jobId: number, sleep: Sleep, sample?: number, listingId?: number) {
   const sql = db();
   const scope = listingId ? sql`and id = ${listingId}` : sql``;
-  const rows = await sql`select id, source_code, place_ref from listing where restaurant_id = ${restaurantId} ${scope} order by id`;
-  const listings: ListingRow[] = rows.map((r) => ({ id: Number(r.id), source: r.source_code as DfsSource, placeRef: r.place_ref as string }));
+  const rows = await sql`select id, source_code, place_ref, url from listing where restaurant_id = ${restaurantId} ${scope} order by id`;
+  const listings: ListingRow[] = rows.filter((r) => r.source_code !== "thefork")
+    .map((r) => ({ id: Number(r.id), source: r.source_code as DfsSource, placeRef: r.place_ref as string }));
+  const theForkListings: TheForkRow[] = rows.filter((r) => r.source_code === "thefork").map((r) => ({ id: Number(r.id), url: r.url as string }));
   await sql`update listing set fetch_status = 'fetching', fetch_error = null where restaurant_id = ${restaurantId} ${scope}`;
   try {
     let depthOf: (l: ListingRow) => number = () => sample!;
@@ -157,6 +183,12 @@ export async function ingestRestaurant(restaurantId: number, jobId: number, slee
       if (source) failedSources.add(source);
     }
     const summary: Record<string, { fetched: number; inserted: number; droppedThirdParty: number }> = {};
+    for (const l of theForkListings) {
+      const failure = await fetchTheForkReviews(l, jobId, summary);
+      if (!failure) continue;
+      failedSources.add("thefork");
+      firstVendorFailure ??= failure;
+    }
     for (const l of fetchListings) {
       const result = fullBatch.results.get(l.id);
       if (result === undefined) continue;

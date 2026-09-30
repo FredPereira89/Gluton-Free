@@ -18,8 +18,51 @@ function response(body: unknown): Response {
 /** Armed by a test to make the next Reviews task_post fail with a DataForSEO envelope-level error, as if the account ran out of balance. */
 export const vendorFailureState: { armed: boolean } = { armed: false };
 
+/** Apify's TheFork actor: every run starts READY, finishes on the first status poll, and reports what it charged. */
+export const apifyFakeState: {
+  mode: "ok" | "run_failed";
+  runs: { input: Record<string, unknown>; maxTotalChargeUsd: string | null; authorization: string | null }[];
+} = { mode: "ok", runs: [] };
+export const APIFY_FAKE_SEARCH_COST_USD = 0.06;
+export const APIFY_FAKE_REVIEWS_COST_USD = 0.1;
+export const APIFY_FAKE_FAILED_COST_USD = 0.01;
+
+function fakeApify(url: URL, init?: RequestInit): Response | null {
+  const headers = new Headers(init?.headers);
+  if (init?.method === "POST" && url.pathname === "/v2/acts/parsebird~thefork-scraper/runs") {
+    const input = JSON.parse(String(init.body)) as Record<string, unknown>;
+    apifyFakeState.runs.push({ input, maxTotalChargeUsd: url.searchParams.get("maxTotalChargeUsd"), authorization: headers.get("authorization") });
+    const reviews = Array.isArray(input.startUrls);
+    return response({ data: { id: reviews ? "run-reviews" : "run-search", defaultDatasetId: reviews ? "thefork-reviews" : "thefork-search", status: "READY", usageTotalUsd: 0 } });
+  }
+  const run = /^\/v2\/actor-runs\/(run-search|run-reviews)$/.exec(url.pathname);
+  if (run) {
+    const reviews = run[1] === "run-reviews";
+    if (apifyFakeState.mode === "run_failed") return response({ data: { id: run[1], status: "FAILED", usageTotalUsd: APIFY_FAKE_FAILED_COST_USD } });
+    return response({ data: {
+      id: run[1], status: "SUCCEEDED", defaultDatasetId: reviews ? "thefork-reviews" : "thefork-search",
+      usageTotalUsd: reviews ? APIFY_FAKE_REVIEWS_COST_USD : APIFY_FAKE_SEARCH_COST_USD,
+    } });
+  }
+  if (url.pathname === "/v2/datasets/thefork-search/items") return response(fixture.thefork.search);
+  if (url.pathname === "/v2/datasets/thefork-reviews/items") {
+    return response([{
+      ...fixture.thefork.search[0],
+      reviews: fixture.thefork.reviews.map((review, index) => ({
+        id: `invented-thefork-review-${index + 1}`, rating_value: review.rating, review_body: review.text,
+        meal_date: new Date(Date.now() - index * 86400_000).toISOString().slice(0, 10), reviewer_name: review.reviewer, likes: 0,
+      })),
+    }]);
+  }
+  return null;
+}
+
 export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
+  if (url.hostname === "api.apify.com") {
+    const apifyResponse = fakeApify(url, init);
+    if (apifyResponse) return Promise.resolve(apifyResponse);
+  }
   if (url.hostname === "api.dataforseo.com" && url.pathname === "/v3/business_data/google/my_business_info/live") {
     const reference = JSON.parse(String(init?.body))[0].keyword as string;
     const placeId = reference.replace(/^place_id:/, "");

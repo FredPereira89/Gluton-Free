@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getTripadvisorSearch } from "@/ingest/dataforseo";
 import {
   estimateLookup, googleMapsUrl, pollTripadvisorSearch, predictNotEnoughEvidence, predictTextReviews,
-  proposeGoogleListing, proposeTripadvisorListings, tripadvisorUrl,
+  proposeGoogleListing, proposeTheForkListings, proposeTripadvisorListings, tripadvisorUrl,
 } from "./preview";
 
 vi.mock("@/ingest/dataforseo", async (importOriginal) => {
@@ -120,5 +120,39 @@ describe("pollTripadvisorSearch", () => {
     const result = await pollTripadvisorSearch("task-1", { attempts: 3, sleep: vi.fn().mockResolvedValue(undefined) });
     expect(result).toEqual({ items: [], cost: 0 });
     expect(getTripadvisorSearch).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("proposeTheForkListings", () => {
+  const restaurant = { name: "Casa do Bacalhau", lat: 38.7139, lng: -9.1334 };
+  const nearby = { id: 101, name: "Casa do Bacalhau", url: "https://www.thefork.com/restaurant/casa-do-bacalhau-r101", latitude: 38.7141, longitude: -9.1334, thefork_review_count: 60 };
+
+  it("reports distance, name similarity and an unknown phone match, and never auto-accepts", () => {
+    const [listing] = proposeTheForkListings(restaurant, [nearby]);
+    expect(listing).toMatchObject({
+      source: "thefork", placeRef: "101", url: nearby.url, name: "Casa do Bacalhau",
+      confidence: "uncertain", autoAccept: false, reviewCount: 60,
+    });
+    expect(listing!.evidence.phoneMatch).toBeNull();
+    expect(listing!.evidence.nameSimilarity).toBe(1);
+    expect(listing!.evidence.distanceMeters).toBeGreaterThan(15);
+    expect(listing!.evidence.distanceMeters).toBeLessThan(30);
+  });
+
+  it("drops candidates that are far away or have an unrelated name, and ranks the rest by name", () => {
+    const far = { ...nearby, id: 102, latitude: 38.75, longitude: -9.2 };
+    const other = { ...nearby, id: 103, name: "Sushi Palace" };
+    const looser = { ...nearby, id: 104, name: "Casa Bacalhau Grill", url: "https://www.thefork.com/restaurant/x-r104" };
+    const listings = proposeTheForkListings(restaurant, [looser, far, other, nearby]);
+    expect(listings.map((listing) => listing.placeRef)).toEqual(["101", "104"]);
+  });
+
+  it("keeps a plausible name when the restaurant has no coordinates, with distance unknown", () => {
+    const [listing] = proposeTheForkListings({ ...restaurant, lat: null, lng: null }, [nearby]);
+    expect(listing!.evidence.distanceMeters).toBeNull();
+  });
+
+  it("skips items without an id, name or URL and de-duplicates by id", () => {
+    expect(proposeTheForkListings(restaurant, [{ ...nearby, url: null }, { ...nearby, id: null }, nearby, nearby])).toHaveLength(1);
   });
 });
