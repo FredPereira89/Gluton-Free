@@ -180,4 +180,28 @@ describe("Peer snapshot publish", () => {
     expect(await database`select 1 from peer_snapshot_member where snapshot_id = ${result.snapshotId} and restaurant_id = ${late}`).toHaveLength(1);
     expect((await verdictsOf(late)).at(-1)).toMatchObject({ peer_snapshot_id: String(result.snapshotId) });
   }, 60_000);
+
+  it("fails the Job when a Verdict cannot be re-judged, and still records the LLM cost already spent", async () => {
+    const database = sql!;
+    // An outlier joining the Peers shifts the others' percentiles, so their explanations need rewriting.
+    const outlier = await seedRestaurant("outlier", 16, 2, 2);
+    const { issueVerdict } = await import("@/verdict/issue");
+    const { emptyUsage, JUDGE_MODEL } = await import("@/analysis/llm");
+    await issueVerdict(outlier, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
+
+    const respond = fakeAnthropic.messages.parse;
+    const parse = vi.spyOn(fakeAnthropic.messages, "parse").mockImplementation((async () => ({
+      ...(await respond()), parsed_output: null, stop_reason: "max_tokens",
+    })) as unknown as typeof respond);
+    const { runPeerSnapshotPublish } = await import("./snapshot-publish");
+    await expect(runPeerSnapshotPublish()).rejects.toThrow(/could not be re-judged/);
+    parse.mockRestore();
+
+    const [job] = await database`
+      select status, error_code, llm_usage, progress from job where kind = 'snapshot' order by id desc limit 1`;
+    const usage = job!.llm_usage as { cost_usd: number }[];
+    expect(job).toMatchObject({ status: "failed", error_code: "rejudge_failed" });
+    expect((job!.progress as { failed: number[] }).failed.length).toBeGreaterThan(0);
+    expect(usage.reduce((sum, u) => sum + u.cost_usd, 0)).toBeGreaterThan(0);
+  }, 60_000);
 });
