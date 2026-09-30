@@ -20,6 +20,7 @@ export type BaselineCandidate = {
   name: string;
   url: string;
   address: string | null;
+  phone?: string | null;
   area: string | null;
   latitude: number;
   longitude: number;
@@ -192,6 +193,7 @@ export async function runBaselineSweep(
       name: item.title!.trim(),
       url: item.url || `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(item.place_id!)}`,
       address: item.address ?? null,
+      phone: item.phone ?? null,
       area: item.address_info?.borough ?? item.address_info?.district ?? null,
       latitude: item.latitude!,
       longitude: item.longitude!,

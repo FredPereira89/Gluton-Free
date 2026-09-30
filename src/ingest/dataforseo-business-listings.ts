@@ -22,6 +22,7 @@ export type BusinessListing = {
   title?: string | null;
   url?: string | null;
   address?: string | null;
+  phone?: string | null;
   address_info?: { borough?: string | null; district?: string | null; city?: string | null } | null;
   latitude?: number | null;
   longitude?: number | null;

@@ -6,6 +6,8 @@ import { storeListingFetch } from "@/ingest/store";
 import { saveAnalyses } from "@/analysis/store";
 import type { Extracted } from "@/analysis/extract";
 import type { Normalised } from "@/ingest/normalise";
+import type { BaselineTripadvisorMatch } from "./baseline-tripadvisor";
+import type { BaselineAnalysis } from "./baseline-build";
 
 function slugPart(text: string): string {
   return normalizeBaselineLabel(text).replace(/_/g, "-").slice(0, 75) || "restaurant";
@@ -108,4 +110,49 @@ export async function persistBaselineBuild(candidates: BaselineBuiltCandidate[])
     storedAnalyses += results.size;
   }
   return { insertedRestaurants, storedReviews, storedAnalyses };
+}
+
+/** Attach only unclaimed automatic matches to persisted sampled Restaurants. */
+export async function persistBaselineTripadvisorMatches(
+  matches: BaselineTripadvisorMatch[], analysesByPlaceRef: Map<string, BaselineAnalysis[]>,
+): Promise<{ attached: number; storedReviews: number; storedAnalyses: number; conflicts: number }> {
+  const sql = db();
+  let attached = 0;
+  let storedReviews = 0;
+  let storedAnalyses = 0;
+  let conflicts = 0;
+  for (const match of matches) {
+    const [google] = await sql`
+      select r.id from restaurant r join listing l on l.restaurant_id = r.id
+      where l.source_code = 'google' and l.place_ref = ${match.googlePlaceId}`;
+    if (!google) { conflicts++; continue; }
+    const [inserted] = await sql`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance)
+      values (${google.id}, 'tripadvisor', ${match.placeRef}, ${match.url}, 'auto_accepted')
+      on conflict do nothing returning id`;
+    const [listing] = inserted ? [inserted] : await sql`
+      select id from listing where restaurant_id = ${google.id} and source_code = 'tripadvisor' and place_ref = ${match.placeRef}`;
+    if (!listing) { conflicts++; continue; }
+    attached++;
+    const listingId = Number(listing.id);
+    const stored = await storeListingFetch(listingId, { ...match.normalised, reviews: match.window });
+    storedReviews += stored.inserted;
+    const sourceIds = (analysesByPlaceRef.get(match.placeRef) ?? []).map((item) => item.sourceReviewId);
+    if (!sourceIds.length) continue;
+    const rows = await sql`
+      select id, source_review_id, text from review
+      where listing_id = ${listingId} and source_review_id in ${sql(sourceIds)}`;
+    const bySourceId = new Map(rows.map((row) => [String(row.source_review_id), { id: Number(row.id), text: row.text as string | null }]));
+    const extracted = new Map<number, Extracted>();
+    const texts = new Map<number, string>();
+    for (const item of analysesByPlaceRef.get(match.placeRef) ?? []) {
+      const saved = bySourceId.get(item.sourceReviewId);
+      if (!saved?.text) continue;
+      extracted.set(saved.id, { ...item.analysis, reviewId: saved.id });
+      texts.set(saved.id, saved.text);
+    }
+    await saveAnalyses(extracted, texts);
+    storedAnalyses += extracted.size;
+  }
+  return { attached, storedReviews, storedAnalyses, conflicts };
 }

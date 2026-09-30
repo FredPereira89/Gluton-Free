@@ -194,6 +194,7 @@ export function lookupDepthFor(reviewCount: number): number {
 
 export type TripadvisorSearchItem = {
   type?: string; title?: string | null; url_path?: string | null; category?: string | null;
+  phone?: string | null; latitude?: number | null; longitude?: number | null;
   reviews_count?: number | null;
   rating?: { value?: number | null; votes_count?: number | null } | null;
 };

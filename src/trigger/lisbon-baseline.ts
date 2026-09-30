@@ -8,6 +8,11 @@ import { fetchBaselineGoogleReviewWindows, runLisbonBaselineSweep } from "@/pipe
 import { runBaselineBuild, assertFrozenBaselineExtractorVersion } from "@/pipeline/baseline-build";
 import { BaselineSpendBudget } from "@/pipeline/baseline-budget";
 import { persistBaselineBuild } from "@/pipeline/baseline-persistence";
+import { persistBaselineTripadvisorMatches } from "@/pipeline/baseline-persistence";
+import { runBaselineTripadvisor } from "@/pipeline/baseline-tripadvisor";
+import { baselineTripadvisorVendor } from "@/pipeline/baseline-tripadvisor-vendor";
+import type { ExtractInput } from "@/analysis/extract";
+import type { BaselineAnalysis } from "@/pipeline/baseline-build";
 
 // The baseline can fan out to many DataForSEO calls; checkpoint Review polling in Trigger.dev.
 export const lisbonBaselineTask = schemaTask({
@@ -65,7 +70,48 @@ export const lisbonBaselineTask = schemaTask({
           await sql`update job set vendor_cost_usd = vendor_cost_usd + ${costUsd}, updated_at = now() where id = ${jobId}`;
         },
       });
-      const persisted = persist ? await persistBaselineBuild(build.candidates) : null;
+      const tripadvisor = await runBaselineTripadvisor(build.candidates,
+        baselineTripadvisorVendor((seconds) => wait.for({ seconds })), {
+          spend,
+          onProgress: async (step) => {
+            await sql`update job set step = ${step}, progress = ${sql.json({ phase: step } as never)}, updated_at = now() where id = ${jobId}`;
+          },
+          onCost: async (costUsd) => {
+            await sql`update job set vendor_cost_usd = vendor_cost_usd + ${costUsd}, updated_at = now() where id = ${jobId}`;
+          },
+        });
+      const tripadvisorInputs: ExtractInput[] = [];
+      const sourceById = new Map<number, { placeRef: string; sourceReviewId: string }>();
+      for (const match of tripadvisor.matches) {
+        for (const review of match.window) {
+          if (!review.text?.trim()) continue;
+          const id = tripadvisorInputs.length + 1;
+          tripadvisorInputs.push({ id, text: review.text, stars: review.stars });
+          sourceById.set(id, { placeRef: match.placeRef, sourceReviewId: review.sourceReviewId });
+        }
+      }
+      const extracted = await extractBaselineBatch(tripadvisorInputs, spend, {
+        sleep: (seconds) => wait.for({ seconds }),
+        onUsage: (usage) => addLlmUsage(jobId, usage),
+      });
+      const analysesByPlaceRef = new Map<string, BaselineAnalysis[]>();
+      for (const [id, analysis] of extracted.results) {
+        const source = sourceById.get(id);
+        if (!source) continue;
+        const entries = analysesByPlaceRef.get(source.placeRef) ?? [];
+        entries.push({ sourceReviewId: source.sourceReviewId, analysis });
+        analysesByPlaceRef.set(source.placeRef, entries);
+      }
+      const completeMatches = tripadvisor.matches.filter((match) => {
+        const count = match.window.filter((review) => review.text?.trim()).length;
+        if (analysesByPlaceRef.get(match.placeRef)?.length === count) return true;
+        tripadvisor.skipped.push({ googlePlaceId: match.googlePlaceId, reason: "extraction_failed", candidates: [match.evidence] });
+        return false;
+      });
+      const persisted = persist ? {
+        google: await persistBaselineBuild(build.candidates),
+        tripadvisor: await persistBaselineTripadvisorMatches(completeMatches, analysesByPlaceRef),
+      } : null;
       const summary = {
         candidateCount: report.candidates.length,
         initiallySampled: Object.values(build.initialSampleCounts).reduce((total, count) => total + (count ?? 0), 0),
@@ -80,8 +126,9 @@ export const lisbonBaselineTask = schemaTask({
           max: Math.max(0, ...Object.values(build.fetchedDepthByPlaceId)),
         },
         incompleteReviewWindowPlaceIds: build.incompleteReviewWindowPlaceIds,
+        tripadvisor: { matched: completeMatches.length, skipped: tripadvisor.skipped },
         dropped: report.dropped,
-        costsUsd: build.costsUsd,
+        costsUsd: spend.totals(),
         ...(persist ? { persisted } : {}),
       };
       await sql`
