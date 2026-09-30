@@ -291,6 +291,17 @@ describe("rollup", () => {
     expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("low") }).tier).not.toBe("avoid");
   });
 
+  it("forces Avoid on two high-severity scam_overcharge incidents but not on low or medium ones", () => {
+    const reviews = many(100, (i) => great(i));
+    const flags = (severity: "low" | "medium" | "high"): RollupFlag[] => reviews.slice(0, 2).map((rv) => ({
+      reviewId: rv.id, type: "scam_overcharge", severity, group: "money", firstHand: true,
+      verification: "confirmed", publishedAt: monthsAgo(1),
+    }));
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("high") }).tier).toBe("avoid");
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("medium") }).tier).not.toBe("avoid");
+    expect(rollup({ now: NOW, format: "tasca", reviews, flags: flags("low") }).tier).not.toBe("avoid");
+  });
+
   it("includes incidents on the exact 12-month and 6-month calendar boundaries", () => {
     const reviews = many(100, (i) => great(i));
     reviews[0]!.publishedAt = new Date("2025-09-01T00:00:00.000Z");
@@ -304,10 +315,10 @@ describe("rollup", () => {
     expect(r.tier).toBe("avoid");
   });
 
-  it("applies the same forcing rule to the money group", () => {
+  it("applies the same forcing rule to the money group at high severity", () => {
     const reviews = many(100, (i) => great(i));
     const flags: RollupFlag[] = reviews.slice(0, 2).map((r) => ({
-      reviewId: r.id, type: "scam_overcharge", group: "money", firstHand: true,
+      reviewId: r.id, type: "scam_overcharge", severity: "high", group: "money", firstHand: true,
       verification: "confirmed", publishedAt: monthsAgo(2),
     }));
     const r = rollup({ now: NOW, format: "tasca", reviews, flags });

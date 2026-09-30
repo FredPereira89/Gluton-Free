@@ -81,7 +81,7 @@ Said of a Verdict issued before its Peers have been gathered, judged against def
 _Avoid_: Draft, preliminary, beta
 
 **Red flag**:
-A verified, first-hand report in a Review of a health problem (food poisoning, poor hygiene, other safety) or a money problem (a scam, overcharging, an unordered couvert charged). Red flags that are recurring and recent force Avoid, but only grave ones: food poisoning, scam/overcharge, and other safety at high severity. Hygiene incidents (a hair in a dish, a dirty fork) are shown and block Life Changing but never force Avoid.
+A verified, first-hand report in a Review of a health problem (food poisoning, poor hygiene, other safety) or a money problem (a scam, overcharging, an unordered couvert charged). Red flags that are recurring and recent force Avoid, but only grave ones: food poisoning, plus scam/overcharge and other safety at high severity. Hygiene incidents (a hair in a dish, a dirty fork) are shown and block Life Changing but never force Avoid.
 _Avoid_: Warning, issue, complaint
 
 **Aspect**:

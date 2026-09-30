@@ -288,10 +288,10 @@ function monthsBefore(date: Date, months: number): Date {
   return result;
 }
 
-/** Hygiene never forces Avoid; other_safety does only at high severity (hospital, police). */
+/** Food poisoning always can; hygiene never; other_safety and scam_overcharge only at high severity (hospital, police, large sums). */
 function canForceAvoid(flag: RollupFlag): boolean {
   if (flag.type === "hygiene") return false;
-  if (flag.type === "other_safety") return flag.severity === "high";
+  if (flag.type === "other_safety" || flag.type === "scam_overcharge") return flag.severity === "high";
   return true;
 }
 
