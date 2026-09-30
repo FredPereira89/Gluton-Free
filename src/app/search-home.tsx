@@ -169,6 +169,17 @@ export default function SearchHome() {
     return () => { active = false; clearTimeout(timer); controller.abort(); };
   }, [query]);
 
+  function candidateRow(result: SearchResponse["candidates"][number]) {
+    return <div className="search-group" key={result.placeId}>
+      <button type="button" className="search-result" onClick={() => openPreview(result.placeId)}>
+        <ResultContent result={result} />
+        <span className="search-action">Preview →</span>
+      </button>
+      {previewFor === result.placeId
+        && <PreviewPanel loading={previewLoading} error={previewError} data={preview} onClose={() => setPreviewFor(null)} onStart={() => start(result.placeId)} starting={starting} startError={startError} />}
+    </div>;
+  }
+
   return <section className="index search-home">
     <h1>Find a Restaurant</h1>
     <p className="muted">Search by name, paste a Google Maps, Tripadvisor or TheFork link, or enter a Google place ID.</p>
@@ -186,9 +197,7 @@ export default function SearchHome() {
       {"slug" in results.recognised ? <Link className="search-result" href={`/r/${encodeURIComponent(results.recognised.slug)}`}>
         <ResultContent result={results.recognised} />
         <span className="search-action">Open Verdict →</span>
-      </Link> : <article className="search-result">
-        <ResultContent result={results.recognised} />
-      </article>}
+      </Link> : candidateRow(results.recognised)}
     </div>}
     {!!results.known.length && <div className="search-group">
       <h2>Already looked up</h2>
@@ -199,14 +208,7 @@ export default function SearchHome() {
     </div>}
     {!!results.candidates.length && <div className="search-group">
       <h2>New Restaurants</h2>
-      {results.candidates.map((result) => <div className="search-group" key={result.placeId}>
-        <button type="button" className="search-result" onClick={() => openPreview(result.placeId)}>
-          <ResultContent result={result} />
-          <span className="search-action">Preview →</span>
-        </button>
-        {previewFor === result.placeId
-          && <PreviewPanel loading={previewLoading} error={previewError} data={preview} onClose={() => setPreviewFor(null)} onStart={() => start(result.placeId)} starting={starting} startError={startError} />}
-      </div>)}
+      {results.candidates.map(candidateRow)}
     </div>}
     <Link href="/restaurants" className="small">Browse looked-up Restaurants</Link>
   </section>;

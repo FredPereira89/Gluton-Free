@@ -57,8 +57,35 @@ describe("GET /api/v1/search", () => {
     expect(body.candidates[0]).toMatchObject({ stars: 4.2, reviewCount: 12, priceTier: "€€" });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body))[0]).toMatchObject({
-      keyword: "casa", location_coordinate: "38.72,-9.14,17z", language_code: "pt",
+      keyword: "casa", location_coordinate: "38.7223,-9.1393,12z", language_code: "pt",
     });
+  });
+
+  it("searches a name across Lisbon whatever the caller's location, and lists the nearest same-named Restaurant first", async () => {
+    vi.mocked(searchKnownRestaurants).mockResolvedValueOnce([]);
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(vendor([
+      { ...item("north-id", "Mimo"), latitude: 38.77, longitude: -9.10 },
+      { ...item("south-id", "Mimo"), latitude: 38.7, longitude: -9.15 },
+      { ...item("unplaced-id", "Mimo"), latitude: null, longitude: null },
+    ]));
+    // A caller in Alverca, north-east of Lisbon: the northern Mimo is the nearer one.
+    const response = await GET(new Request("https://app.example/api/v1/search?q=mimo&near=38.89,-8.99"));
+    const body = routes.search.responses[200].parse(await response.json());
+    expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body))[0].location_coordinate).toBe("38.7223,-9.1393,12z");
+    expect(body.candidates.map((r) => r.placeId)).toEqual(["north-id", "south-id", "unplaced-id"]);
+    expect(body.candidates.every((r) => r.warnings.includes("same_name"))).toBe(true);
+  });
+
+  it("answers 'No Restaurants found' instead of failing when the vendor finds nothing", async () => {
+    vi.mocked(searchKnownRestaurants).mockResolvedValueOnce([]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ status_code: 20000, status_message: "Ok", tasks: [
+      { status_code: 40102, status_message: "No Search Results.", cost: 0.002, result: null },
+    ] }));
+    const response = await GET(new Request("https://app.example/api/v1/search?q=zzzz"));
+    const body = routes.search.responses[200].parse(await response.json());
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({ known: [], candidates: [], recognised: null, message: expect.stringContaining("No Restaurants found") });
+    expect(recordSearchCost).toHaveBeenCalledWith(0.002);
   });
 
   it("warns about shared names, outside Lisbon, and bars or cafés", async () => {

@@ -7,6 +7,8 @@ import { sameRestaurantName, searchInput } from "./input";
 import { sourcePriceTier } from "@/domain/restaurant-facts";
 
 export const LISBON = { lat: 38.7223, lng: -9.1393 };
+/** A zoom wide enough to cover the city: a name search must find Lisbon's Restaurants from wherever the caller stands. */
+const CITY_ZOOM = 12;
 
 function distanceMeters(from: { lat: number; lng: number }, item: MapsSearchItem): number | null {
   if (typeof item.latitude !== "number" || typeof item.longitude !== "number") return null;
@@ -60,7 +62,7 @@ export const GET = withApiErrors(async (request: Request) => {
   }
   const business = input.kind === "place_id" || input.kind === "cid"
     ? await googleBusinessByReference(`${input.kind === "cid" ? "cid" : "place_id"}:${input.value}`, near) : null;
-  const maps = input.kind === "place_id" || input.kind === "cid" ? null : await searchGoogleMaps(input.value, near);
+  const maps = input.kind === "place_id" || input.kind === "cid" ? null : await searchGoogleMaps(input.value, input.kind === "name" ? LISBON : near, input.kind === "name" ? CITY_ZOOM : undefined);
   await recordSearchCost(business?.cost ?? maps?.cost ?? 0);
   const resolved = business?.item ?? null;
   const searched = maps?.items ?? [];
@@ -109,6 +111,8 @@ export const GET = withApiErrors(async (request: Request) => {
       category, priceTier: sourcePriceTier("google", item.price_level ?? null), status: status(item) as SearchResponse["candidates"][number]["status"], warnings,
     });
   }
+  // The nearest same-named Restaurant is the likeliest one; a missing distance goes last.
+  if (input.kind === "name" && query.near) candidates.sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity));
   const known = knownRows.map(({ placeId: _placeId, ...row }) => row);
   const recognisedId = input.kind === "name" ? null : input.kind === "place_id" ? input.value : ids[0] ?? null;
   const recognised = recognisedId ? known.find((row) => knownRows.some((saved) => saved.slug === row.slug && saved.placeId === recognisedId))
@@ -118,6 +122,7 @@ export const GET = withApiErrors(async (request: Request) => {
     candidates: recognised && "placeId" in recognised ? [] : candidates,
     recognised,
     message: input.kind === "place_id" && !recognised ? "No Restaurant found for that Google place ID."
-      : input.kind === "cid" && !recognised ? "No Restaurant found for that Google Maps link." : null,
+      : input.kind === "cid" && !recognised ? "No Restaurant found for that Google Maps link."
+      : input.kind === "name" && !known.length && !candidates.length ? "No Restaurants found. Try another spelling, or paste its Google Maps link." : null,
   });
 });

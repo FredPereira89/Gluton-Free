@@ -1,4 +1,4 @@
-// DataForSEO Business Data API: Google and Tripadvisor Reviews (high-priority queue).
+// DataForSEO Business Data API: Google and Tripadvisor Reviews.
 // Responses carry reviewer identity; callers must map them through the whitelist in
 // normalise.ts in memory and never log or persist them.
 import { PipelineError } from "@/lib/pipeline-error";
@@ -62,6 +62,8 @@ async function call(path: string, init?: { body?: unknown; base?: string }): Pro
   }
 }
 
+const NO_SEARCH_RESULTS = 40102;
+
 export type MapsSearchItem = {
   type?: string; place_id?: string | null; title?: string | null; address?: string | null;
   address_info?: { city?: string | null; district?: string | null } | null;
@@ -74,12 +76,14 @@ export type MapsSearchItem = {
 };
 
 /** A live Google Maps result. Do not retain the vendor envelope or its extra fields. */
-export async function searchGoogleMaps(keyword: string, near: { lat: number; lng: number }): Promise<{ items: MapsSearchItem[]; cost: number }> {
+export async function searchGoogleMaps(keyword: string, near: { lat: number; lng: number }, zoom = 17): Promise<{ items: MapsSearchItem[]; cost: number }> {
   const env = await call("/google/maps/live/advanced", {
     base: "https://api.dataforseo.com/v3/serp",
-    body: [{ keyword, location_coordinate: `${near.lat},${near.lng},17z`, language_code: "pt", depth: 20 }],
+    body: [{ keyword, location_coordinate: `${near.lat},${near.lng},${zoom}z`, language_code: "pt", depth: 20 }],
   });
   const task = env.tasks?.[0];
+  // DataForSEO reports an empty search as an error; to the caller it is simply no results.
+  if (task?.status_code === NO_SEARCH_RESULTS) return { items: [], cost: task.cost ?? 0 };
   if (!task || task.status_code !== 20000) throw new Error(`DataForSEO Maps search: ${task?.status_code ?? "missing task"}`);
   const result = task.result?.[0] as { items?: MapsSearchItem[] } | undefined;
   return { items: result?.items ?? [], cost: task.cost ?? 0 };
@@ -102,17 +106,18 @@ export async function googleBusinessByReference(reference: GoogleBusinessReferen
   };
 }
 
-export type ReviewTaskParams =
+export type ReviewTaskParams = (
   | { source: "google"; placeId: string; depth: number }
-  | { source: "tripadvisor"; urlPath: string; depth: number };
+  | { source: "tripadvisor"; urlPath: string; depth: number }
+) & { priority?: 1 | 2 };
 
-/** Posts a Reviews task on the high-priority queue. Returns the task ID and what DataForSEO charged. */
+/** Posts a Reviews task with the requested priority (lookups default high; baseline uses normal). */
 export async function postReviewTask(p: ReviewTaskParams): Promise<{ taskId: string; cost: number }> {
   const body =
     p.source === "google"
       ? // A location is required even with place_id; 2620 is Portugal.
-        { place_id: p.placeId, location_code: 2620, depth: p.depth, sort_by: "newest", language_code: "en", priority: 2 }
-      : { url_path: p.urlPath, depth: p.depth, sort_by: "most_recent", translate_reviews: false, priority: 2 };
+        { place_id: p.placeId, location_code: 2620, depth: p.depth, sort_by: "newest", language_code: "en", priority: p.priority ?? 2 }
+      : { url_path: p.urlPath, depth: p.depth, sort_by: "most_recent", translate_reviews: false, priority: p.priority ?? 2 };
   const env = await call(`/${p.source}/reviews/task_post`, { body: [body] });
   const task = env.tasks[0];
   if (!task || task.status_code !== 20100) {
