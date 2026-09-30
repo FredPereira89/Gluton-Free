@@ -37,7 +37,7 @@ export type BaselineBuiltCandidate = {
 
 export type BaselineFormatInput = {
   candidate: BaselineCandidate;
-  reviews: BaselineWindowReview[];
+  reviews: NormalisedReview[];
 };
 
 export type BaselineBuildProviders = {
@@ -144,7 +144,7 @@ function subtractMonths(date: Date, months: number): Date {
 }
 
 export function selectBaselineReviewWindow(reviews: NormalisedReview[], now: Date): {
-  reviews: BaselineWindowReview[];
+  reviews: NormalisedReview[];
   start: Date | null;
 } {
   const cutoff = subtractMonths(now, BASELINE_REVIEW_WINDOW_MONTHS);

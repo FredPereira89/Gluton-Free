@@ -96,8 +96,8 @@ const FORMAT_GUIDE = `Assign exactly one Lisbon Restaurant Format from its Revie
 Return the best-supported Format from the Reviews. If evidence is sparse, choose the closest Format rather than inventing details.`;
 
 function formatUserContent(entry: BaselineFormatInput, index: number): string {
-  const sample = entry.reviews.filter((review) => review.text.trim()).slice(0, 20);
-  return `<restaurant i="${index}">\n${sample.map((review) => `<review>${review.text}</review>`).join("\n")}\n</restaurant>`;
+  const sample = entry.reviews.flatMap(({ text }) => text?.trim() ? [text] : []).slice(0, 20);
+  return `<restaurant i="${index}">\n${sample.map((text) => `<review>${text}</review>`).join("\n")}\n</restaurant>`;
 }
 
 function parseFormats(value: string): { i: number; format: BaselineFormat }[] {
