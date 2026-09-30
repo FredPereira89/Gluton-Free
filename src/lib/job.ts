@@ -19,7 +19,7 @@ export type LlmUsage = {
   cost_usd: number;
 };
 
-export async function createJob(kind: JobKind, restaurantId: number, triggerRunId?: string): Promise<number> {
+export async function createJob(kind: JobKind, restaurantId: number | null, triggerRunId?: string): Promise<number> {
   const [row] = await db()`
     insert into job (kind, restaurant_id, status, trigger_run_id)
     values (${kind}, ${restaurantId}, 'running', ${triggerRunId ?? null})

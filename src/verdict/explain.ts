@@ -72,7 +72,7 @@ export function explanationFacts(name: string, formatName: string, r: Rollup): s
   }
   lines.push(r.provisional
     ? `Provisional: yes. Judged against default cut-offs on the −2..+2 Review scale, not against Peers (other ${formatName}s have not been gathered yet). Life Changing is not available while provisional.`
-    : `Provisional: no. Ranked against Peer snapshot #${r.peerSnapshot!.id} (${r.peerSnapshot!.month}). Per-input Peer levels: ${r.standings?.map((s) => `${INPUT_LABEL[s.input]} ${s.level} ${s.key} (${s.peerCount} Peers, ${formatPercentile(s.percentile)})`).join("; ")}. Composite stands at ${formatPercentile(r.compositeStanding!.percentile)} among Peer composites (Avoid below P10 with a negative θ on food or Overall, OK P10–P45, Good P45–P85, Must Go P85 and up, Life Changing at P98 and up with food also at P98, at least 50 Peers at the level used, no verified Red flag in the last 12 months, and the exceptional-language test).`);
+    : `Provisional: no. Ranked against Peers. Per-input Peer levels: ${r.standings?.map((s) => `${INPUT_LABEL[s.input]} ${s.level} ${s.key} (${s.peerCount} Peers, ${formatPercentile(s.percentile)})`).join("; ")}. Composite stands at ${formatPercentile(r.compositeStanding!.percentile)} among Peer composites (Avoid below P10 with a negative θ on food or Overall, OK P10–P45, Good P45–P85, Must Go P85 and up, Life Changing at P98 and up with food also at P98, at least 50 Peers at the level used, no verified Red flag in the last 12 months, and the exceptional-language test).`);
   lines.push(`Composite: ${fmt(r.composite)} on the −2..+2 scale${r.provisional ? " (Good from +0.80, Must Go from +1.30)" : ""}`);
   lines.push("Inputs (θ on −2..+2, weight in the composite, effective number of Reviews):");
   for (const s of r.inputs) {
@@ -177,7 +177,7 @@ ${explanationFacts(args.name, args.formatName, r)}
 </facts>
 
 Write 2–3 plain sentences, no bullet points, no markdown except wrapping the Tier name in **bold** once. They must state, in this order:
-1. the Tier and whether it is provisional or ranked against Peers; when a Peer snapshot exists, name it, the levels used for the deciding inputs' standings, and the composite's Peer percentile;
+1. the Tier and whether it is provisional or ranked against Peers; when ranked, name the levels used for the deciding inputs' standings, and the composite's Peer percentile;
 2. the one or two inputs that decided it (use their θ values, e.g. "food (θ +1.21)"), or the floor that capped it; when Tier stability held the previous Tier, say so;
 3. any Red flag: its group, how many incidents, how recent (skip if none);
 4. the Confidence level and its main reason.

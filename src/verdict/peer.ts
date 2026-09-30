@@ -75,13 +75,16 @@ export function countedWeights(format: string): Map<Input, number> {
 
 export const formatPercentile = (percentile: number): string => `P${Math.round(percentile)}`;
 
+/** Snapshots store θ rounded to 5 places, so values closer than this are the same θ. */
+const THETA_TIE = 1e-5;
+
 export function midRank(sorted: number[], value: number): number {
   if (!sorted.length) return 0;
   let below = 0;
   let equal = 0;
   for (const point of sorted) {
-    if (point < value) below++;
-    else if (point === value) equal++;
+    if (Math.abs(point - value) < THETA_TIE) equal++;
+    else if (point < value) below++;
   }
   return (below + equal / 2) * 100 / sorted.length;
 }
