@@ -17,6 +17,8 @@ export function exceptionalCounts(reviews: RollupReview[]): { successes: number;
 }
 
 export const RULE_VERSION = "provisional-v2-red-flags";
+export const RED_FLAG_AVOID_SHARE_THRESHOLD = 0.01;
+export const CONFIDENCE_DISAGREEMENT_THRESHOLD_POINTS = 30;
 
 export const PARAMS = {
   halfLifeMonths: 18,
@@ -295,7 +297,7 @@ function canForceAvoid(flag: RollupFlag): boolean {
   return true;
 }
 
-function redFlagGroups(input: RollupInput): RedFlagGroup[] {
+export function redFlagGroups(input: RollupInput): RedFlagGroup[] {
   const twelveMonthsAgo = monthsBefore(input.now, 12);
   const sixMonthsAgo = monthsBefore(input.now, 6);
   const textReviews = input.reviews.filter((r) => r.hasText && r.publishedAt >= twelveMonthsAgo && r.publishedAt <= input.now &&
@@ -320,7 +322,7 @@ function redFlagGroups(input: RollupInput): RedFlagGroup[] {
     for (const flag of recent) if (canForceAvoid(flag) && !grave.has(flag.reviewId)) grave.set(flag.reviewId, flag);
     const newestGrave = [...grave.values()].reduce<Date | null>((m, f) => (!m || f.publishedAt > m ? f.publishedAt : m), null);
     const graveShare = textIn12m ? grave.size / textIn12m : 0;
-    const forcesAvoid = grave.size >= 2 && newestGrave !== null && newestGrave >= sixMonthsAgo && graveShare >= 0.01;
+    const forcesAvoid = grave.size >= 2 && newestGrave !== null && newestGrave >= sixMonthsAgo && graveShare >= RED_FLAG_AVOID_SHARE_THRESHOLD;
     groups.push({
       group,
       incidents12m: byReview.size,
@@ -569,7 +571,7 @@ export function rollup(input: RollupInput): Rollup {
   if (qualifyingSources.length > 1) {
     const percentiles = qualifyingSources.map((e) => e.compositePercentile!);
     const spread = Math.max(...percentiles) - Math.min(...percentiles);
-    if (spread >= 30) {
+    if (spread >= CONFIDENCE_DISAGREEMENT_THRESHOLD_POINTS) {
       caps.push(`Sources disagree by ${Math.round(spread)} points (${qualifyingSources.map((e) => `${e.source}: ${formatPercentile(e.compositePercentile!)}`).join(", ")})`);
       level = Math.max(0, level - 1);
     }
@@ -587,7 +589,7 @@ export function rollup(input: RollupInput): Rollup {
     const starsStanding = peers.standings.find((s) => s.input === "overall");
     if (textPercentile !== null && starsStanding) {
       const spread = Math.abs(textPercentile - starsStanding.percentile);
-      if (spread >= 30) {
+      if (spread >= CONFIDENCE_DISAGREEMENT_THRESHOLD_POINTS) {
         caps.push(`text and stars disagree by ${Math.round(spread)} points (text: ${formatPercentile(textPercentile)}, stars: ${formatPercentile(starsStanding.percentile)})`);
         level = Math.max(0, level - 1);
       }

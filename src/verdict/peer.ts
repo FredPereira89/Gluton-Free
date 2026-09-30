@@ -39,7 +39,7 @@ const FORMAT_FAMILY: Record<string, string> = {
   cafe_pastelaria: "quick_cafe", cafe: "quick_cafe", pastelaria: "quick_cafe",
   brunch_all_day_cafe: "quick_cafe", brunch: "quick_cafe", snack_street: "quick_cafe", snack: "quick_cafe", street_food: "quick_cafe",
 };
-const MIN_PEERS = 30;
+export const MIN_PEERS = 30;
 export const DEFAULT_SHRINK_K = 10;
 const keyOf = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
@@ -59,7 +59,7 @@ const MUSTGO_ASPECT_FLOOR = 25;
 const LIFECHANGING_PCT = COMPOSITE_TIER_BOUNDARIES.lifeChanging;
 const LIFECHANGING_FOOD_FLOOR = 98;
 const LIFECHANGING_MIN_PEERS = 50;
-const EXCEPTIONAL_POSTERIOR_THRESHOLD = 0.9;
+export const EXCEPTIONAL_POSTERIOR_THRESHOLD = 0.9;
 
 /** The weighted-mean θ shrunk toward the Peer group's Format mean — one formula for Peers (snapshot build) and the Restaurant being judged. */
 export function shrinkTheta(sumW: number, weightedSum: number, formatMean: number, k: number): number {

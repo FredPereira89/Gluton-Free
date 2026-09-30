@@ -94,6 +94,7 @@ export const lisbonBaselineTask = schemaTask({
         sleep: (seconds) => wait.for({ seconds }),
         onUsage: (usage) => addLlmUsage(jobId, usage),
       });
+      const tripadvisorExtractionFailures = Math.max(0, tripadvisorInputs.length - extracted.results.size);
       const analysesByPlaceRef = new Map<string, BaselineAnalysis[]>();
       for (const [id, analysis] of extracted.results) {
         const source = sourceById.get(id);
@@ -121,12 +122,19 @@ export const lisbonBaselineTask = schemaTask({
         shortByFormat: build.shortByFormat,
         skippedWithoutText: build.skippedWithoutText,
         skippedExtraction: build.skippedExtraction,
+        extractionAttempts: build.extractionAttempts + tripadvisorInputs.length,
+        failedExtractions: build.failedExtractions + tripadvisorExtractionFailures,
         reviewDepths: {
           restaurants: Object.keys(build.fetchedDepthByPlaceId).length,
           max: Math.max(0, ...Object.values(build.fetchedDepthByPlaceId)),
         },
         incompleteReviewWindowPlaceIds: build.incompleteReviewWindowPlaceIds,
-        tripadvisor: { matched: completeMatches.length, skipped: tripadvisor.skipped },
+        tripadvisor: {
+          matched: completeMatches.length,
+          textReviews: tripadvisorInputs.length,
+          extractionFailures: tripadvisorExtractionFailures,
+          skipped: tripadvisor.skipped,
+        },
         dropped: report.dropped,
         costsUsd: spend.totals(),
         ...(persist ? { persisted } : {}),

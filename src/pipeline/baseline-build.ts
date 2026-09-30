@@ -58,6 +58,8 @@ export type BaselineBuildReport = {
   incompleteReviewWindowPlaceIds: string[];
   skippedWithoutText: number;
   skippedExtraction: number;
+  extractionAttempts: number;
+  failedExtractions: number;
   costsUsd: { dataforseo: number; llm: number };
 };
 
@@ -227,6 +229,8 @@ export async function runBaselineBuild(
   const incompleteReviewWindowPlaceIds = new Set<string>();
   let skippedWithoutText = 0;
   let skippedExtraction = 0;
+  let extractionAttempts = 0;
+  let failedExtractions = 0;
   const built: BaselineBuiltCandidate[] = [];
 
   async function processWave(wave: BaselineCandidate[]): Promise<void> {
@@ -329,6 +333,8 @@ export async function runBaselineBuild(
         return sourceReviewId ? [{ sourceReviewId, analysis }] : [];
       });
       const textReviewCount = entry.reviewWindow.filter((review) => Boolean(review.text?.trim())).length;
+      extractionAttempts += textReviewCount;
+      failedExtractions += Math.max(0, textReviewCount - analyses.length);
       if (analyses.length !== textReviewCount) {
         skippedExtraction++;
         continue;
@@ -375,6 +381,8 @@ export async function runBaselineBuild(
     incompleteReviewWindowPlaceIds: [...incompleteReviewWindowPlaceIds],
     skippedWithoutText,
     skippedExtraction,
+    extractionAttempts,
+    failedExtractions,
     costsUsd: spend.totals(),
   };
 }
