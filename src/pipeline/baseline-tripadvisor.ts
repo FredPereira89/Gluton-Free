@@ -49,6 +49,16 @@ function distanceMeters(a: { latitude: number; longitude: number }, b: { latitud
   return Math.round(2 * 6_371_000 * Math.asin(Math.sqrt(h)));
 }
 
+async function allSettledOrThrow<T>(operations: Promise<T>[]): Promise<T[]> {
+  const outcomes = await Promise.allSettled(operations);
+  const failed = outcomes.find((outcome) => outcome.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
+  return outcomes.map((outcome) => {
+    if (outcome.status === "rejected") throw outcome.reason;
+    return outcome.value;
+  });
+}
+
 async function charged<T extends { costUsd: number }>(
   spend: BaselineSpendBudget, maximumUsd: number, operation: () => Promise<T>, onCost?: (usd: number) => void | Promise<void>,
 ): Promise<T> {
@@ -78,9 +88,9 @@ export async function runBaselineTripadvisor(
   const now = options.now ?? new Date();
   await options.onProgress?.(`Matching Tripadvisor Listings (${sampled.length} sampled Restaurants)`);
 
-  // Search results have no phone or coordinates. Probe only plausible names and accept only
-  // one near-identical name with the same numbered street address in the Reviews result.
-  const outcomes = await Promise.all(sampled.map(async (built): Promise<
+  // Live search results have no phone or coordinates. Probe plausible pages for their address;
+  // accept only one confident page by phone, proximity, or exact numbered street and name.
+  const outcomes = await allSettledOrThrow(sampled.map(async (built): Promise<
     { proposed: BaselineTripadvisorMatch; skipped?: never } | { proposed?: never; skipped: BaselineTripadvisorSkip }
   > => {
     const { candidate } = built;
@@ -92,9 +102,11 @@ export async function runBaselineTripadvisor(
       return { skipped: { googlePlaceId: candidate.placeId, reason: "search_failed", candidates: [] } };
     }
     const candidates = found.items.filter((item) => item.title && item.url_path)
-      .map((item) => ({ item, similarity: nameSimilarity(candidate.name, item.title!) }))
-      .filter(({ similarity }) => similarity >= 0.5)
-      .sort((a, b) => b.similarity - a.similarity).slice(0, MAX_SEARCH_CANDIDATES);
+      .map((item) => ({ item, similarity: nameSimilarity(candidate.name, item.title!),
+        samePhone: Boolean(phone(candidate.phone) && phone(candidate.phone) === phone(item.phone)) }))
+      .filter(({ similarity, samePhone }) => samePhone || similarity >= 0.5)
+      .sort((a, b) => Number(b.samePhone) - Number(a.samePhone) || b.similarity - a.similarity)
+      .slice(0, MAX_SEARCH_CANDIDATES);
     if (!candidates.length) {
       return { skipped: { googlePlaceId: candidate.placeId, reason: "no_candidate", candidates: [] } };
     }
@@ -136,31 +148,36 @@ export async function runBaselineTripadvisor(
   // A Tripadvisor page claimed by two sampled Restaurants is ambiguous even if both probes agree.
   const claims = new Map<string, number>();
   for (const match of proposed) claims.set(match.placeRef, (claims.get(match.placeRef) ?? 0) + 1);
-  const completed = await Promise.all(proposed.map(async (match): Promise<
+  const completed = await allSettledOrThrow(proposed.map(async (match): Promise<
     { match: BaselineTripadvisorMatch; skip?: never } | { match?: never; skip: BaselineTripadvisorSkip }
   > => {
     if (claims.get(match.placeRef)! > 1) {
       return { skip: { googlePlaceId: match.googlePlaceId, reason: "shared_listing", candidates: [match.evidence] } };
     }
     const count = match.normalised.facts.reviewCount ?? 10;
-    let depth = initialBaselineReviewDepth(count);
     let normalised = match.normalised;
-    for (;;) {
-      if (depth > 10) {
-        const fetched = await charged(options.spend, Math.ceil(depth / 10) * REVIEW_USD_PER_TEN,
-          () => providers.fetch(match.placeRef, depth), options.onCost);
-        normalised = fetched.normalised;
-        const window = selectBaselineReviewWindow(normalised.reviews, now);
-        const oldest = normalised.reviews.at(-1)?.publishedAt;
-        const cutoff = new Date(now);
-        cutoff.setUTCFullYear(now.getUTCFullYear() - 2);
-        if (window.reviews.filter((item) => item.text?.trim()).length >= BASELINE_REVIEW_WINDOW_CAP
-          || fetched.returnedCount < depth || (normalised.facts.reviewCount ?? 0) <= depth
-          || (oldest && oldest <= cutoff)) break;
-      } else break;
-      const next = nextBaselineReviewDepth(depth);
-      if (!next) break;
-      depth = next;
+    try {
+      let depth = initialBaselineReviewDepth(count);
+      for (;;) {
+        if (depth > 10) {
+          const fetched = await charged(options.spend, Math.ceil(depth / 10) * REVIEW_USD_PER_TEN,
+            () => providers.fetch(match.placeRef, depth), options.onCost);
+          normalised = fetched.normalised;
+          const window = selectBaselineReviewWindow(normalised.reviews, now);
+          const oldest = normalised.reviews.at(-1)?.publishedAt;
+          const cutoff = new Date(now);
+          cutoff.setUTCFullYear(now.getUTCFullYear() - 2);
+          if (window.reviews.filter((item) => item.text?.trim()).length >= BASELINE_REVIEW_WINDOW_CAP
+            || fetched.returnedCount < depth || (normalised.facts.reviewCount ?? 0) <= depth
+            || (oldest && oldest <= cutoff)) break;
+        } else break;
+        const next = nextBaselineReviewDepth(depth);
+        if (!next) break;
+        depth = next;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "BaselineSpendCapError") throw error;
+      return { skip: { googlePlaceId: match.googlePlaceId, reason: "review_failed", candidates: [match.evidence] } };
     }
     const window = selectBaselineReviewWindow(normalised.reviews, now);
     if (!window.start || !window.reviews.some((item) => item.text?.trim())) {
