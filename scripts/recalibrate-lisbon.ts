@@ -121,7 +121,7 @@ async function main() {
     const target = BASELINE_TARGETS[format];
     const n = baselinePeerFormatCounts.get(format) ?? 0;
     const fallback = calibration ? groupForFormat(calibration.snapshot.groups, "Lisbon", format) : undefined;
-    const selectedFallback = fallback && fallback.level !== "format" ? fallback : undefined;
+    const selectedFallback = fallback && (target === undefined || fallback.level !== "format") ? fallback : undefined;
     return { format, target, n, fallback: selectedFallback };
   });
   const fallbackRecorded = coverage.every(({ target, n, fallback }) =>
