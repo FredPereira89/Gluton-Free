@@ -6,6 +6,7 @@ import { FORMATS } from "@/domain/restaurant-facts";
 import { db } from "./db";
 import { acceptedJobResponse, answerListingResponseSchema, apiJsonResponse } from "./api-contract";
 import { markJobStartFailed } from "./job";
+import type { ListingSource } from "./listing-source";
 import type { PipelineError } from "./pipeline-error";
 import { ApiError } from "./problem";
 
@@ -120,7 +121,7 @@ export async function dismissFormatQuestion(id: number): Promise<Response> {
 /** Answers the most recent Owner question for that Source. Settles `none` outright; `accept` fetches the Listing and re-judges. */
 export async function answerListingQuestion(
   slug: string,
-  source: "google" | "tripadvisor" | "thefork",
+  source: ListingSource,
   answer: { answer: "accept"; placeRef: string } | { answer: "none" },
 ): Promise<Response> {
   const sql = db();

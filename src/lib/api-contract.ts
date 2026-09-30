@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CHANGE_POINT_KINDS, TIERS } from "@/domain/aspects";
 import { FORMATS } from "@/domain/restaurant-facts";
 import { BlocksSchema, RollupSchema } from "@/verdict/blocks";
+import { LISTING_SOURCES } from "./listing-source";
 import { parseApiRequest, problemSchema } from "./problem";
 
 const restaurantSchema = z.strictObject({
@@ -72,7 +73,7 @@ const formatOwnerQuestionSchema = z.strictObject({
 const retrySourceOwnerQuestionSchema = z.strictObject({
   id: z.number().int(),
   kind: z.literal("retry_source"),
-  source: z.enum(["google", "tripadvisor", "thefork"]),
+  source: z.enum(LISTING_SOURCES),
   prompt: z.string(),
 });
 const changePointOwnerQuestionSchema = z.strictObject({
@@ -385,7 +386,7 @@ export const routes = {
   answerListing: {
     method: "PUT", path: "/api/v1/restaurants/{slug}/listings/{source}", auth: "owner",
     request: {
-      params: z.strictObject({ slug: z.string().min(1), source: z.enum(["google", "tripadvisor", "thefork"]) }),
+      params: z.strictObject({ slug: z.string().min(1), source: z.enum(LISTING_SOURCES) }),
       body: answerListingBodySchema,
     },
     responses: {
@@ -430,12 +431,12 @@ export const routes = {
   },
   retrySource: {
     method: "POST", path: "/api/v1/restaurants/{slug}/listings/{source}/retry", auth: "owner",
-    request: { params: z.strictObject({ slug: z.string().min(1), source: z.enum(["google", "tripadvisor", "thefork"]) }) },
+    request: { params: z.strictObject({ slug: z.string().min(1), source: z.enum(LISTING_SOURCES) }) },
     responses: { 202: acceptedJobSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   undoListing: {
     method: "DELETE", path: "/api/v1/restaurants/{slug}/listings/{source}", auth: "owner",
-    request: { params: z.strictObject({ slug: z.string().min(1), source: z.enum(["google", "tripadvisor", "thefork"]) }) },
+    request: { params: z.strictObject({ slug: z.string().min(1), source: z.enum(LISTING_SOURCES) }) },
     responses: {
       202: acceptedJobSchema,
       400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema,

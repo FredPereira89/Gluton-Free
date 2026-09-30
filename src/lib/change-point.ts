@@ -5,6 +5,7 @@ import { reproposesFormat } from "@/domain/aspects";
 import { loadNewestChangePoint } from "@/verdict/issue";
 import { acceptedJobResponse, type createChangePointBodySchema } from "./api-contract";
 import { db } from "./db";
+import { findBlockingJob } from "./job";
 import { ApiError } from "./problem";
 
 async function enqueueRejudge(tx: postgres.TransactionSql, restaurantId: number, step: string) {
@@ -31,9 +32,7 @@ export async function declareChangePoint(slug: string, body: z.infer<typeof crea
     if (!restaurant) throw new ApiError(404, "not_found", "Restaurant not found");
     const restaurantId = Number(restaurant.id);
 
-    const [activeJob] = await tx`
-      select id from job where restaurant_id = ${restaurantId} and kind <> 'source_match' and status in ('queued', 'running')
-      order by id desc limit 1`;
+    const activeJob = await findBlockingJob(tx, restaurantId);
     if (activeJob) throw new ApiError(409, "job_in_progress", "Wait for the current job to finish before declaring a Change point");
 
     if (body.questionId) {
@@ -69,9 +68,7 @@ export async function deleteChangePoint(slug: string, id: number): Promise<Respo
     if (!restaurant) throw new ApiError(404, "not_found", "Restaurant not found");
     const restaurantId = Number(restaurant.id);
 
-    const [activeJob] = await tx`
-      select id from job where restaurant_id = ${restaurantId} and kind <> 'source_match' and status in ('queued', 'running')
-      order by id desc limit 1`;
+    const activeJob = await findBlockingJob(tx, restaurantId);
     if (activeJob) throw new ApiError(409, "job_in_progress", "Wait for the current job to finish before deleting a Change point");
 
     // Soft delete: a hard delete would need to null out change_point_id on past Verdict rows to

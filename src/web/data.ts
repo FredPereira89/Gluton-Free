@@ -8,6 +8,7 @@ import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
 import type { SearchResponse } from "@/lib/api-contract";
 import { formatQuestionPayloadSchema, formatQuestionPrompt, questionCandidates, questionPrompt } from "@/lib/owner-question";
+import type { ListingSource } from "@/lib/listing-source";
 import { CHANGE_POINT_LABEL, type ChangePointKind } from "@/domain/aspects";
 
 export async function searchKnownRestaurants(q: string, placeIds: string[]): Promise<(SearchResponse["known"][number] & { placeId: string | null })[]> {
@@ -226,7 +227,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
         return {
           id: Number(q.id),
           kind: "retry_source" as const,
-          source: q.source_code as "google" | "tripadvisor" | "thefork",
+          source: q.source_code as ListingSource,
           prompt: `Retry ${name}`,
         };
       }
