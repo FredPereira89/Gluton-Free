@@ -119,6 +119,12 @@ function restaurantIdFromUrl(url: string): string | null {
   return /^https:\/\/www\.thefork\.com\/restaurant\/[^/?#]*-r(\d+)\/?(?:[?#].*)?$/.exec(url)?.[1] ?? null;
 }
 
+/** A TheFork restaurant page URL pasted by a person, reduced to the id it is stored under and its canonical form; null when it is not one. */
+export function parseTheForkUrl(input: string): { placeRef: string; url: string } | null {
+  const match = /^https:\/\/www\.thefork\.com\/restaurant\/([^/?#\s]*-r(\d+))\/?(?:[?#].*)?$/.exec(input.trim());
+  return match ? { placeRef: match[2]!, url: `https://www.thefork.com/restaurant/${match[1]}` } : null;
+}
+
 /** TheFork restaurants around a point, without Reviews, in the shape matching uses. */
 export async function searchTheFork(point: { lat: number; lng: number }): Promise<{ items: TheForkSearchItem[]; costUsd: number }> {
   const { items, costUsd } = await runActor(SEARCH_ACTOR, {

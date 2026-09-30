@@ -1370,6 +1370,59 @@ describe("Lookup pipeline", () => {
       expect(listing).toMatchObject({ match_provenance: "auto_accepted" });
     }, 60_000);
 
+    it("lets the owner paste a TheFork link, which settles an open question and fetches the Reviews", async () => {
+      const { routes } = await import("@/lib/api-contract");
+      const { POST } = await import("@/app/api/v1/restaurants/[slug]/thefork-link/route");
+      await freeTheForkFixture();
+      const lookup = await withApify(async () => {
+        apifyFakeState.distant = true;
+        return startLookup("invented-thefork-paste-place");
+      });
+      const [open] = await sql!`select status from owner_question where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(open!.status).toBe("open");
+      const link = (slug: string, body: unknown) => POST(
+        new Request(`http://localhost/api/v1/restaurants/${slug}/thefork-link`, {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+        }),
+        { params: Promise.resolve({ slug }) },
+      );
+      const goodUrl = "https://www.thefork.com/restaurant/invented-copper-spoon-r90101?utm_source=x";
+
+      expect((await link(lookup.slug, { url: "https://example.com/restaurant/x-r1" })).status).toBe(400);
+      expect((await link(lookup.slug, {})).status).toBe(400);
+      expect((await link("no-such-restaurant", { url: goodUrl })).status).toBe(404);
+      const [activeLookup] = await sql!`insert into job (kind, restaurant_id, status) values ('lookup', ${lookup.id}, 'running') returning id`;
+      const during = await link(lookup.slug, { url: goodUrl });
+      expect(during.status).toBe(409);
+      expect((await during.json()).code).toBe("lookup_in_progress");
+      await sql!`update job set status = 'succeeded' where id = ${activeLookup!.id}`;
+      expect((await sql!`select 1 from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`)).toHaveLength(0);
+
+      const added = await withApify(() => link(lookup.slug, { url: goodUrl }));
+      expect(added.status).toBe(202);
+      expect(routes.addTheForkLink.responses[202].parse(await added.json())).toEqual({ id: expect.any(Number) });
+      const [listing] = await sql!`
+        select id, place_ref, url, match_provenance from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(listing).toMatchObject({
+        place_ref: "90101", url: "https://www.thefork.com/restaurant/invented-copper-spoon-r90101", match_provenance: "pasted",
+      });
+      const [settled] = await sql!`select status from owner_question where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(settled!.status).toBe("answered");
+      const [reviews] = await sql!`select count(*)::int as n from review where listing_id = ${listing!.id}`;
+      expect(reviews!.n).toBe(8);
+      expect((await jobs(lookup.id, "listing_fetch")).map((job) => job.status)).toEqual(["succeeded"]);
+
+      const twice = await link(lookup.slug, { url: goodUrl });
+      expect(twice.status).toBe(409);
+      expect((await twice.json()).code).toBe("listing_exists");
+
+      const other = await startLookup("invented-thefork-paste-other-place");
+      const taken = await link(other.slug, { url: goodUrl });
+      expect(taken.status).toBe(409);
+      expect((await taken.json()).code).toBe("listing_taken");
+      expect(await jobs(other.id, "listing_fetch")).toHaveLength(0);
+    }, 60_000);
+
     it("lets the owner search TheFork again for a Restaurant whose match failed, and only then", async () => {
       const lookup = await startLookup("invented-thefork-owner-retry-place");
       await sql!`update restaurant set lat = 38.7139, lng = -9.1334 where id = ${lookup.id}`;
