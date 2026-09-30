@@ -110,6 +110,35 @@ describe("fetchTheForkListing", () => {
   });
 });
 
+describe("the cost of a finished run", () => {
+  // Apify reports SUCCEEDED with only the start fee; the per-result charges land a moment later.
+  function lagging(reread: Record<string, unknown>) {
+    let reads = 0;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = new URL(String(input));
+      if (init?.method === "POST" && url.pathname.endsWith("/runs")) return json({ data: { id: "run-1", defaultDatasetId: "ds-1", status: "READY", usageTotalUsd: 0 } });
+      if (url.pathname === "/v2/actor-runs/run-1") {
+        reads += 1;
+        return json({ data: { id: "run-1", defaultDatasetId: "ds-1", status: "SUCCEEDED", ...(reads === 1 ? { usageTotalUsd: 0.0001 } : reread) } });
+      }
+      return json([nearbyItem]);
+    });
+  }
+
+  it("reads the run again once the dataset is out, and reports the settled total", async () => {
+    lagging({ usageTotalUsd: 0.2501 });
+    expect((await searchTheFork({ lat: 1, lng: 2 })).costUsd).toBe(0.2501);
+  });
+
+  it("falls back to the counted events at their list price when the total still lags", async () => {
+    lagging({
+      usageTotalUsd: 0.0001, chargedEventCounts: { "apify-actor-start": 1, "apify-default-dataset-item": 25 },
+      pricingInfo: { pricingPerEvent: { actorChargeEvents: { "apify-actor-start": { eventPriceUsd: 0.0001 }, "apify-default-dataset-item": { eventPriceUsd: 0.01 } } } },
+    });
+    expect((await searchTheFork({ lat: 1, lng: 2 })).costUsd).toBeCloseTo(0.2501, 6);
+  });
+});
+
 describe("a run that does not finish in time", () => {
   it("aborts it and reports what Apify finally charged", async () => {
     runs = [{ status: "RUNNING", usageTotalUsd: 0.02 }];
