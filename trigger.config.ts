@@ -17,7 +17,7 @@ const OPTIONAL_TASK_SECRETS = ["APIFY_TOKEN", "APIFY_THEFORK_ACTOR"] as const;
 export default defineConfig({
   project: process.env.TRIGGER_PROJECT_REF ?? "",
   dirs: ["./src/trigger"],
-  runtime: "node",
+  runtime: "node-22",
   // Batches usually finish within an hour; waits are checkpointed, so this caps compute, not wall time.
   maxDuration: 3600,
   retries: {

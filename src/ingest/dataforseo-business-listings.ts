@@ -4,6 +4,8 @@ const BASE = "https://api.dataforseo.com/v3/business_data/business_listings";
 const PAGE_SIZE = 1_000;
 const CATEGORIES_PER_REQUEST = 10;
 const LISBON_CIRCLE = "38.7223,-9.1393,15";
+// July 2026 rates: 20% above $0.012/task + $0.00036/item, with at most 1,000 items.
+const MAX_SEARCH_PAGE_COST_USD = 0.4464;
 
 type Envelope = {
   status_code?: number;
@@ -39,6 +41,7 @@ export type BusinessListingPage = {
 };
 
 export type VendorCostCallback = (costUsd: number) => void | Promise<void>;
+export type VendorCostReservation = (maximumUsd: number) => Promise<(actualUsd: number) => Promise<void>>;
 
 function authorization(): string {
   const login = process.env.DATAFORSEO_LOGIN;
@@ -82,6 +85,7 @@ async function searchPage(
   categories: string[],
   offsetToken: string | undefined,
   onCost?: VendorCostCallback,
+  reserveCost?: VendorCostReservation,
 ): Promise<BusinessListingPage> {
   const body = [{
     categories,
@@ -89,8 +93,16 @@ async function searchPage(
     limit: PAGE_SIZE,
     ...(offsetToken ? { offset_token: offsetToken } : {}),
   }];
-  const task = taskFrom(await request("search/live", body));
+  const settle = await reserveCost?.(MAX_SEARCH_PAGE_COST_USD);
+  let task: ReturnType<typeof taskFrom>;
+  try {
+    task = taskFrom(await request("search/live", body));
+  } catch (error) {
+    await settle?.(0);
+    throw error;
+  }
   const costUsd = task.cost ?? 0;
+  await settle?.(costUsd);
   await onCost?.(costUsd);
   const result = task.result?.[0] as { items?: BusinessListing[]; offset_token?: unknown } | undefined;
   const token = typeof result?.offset_token === "string" ? result.offset_token : null;
@@ -114,6 +126,7 @@ export function mergeBusinessListings(previous: BusinessListing, next: BusinessL
 /** Fetches all food-category results in a 15 km circle, following every page and deduplicating place IDs. */
 export async function searchLisbonBusinessListings(
   onCost?: VendorCostCallback,
+  reserveCost?: VendorCostReservation,
 ): Promise<{ items: BusinessListing[]; costUsd: number }> {
   const categories = await foodCategories();
   const byPlaceId = new Map<string, BusinessListing>();
@@ -124,7 +137,7 @@ export async function searchLisbonBusinessListings(
     let offsetToken: string | undefined;
     const seenTokens = new Set<string>();
     do {
-      const page = await searchPage(batch, offsetToken, onCost);
+      const page = await searchPage(batch, offsetToken, onCost, reserveCost);
       costUsd += page.costUsd;
       for (const item of page.items) {
         if (!item.place_id) continue;

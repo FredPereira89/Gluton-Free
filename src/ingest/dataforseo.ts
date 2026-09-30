@@ -39,6 +39,7 @@ type DfsEnvelope = {
     status_code: number;
     status_message: string;
     cost: number;
+    data?: { place_id?: string };
     result: unknown[] | null;
   }[];
 };
@@ -110,6 +111,38 @@ export type ReviewTaskParams = (
   | { source: "google"; placeId: string; depth: number }
   | { source: "tripadvisor"; urlPath: string; depth: number }
 ) & { priority?: 1 | 2 };
+
+export type GoogleReviewTaskRequest = { placeId: string; depth: number };
+export type GoogleReviewTaskPost = { placeId: string; taskId: string; cost: number };
+export type GoogleReviewTaskFailure = { placeId: string; cost: number };
+
+/** Posts up to 100 Google Reviews tasks together on the requested queue. */
+export async function postGoogleReviewTasks(
+  requests: GoogleReviewTaskRequest[],
+  priority: 1 | 2 = 2,
+): Promise<{ posted: GoogleReviewTaskPost[]; failed: GoogleReviewTaskFailure[] }> {
+  if (requests.length > 100) throw new Error("DataForSEO accepts at most 100 Google Reviews tasks per request");
+  if (!requests.length) return { posted: [], failed: [] };
+  const env = await call("/google/reviews/task_post", {
+    body: requests.map(({ placeId, depth }) => ({
+      place_id: placeId,
+      location_code: 2620,
+      depth,
+      sort_by: "newest",
+      language_code: "en",
+      priority,
+    })),
+  });
+  const posted: GoogleReviewTaskPost[] = [];
+  const failed: GoogleReviewTaskFailure[] = [];
+  const taskByPlaceId = new Map(env.tasks?.flatMap((task) => task.data?.place_id ? [[task.data.place_id, task] as const] : []) ?? []);
+  requests.forEach(({ placeId }, index) => {
+    const task = taskByPlaceId.get(placeId) ?? env.tasks?.[index];
+    if (task?.status_code === 20100 && task.id) posted.push({ placeId, taskId: task.id, cost: task.cost ?? 0 });
+    else failed.push({ placeId, cost: task?.cost ?? 0 });
+  });
+  return { posted, failed };
+}
 
 /** Posts a Reviews task with the requested priority (lookups default high; baseline uses normal). */
 export async function postReviewTask(p: ReviewTaskParams): Promise<{ taskId: string; cost: number }> {

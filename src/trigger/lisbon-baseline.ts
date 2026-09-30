@@ -1,8 +1,13 @@
 import { schemaTask, wait } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { closeDb, db } from "@/lib/db";
-import { runLisbonBaselineSweep } from "@/pipeline/baseline";
-import { persistBaselineCandidates } from "@/pipeline/baseline-persistence";
+import { EXTRACTOR_VERSION } from "@/analysis/extract";
+import { addLlmUsage } from "@/lib/job";
+import { confirmBaselineFormatsBatch, extractBaselineBatch } from "@/analysis/baseline-batches";
+import { fetchBaselineGoogleReviewWindows, runLisbonBaselineSweep } from "@/pipeline/baseline";
+import { runBaselineBuild, assertFrozenBaselineExtractorVersion } from "@/pipeline/baseline-build";
+import { BaselineSpendBudget } from "@/pipeline/baseline-budget";
+import { persistBaselineBuild } from "@/pipeline/baseline-persistence";
 
 // The baseline can fan out to many DataForSEO calls; checkpoint Review polling in Trigger.dev.
 export const lisbonBaselineTask = schemaTask({
@@ -19,8 +24,11 @@ export const lisbonBaselineTask = schemaTask({
         returning id
       `;
       if (!job) throw new Error("Lisbon baseline Job was not found");
+      assertFrozenBaselineExtractorVersion(EXTRACTOR_VERSION);
+      const spend = new BaselineSpendBudget();
       const report = await runLisbonBaselineSweep(new Date(), {
         sleep: (seconds) => wait.for({ seconds }),
+        reserveVendorCost: spend.reserve("dataforseo"),
         onProgress: async (step) => {
           await sql`update job set step = ${step}, progress = ${sql.json({ phase: step } as never)}, updated_at = now() where id = ${jobId}`;
         },
@@ -28,13 +36,53 @@ export const lisbonBaselineTask = schemaTask({
           await sql`update job set vendor_cost_usd = vendor_cost_usd + ${costUsd}, updated_at = now() where id = ${jobId}`;
         },
       });
-      const persistedCount = persist ? await persistBaselineCandidates(report.candidates) : 0;
+      const build = await runBaselineBuild(report.candidates, {
+        fetchReviews: (requests) => fetchBaselineGoogleReviewWindows(
+          requests,
+          (seconds) => wait.for({ seconds }),
+        ),
+        extractBatch: (items, budget, onUsage) => extractBaselineBatch(items, budget, {
+          sleep: (seconds) => wait.for({ seconds }),
+          onUsage: async (usage) => {
+            await addLlmUsage(jobId, usage);
+            await onUsage?.(usage);
+          },
+        }),
+        confirmFormats: (restaurants, budget, onUsage) => confirmBaselineFormatsBatch(restaurants, budget, {
+          sleep: (seconds) => wait.for({ seconds }),
+          onUsage: async (usage) => {
+            await addLlmUsage(jobId, usage);
+            await onUsage?.(usage);
+          },
+        }),
+      }, {
+        extractorVersion: EXTRACTOR_VERSION,
+        spend,
+        onProgress: async (step) => {
+          await sql`update job set step = ${step}, progress = ${sql.json({ phase: step } as never)}, updated_at = now() where id = ${jobId}`;
+        },
+        onDataForSeoCost: async (costUsd) => {
+          await sql`update job set vendor_cost_usd = vendor_cost_usd + ${costUsd}, updated_at = now() where id = ${jobId}`;
+        },
+      });
+      const persisted = persist ? await persistBaselineBuild(build.candidates) : null;
       const summary = {
         candidateCount: report.candidates.length,
-        countsByFormat: report.countsByFormat,
+        initiallySampled: Object.values(build.initialSampleCounts).reduce((total, count) => total + (count ?? 0), 0),
+        confirmedCount: build.candidates.length,
+        countsByFormat: build.countsByFormat,
+        targets: build.targets,
+        shortByFormat: build.shortByFormat,
+        skippedWithoutText: build.skippedWithoutText,
+        skippedExtraction: build.skippedExtraction,
+        reviewDepths: {
+          restaurants: Object.keys(build.fetchedDepthByPlaceId).length,
+          max: Math.max(0, ...Object.values(build.fetchedDepthByPlaceId)),
+        },
+        incompleteReviewWindowPlaceIds: build.incompleteReviewWindowPlaceIds,
         dropped: report.dropped,
-        costsUsd: report.costs,
-        ...(persist ? { persistedCount } : {}),
+        costsUsd: build.costsUsd,
+        ...(persist ? { persisted } : {}),
       };
       await sql`
         update job set status = 'succeeded', step = 'Lisbon baseline complete', progress = ${sql.json(summary as never)},
@@ -43,9 +91,12 @@ export const lisbonBaselineTask = schemaTask({
       `;
       return summary;
     } catch (error) {
+      const extractorMismatch = error instanceof Error && error.name === "ExtractorFreezeMismatchError";
       await sql`
-        update job set status = 'failed', step = 'Lisbon baseline failed', error_code = 'baseline_failed',
-          error_detail = 'The Lisbon baseline sweep failed. Review Trigger.dev logs before retrying.',
+        update job set status = 'failed', step = 'Lisbon baseline failed', error_code = ${extractorMismatch ? "extractor_not_frozen" : "baseline_failed"},
+          error_detail = ${extractorMismatch
+            ? "The Lisbon baseline requires the owner-approved frozen extractor version. No vendor calls were made."
+            : "The Lisbon baseline failed. Review Trigger.dev logs before retrying."},
           finished_at = now(), updated_at = now()
         where id = ${jobId}
       `;

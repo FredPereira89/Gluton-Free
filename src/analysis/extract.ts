@@ -6,7 +6,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { ASPECTS, CHANGE_MARKERS, FLAG_TYPES, type Aspect, type ChangeMarker, type FlagType } from "@/domain/aspects";
 import { THEMES, THEME_CODES, THEME_VOCAB_VERSION, type ThemeCode } from "@/domain/themes";
 import type { LlmUsage } from "@/lib/job";
-import { addUsage, anthropic, EXTRACT_MODEL } from "./llm";
+import { addUsage, anthropic, estimateBatchUpperBound, EXTRACT_MODEL } from "./llm";
 
 export const EXTRACTOR_VERSION = `${EXTRACT_MODEL}|extract-v4|${THEME_VOCAB_VERSION}`;
 export const CHUNK = 20;
@@ -158,6 +158,14 @@ function toUserContent(items: ExtractInput[]): string {
   return items
     .map((r) => `<review i="${r.id}"${r.stars ? ` stars="${r.stars}"` : ""}>\n${r.text}\n</review>`)
     .join("\n");
+}
+
+export function estimateExtractBatchUpperBound(items: ExtractInput[]): number {
+  return chunks(items, CHUNK).reduce((total, chunk) => total + estimateBatchUpperBound(
+    EXTRACT_MODEL,
+    [`${SYSTEM}\n${toUserContent(chunk)}`],
+    8192,
+  ), 0);
 }
 
 function requestParams(items: ExtractInput[]) {
