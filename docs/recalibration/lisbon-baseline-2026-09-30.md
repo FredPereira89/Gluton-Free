@@ -1,6 +1,6 @@
 # Lisbon recalibration and first-snapshot acceptance
 
-Generated: 2026-09-30T21:03:12.202Z  
+Generated: 2026-09-30T21:11:29.143Z  
 Rule version: `provisional-v2-red-flags`  
 Persisted baseline Restaurants: 0  
 Snapshot published: no  
@@ -11,6 +11,7 @@ This check is read-only. It excludes expected Tier labels from every decision an
 
 - Empirical-Bayes k is fitted by the existing snapshot builder for every available Peer group and input.
 - Rule comparison uses real theta/n_eff standings. With no real ground-truth labels, it reports rank agreement (Kendall tau-b); a negative tau is a ranking reversal, and this command does not change the selected rule automatically.
+- Active ranking rule: weighted-composite. No reversal decision is required.
 - Confidence disagreement caps: 30 percentile points for both Source-vs-Source and text-vs-stars.
 - Exceptional-language posterior threshold remains 90%.
 - Current gate remains 1.00%; no data supports changing it.
