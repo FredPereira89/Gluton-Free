@@ -13,6 +13,7 @@ import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
+import { RefreshWhileBusy } from "@/web/refresh-while-busy";
 import { TheForkLink } from "@/web/thefork-link";
 import { TheForkUnavailable } from "@/web/thefork-retry";
 import { OwnerQuestions, SourceRetryBanners } from "@/web/owner-questions";
@@ -416,6 +417,7 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
   const names = Object.fromEntries(page.sources.map((s) => [s.code, s.name]));
   return (
     <section className="sec">
+      <RefreshWhileBusy status={page.activeJob?.status ?? null} />
       <h2>Restaurant details</h2>
       <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
         priceTier={page.restaurant.priceTier} busy={page.activeJob !== null} />

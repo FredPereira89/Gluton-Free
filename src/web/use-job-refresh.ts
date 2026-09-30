@@ -19,6 +19,8 @@ export function useJobRefresh(jobId: number | null, onEnded: () => void) {
         if (job.status === "succeeded" || job.status === "failed") {
           onEnded();
           router.refresh();
+          // A follow-on Job (the re-judge) is created a moment after this one ends: look again once it exists.
+          setTimeout(() => router.refresh(), 3000);
           return;
         }
       } catch {
