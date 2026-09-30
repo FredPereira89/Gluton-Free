@@ -57,6 +57,7 @@ export type RollupFlag = {
   group: "health" | "money";
   firstHand: boolean;
   verification: "pending" | "confirmed" | "rejected";
+  severity?: "low" | "medium" | "high";
   publishedAt: Date;
   evidence?: string;
   source?: string;
@@ -287,6 +288,13 @@ function monthsBefore(date: Date, months: number): Date {
   return result;
 }
 
+/** Hygiene never forces Avoid; other_safety does only at high severity (hospital, police). */
+function canForceAvoid(flag: RollupFlag): boolean {
+  if (flag.type === "hygiene") return false;
+  if (flag.type === "other_safety") return flag.severity === "high";
+  return true;
+}
+
 function redFlagGroups(input: RollupInput): RedFlagGroup[] {
   const twelveMonthsAgo = monthsBefore(input.now, 12);
   const sixMonthsAgo = monthsBefore(input.now, 6);
@@ -307,7 +315,12 @@ function redFlagGroups(input: RollupInput): RedFlagGroup[] {
     if (!byReview.size) continue;
     const newest = recent.reduce<Date | null>((m, f) => (!m || f.publishedAt > m ? f.publishedAt : m), null);
     const share = textIn12m ? byReview.size / textIn12m : 0;
-    const forcesAvoid = byReview.size >= 2 && newest !== null && newest >= sixMonthsAgo && share >= 0.01;
+    // Only grave incidents can force Avoid; the rest (a hair in the dessert, a dirty fork) are shown and cap Life Changing.
+    const grave = new Map<number, RollupFlag>();
+    for (const flag of recent) if (canForceAvoid(flag) && !grave.has(flag.reviewId)) grave.set(flag.reviewId, flag);
+    const newestGrave = [...grave.values()].reduce<Date | null>((m, f) => (!m || f.publishedAt > m ? f.publishedAt : m), null);
+    const graveShare = textIn12m ? grave.size / textIn12m : 0;
+    const forcesAvoid = grave.size >= 2 && newestGrave !== null && newestGrave >= sixMonthsAgo && graveShare >= 0.01;
     groups.push({
       group,
       incidents12m: byReview.size,

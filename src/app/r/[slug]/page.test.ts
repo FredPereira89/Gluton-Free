@@ -58,7 +58,7 @@ function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20):
     exceptional: "none", themes: [],
   }));
   const flags: RollupFlag[] = reviews.slice(0, incidentCount).map((review, i) => ({
-    reviewId: review.id, type: "hygiene", group: "health", firstHand: true,
+    reviewId: review.id, type: "food_poisoning", group: "health", firstHand: true,
     verification: "confirmed", publishedAt, source: "google", evidence: `Incident ${i + 1} in the kitchen`,
   }));
   if (moneyIncident) flags.push({ reviewId: reviews[2]!.id, type: "scam_overcharge", group: "money", firstHand: true,
