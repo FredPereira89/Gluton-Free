@@ -184,6 +184,14 @@ export function depthFor(reviewCount: number): number {
   return Math.min(4490, Math.max(10, Math.ceil((reviewCount + 20) / 10) * 10));
 }
 
+/** The newest Reviews a Lookup fetches per Listing: twice the Review window, since not every Review carries text. A deeper task queues for tens of minutes. */
+export const LOOKUP_FETCH_DEPTH_CAP = 200;
+
+/** Depth to request for a Listing in a Lookup: every Review up to the cap. */
+export function lookupDepthFor(reviewCount: number): number {
+  return Math.min(LOOKUP_FETCH_DEPTH_CAP, depthFor(reviewCount));
+}
+
 export type TripadvisorSearchItem = {
   type?: string; title?: string | null; url_path?: string | null; category?: string | null;
   reviews_count?: number | null;
