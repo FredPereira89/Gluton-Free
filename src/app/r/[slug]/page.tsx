@@ -13,6 +13,7 @@ import type { RestaurantBundle } from "@/lib/api-contract";
 import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
+import { TheForkUnavailable } from "@/web/thefork-retry";
 import { OwnerQuestions, SourceRetryBanners } from "@/web/owner-questions";
 import { ListingUndo } from "@/web/listing-undo";
 import { RestaurantFactsEditor } from "@/web/restaurant-facts";
@@ -440,7 +441,7 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
         </div>
       )}
       {page.unavailableSources.map((unavailable) => (
-        <p className="small muted" role="status" key={unavailable.source}>{unavailable.detail}</p>
+        <TheForkUnavailable key={unavailable.source} slug={page.restaurant.slug} detail={unavailable.detail} />
       ))}
     </section>
   );

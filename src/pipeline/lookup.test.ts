@@ -1367,6 +1367,30 @@ describe("Lookup pipeline", () => {
       expect(listing).toMatchObject({ match_provenance: "auto_accepted" });
     }, 60_000);
 
+    it("lets the owner search TheFork again for a Restaurant whose match failed, and only then", async () => {
+      const lookup = await startLookup("invented-thefork-owner-retry-place");
+      await sql!`update restaurant set lat = 38.7139, lng = -9.1334 where id = ${lookup.id}`;
+      const { POST } = await import("@/app/api/v1/restaurants/[slug]/thefork-match/route");
+      const searchAgain = (slug: string) => POST(
+        new Request(`http://localhost/api/v1/restaurants/${slug}/thefork-match`, { method: "POST" }),
+        { params: Promise.resolve({ slug }) },
+      );
+      expect((await searchAgain("no-such-restaurant")).status).toBe(404);
+      await withApify(async () => {
+        await freeTheForkFixture();
+        // The first match failed for want of a token; now it is due.
+        const again = await searchAgain(lookup.slug);
+        expect(again.status).toBe(202);
+        expect(await again.json()).toEqual({ id: expect.any(Number) });
+        // It succeeded (and accepted the Listing): not due again.
+        const repeat = await searchAgain(lookup.slug);
+        expect(repeat.status).toBe(409);
+        expect((await repeat.json()).code).toBe("thefork_match_not_due");
+      });
+      const [listing] = await sql!`select match_provenance from listing where restaurant_id = ${lookup.id} and source_code = 'thefork'`;
+      expect(listing).toMatchObject({ match_provenance: "auto_accepted" });
+    }, 60_000);
+
     it("settles Neither without a fetch, and a second answer is already_settled", async () => {
       const lookup = await withApify(async () => {
         apifyFakeState.distant = true;
