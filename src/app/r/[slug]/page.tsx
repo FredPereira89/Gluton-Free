@@ -73,12 +73,24 @@ export default async function VerdictPageRoute({ params }: Props) {
       {R.priceTier && <span className="chip">{R.priceTier}</span>}
     </>
   );
+  const activity = (
+    <>
+      <RefreshWhileBusy status={page.activeJob?.status ?? null} />
+      {page.activeJob?.kind === "refresh" && (page.activeJob.status === "queued" || page.activeJob.status === "running") && (
+        <div className="banner refresh-banner" role="status" aria-live="polite">
+          <span className="spin" aria-hidden="true" />
+          <span>{page.activeJob.newReviews === undefined ? "Finding new Reviews" : `${page.activeJob.newReviews} new Reviews being read`}</span>
+        </div>
+      )}
+    </>
+  );
 
   if (!v) {
     return (
       <div className="A">
         <section className="hero">
           {head}
+          {activity}
           <div className="chips">{baseChips}</div>
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
@@ -122,6 +134,7 @@ export default async function VerdictPageRoute({ params }: Props) {
       <div className="A">
         <section className="hero">
           {head}
+          {activity}
           <div>
             <span className="nee">Not enough evidence</span>
           </div>
@@ -163,6 +176,7 @@ export default async function VerdictPageRoute({ params }: Props) {
       <div className="A">
         <section className="hero">
           {head}
+          {activity}
           <TierBadge tier="avoid" size="lg" dashed={r.provisional} />
           {tierChange}
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
@@ -203,6 +217,7 @@ export default async function VerdictPageRoute({ params }: Props) {
     <div className="A">
       <section className="hero">
         {head}
+        {activity}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 14px", alignItems: "center" }}>
           <TierBadge tier={r.tier as Tier} size="lg" dashed={r.provisional} />
         </div>
@@ -417,7 +432,6 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
   const names = Object.fromEntries(page.sources.map((s) => [s.code, s.name]));
   return (
     <section className="sec">
-      <RefreshWhileBusy status={page.activeJob?.status ?? null} />
       <h2>Restaurant details</h2>
       <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
         priceTier={page.restaurant.priceTier} busy={page.activeJob !== null} />

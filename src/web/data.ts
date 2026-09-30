@@ -148,7 +148,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
   if (!page) return null;
   const [job, openQuestions, listingProvenance, changePoints, sourceMatch] = await Promise.all([
     db()`
-      select id, kind, status, step, created_at from job
+      select id, kind, status, step, created_at, progress from job
       where restaurant_id = ${page.restaurant.id} and kind <> 'source_match'
       order by id desc limit 1`.then((rows) => rows[0]),
     db()`
@@ -195,6 +195,9 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
     })),
     activeJob: job && job.status !== "succeeded" ? {
       id: Number(job.id), kind: job.kind, status: job.status, step: job.step, createdAt: job.created_at.toISOString(),
+      ...(job.kind === "refresh" && typeof (job.progress as Record<string, unknown> | null)?.newReviews === "number"
+        ? { newReviews: Math.max(0, Number((job.progress as Record<string, unknown>).newReviews)) }
+        : {}),
     } : null,
     unavailableSources: sourceMatch?.status === "failed"
       ? [{ source: "thefork" as const, detail: (sourceMatch.error_detail as string | null) ?? "TheFork matching was unavailable." }]

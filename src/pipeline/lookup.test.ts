@@ -1641,3 +1641,105 @@ describe("Lookup pipeline", () => {
     expect(questions).toHaveLength(0);
   }, 30_000);
 });
+
+describe("Monthly refresh (issue #72)", () => {
+  it("fetches Reviews after the Listing cursor, extracts only the current window, and lifts Not enough evidence", async () => {
+    const database = sql!;
+    await database`insert into source (code, name, kind, access) values ('google', 'Google', 'crowd', 'personal_only') on conflict (code) do nothing`;
+    const [restaurant] = await database`
+      insert into restaurant (slug, name, city, format, format_provenance, price_provenance)
+      values ('fictional-monthly-refresh', 'Fictional Monthly Refresh', 'Lisbon', 'tasca', 'owner', 'owner') returning id`;
+    const restaurantId = Number(restaurant!.id);
+    const [listing] = await database`
+      insert into listing (restaurant_id, source_code, place_ref, url, match_provenance, source_review_count, fetch_cursor, newest_review_at)
+      values (${restaurantId}, 'google', 'invented-refresh-place', 'https://example.invalid/refresh', 'pasted', 26,
+        'invented-refresh-cursor', ${new Date(Date.now() - 30 * 86_400_000)}) returning id`;
+    const { EXTRACTOR_VERSION } = await import("@/analysis/extract");
+    for (let monthOffset = 1; monthOffset <= 26; monthOffset++) {
+      const [review] = await database`
+        insert into review (listing_id, source_review_id, published_at, text, stars)
+        values (${listing!.id}, ${monthOffset === 1 ? "invented-refresh-cursor" : `invented-refresh-old-${monthOffset}`},
+          ${new Date(Date.now() - monthOffset * 30 * 86_400_000)}, 'An older restaurant review.', 4)
+        returning id`;
+      if (monthOffset < 26) {
+        await database`
+          insert into review_analysis (review_id, extractor_version, food, service, exceptional)
+          values (${review!.id}, ${EXTRACTOR_VERSION}, null, 1, 'none')`;
+      }
+    }
+
+    const [lookupJob] = await database`
+      insert into job (kind, restaurant_id, status) values ('lookup', ${restaurantId}, 'succeeded') returning id`;
+    const { issueVerdict } = await import("@/verdict/issue");
+    const { emptyUsage, JUDGE_MODEL } = await import("@/analysis/llm");
+    await issueVerdict(restaurantId, Number(lookupJob!.id), emptyUsage("explain", JUDGE_MODEL, false), "automatic");
+    const [before] = await database`select state from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    expect(before!.state).toBe("not_enough_evidence");
+
+    const items = Array.from({ length: 8 }, (_, index) => ({
+      review_id: `invented-refresh-new-${index + 1}`,
+      review_text: "The food was excellent and full of flavour.",
+      timestamp: new Date(Date.now() - (index + 1) * 86_400_000).toISOString(),
+      rating: { value: 5 }, language: "en", type: "google_reviews_search",
+    }));
+    items.push({
+      review_id: "invented-refresh-cursor", review_text: "Previously stored cursor review.",
+      timestamp: new Date(Date.now() - 30 * 86_400_000).toISOString(), rating: { value: 4 }, language: "en", type: "google_reviews_search",
+    });
+    items.push({
+      review_id: "invented-refresh-before-cursor", review_text: "Older review before the cursor.",
+      timestamp: new Date(Date.now() - 60 * 86_400_000).toISOString(), rating: { value: 4 }, language: "en", type: "google_reviews_search",
+    });
+    const vendorResult = { title: "Fictional Monthly Refresh", place_id: "invented-refresh-place", reviews_count: 34, rating: { value: 4.8 }, items };
+    const posted: Record<string, unknown>[] = [];
+    const refreshFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = new URL(String(input));
+      if (url.hostname === "api.dataforseo.com" && url.pathname.endsWith("/reviews/task_post")) {
+        posted.push((JSON.parse(String(init?.body)) as Record<string, unknown>[])[0]!);
+        return new Response(JSON.stringify({ status_code: 20000, status_message: "Ok", tasks: [
+          { id: "invented-refresh-task", status_code: 20100, status_message: "Created", cost: 0.02, result: null },
+        ] }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (url.hostname === "api.dataforseo.com" && url.pathname.includes("/reviews/task_get/")) {
+        return new Response(JSON.stringify({ status_code: 20000, status_message: "Ok", tasks: [
+          { id: "invented-refresh-task", status_code: 20000, status_message: "Ok", cost: 0, result: [vendorResult] },
+        ] }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return fakeVendorFetch(input, init);
+    };
+
+    vi.stubGlobal("fetch", refreshFetch);
+    try {
+      const { runRestaurantRefresh } = await import("./monthly-refresh");
+      await runRestaurantRefresh(restaurantId, async () => {});
+    } finally {
+      vi.stubGlobal("fetch", fakeVendorFetch);
+    }
+
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatchObject({ depth: 10, priority: 1, sort_by: "newest" });
+    const newRows = await database`
+      select r.source_review_id, a.review_id as analysed
+      from review r left join review_analysis a on a.review_id = r.id
+      where r.listing_id = ${listing!.id} and r.source_review_id like 'invented-refresh-new-%'`;
+    expect(newRows).toHaveLength(8);
+    expect(newRows.every((row) => row.analysed !== null)).toBe(true);
+    const [beforeCursor] = await database`
+      select id from review where listing_id = ${listing!.id} and source_review_id = 'invented-refresh-before-cursor'`;
+    expect(beforeCursor).toBeUndefined();
+    const [cursorRow] = await database`select fetch_cursor from listing where id = ${listing!.id}`;
+    expect(cursorRow!.fetch_cursor).toBe("invented-refresh-new-1");
+    const [outsideWindow] = await database`
+      select a.review_id from review r left join review_analysis a on a.review_id = r.id
+      where r.listing_id = ${listing!.id} and r.source_review_id = 'invented-refresh-old-26'`;
+    expect(outsideWindow!.review_id).toBeNull();
+    const [after] = await database`
+      select v.state, j.vendor_cost_usd, j.llm_usage, j.progress
+      from verdict v join job j on j.id = v.job_id
+      where v.restaurant_id = ${restaurantId} order by v.id desc limit 1`;
+    expect(after!.state).toBe("verdict");
+    expect(Number(after!.vendor_cost_usd)).toBeGreaterThan(0);
+    expect(after!.llm_usage).toContainEqual(expect.objectContaining({ purpose: "extract", batch: true, requests: 1 }));
+    expect(after!.progress).toMatchObject({ newReviews: 8 });
+  }, 30_000);
+});
