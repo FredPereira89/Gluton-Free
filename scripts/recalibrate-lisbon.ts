@@ -6,7 +6,7 @@ import { FORMATS } from "@/domain/baseline-format";
 import { BASELINE_TARGETS } from "@/pipeline/baseline-build";
 import { closeDb, db } from "@/lib/db";
 import { loadPeerCandidates } from "@/verdict/snapshot-store";
-import { EXCEPTIONAL_POSTERIOR_THRESHOLD, MIN_PEERS, peerGroupKeys, type PeerGroupStat } from "@/verdict/peer";
+import { ACTIVE_RANKING_RULE, EXCEPTIONAL_POSTERIOR_THRESHOLD, MIN_PEERS, peerGroupKeys, type PeerGroupStat } from "@/verdict/peer";
 import {
   CONFIDENCE_DISAGREEMENT_THRESHOLD_POINTS, PARAMS,
   RED_FLAG_AVOID_SHARE_THRESHOLD, RULE_VERSION, type RollupFlag,
@@ -121,7 +121,8 @@ async function main() {
     const target = BASELINE_TARGETS[format];
     const n = baselinePeerFormatCounts.get(format) ?? 0;
     const fallback = calibration ? groupForFormat(calibration.snapshot.groups, "Lisbon", format) : undefined;
-    return { format, target, n, fallback };
+    const selectedFallback = fallback && fallback.level !== "format" ? fallback : undefined;
+    return { format, target, n, fallback: selectedFallback };
   });
   const fallbackRecorded = coverage.every(({ target, n, fallback }) =>
     (target !== undefined && n >= target) || Boolean(fallback && (target === undefined || n < target)),
@@ -131,7 +132,13 @@ async function main() {
   const taSpot = spotChecks.find((row) => row.kind === "tripadvisor_match");
   const formatSpotPass = Number(formatSpot?.sample ?? 0) === 50 && Number(formatSpot?.answered ?? 0) === 50 && Number(formatSpot?.correct ?? 0) >= 45;
   const taSpotPass = Number(taSpot?.sample ?? 0) === 30 && Number(taSpot?.answered ?? 0) === 30 && Number(taSpot?.correct ?? 0) >= 29;
-  const ruleDecisionComplete = calibration !== null && calibration.ruleRankings.every((result) => !result.rankingReversed);
+  const ruleDecision = process.env.LISBON_RULE_DECISION?.trim();
+  const validRuleDecisions = ["weighted-composite", "pure-gates", "food-first"] as const;
+  if (ruleDecision && !validRuleDecisions.includes(ruleDecision as (typeof validRuleDecisions)[number])) {
+    throw new Error(`LISBON_RULE_DECISION must be one of: ${validRuleDecisions.join(", ")}`);
+  }
+  const rankingReversed = calibration?.ruleRankings.some((result) => result.rankingReversed) ?? false;
+  const ruleDecisionComplete = calibration !== null && (!rankingReversed || ruleDecision === ACTIVE_RANKING_RULE);
   const cutoffFit = calibration?.provisionalCutoffs;
   const proposedCutsApplied = Boolean(cutoffFit && Math.abs(PARAMS.goodCut - cutoffFit.proposedGoodCut) < 0.005 &&
     Math.abs(PARAMS.mustGoCut - cutoffFit.proposedMustGoCut) < 0.005);
@@ -153,7 +160,7 @@ async function main() {
       piiSample === null ? "No baseline PII audit recorded." : `${piiSample} texts; ${piiFindings ?? "?"} personal-name findings; ${piiReviewerNames ?? "?"} reviewer-name findings.`),
     check("Recalibration is recorded; no expected Restaurant Tier is used", recalibrationRecorded,
       !calibration ? "No real Peer sample; recalibration not run." : cutoffFit ?
-        `k fitted for ${calibration.shrinkage.length} Peer groups; rule reversal ${calibration.ruleRankings.some((item) => item.rankingReversed) ? "requires review" : "not detected"}; proposed cuts ${cutoffFit.proposedGoodCut}/${cutoffFit.proposedMustGoCut}${proposedCutsApplied ? " applied" : " not yet applied"}.` : "Not enough qualifying Peers to fit cut-offs."),
+        `k fitted for ${calibration.shrinkage.length} Peer groups; rule reversal ${rankingReversed ? (ruleDecisionComplete ? `reviewed; ${ruleDecision} retained` : "requires an explicit decision") : "not detected"}; proposed cuts ${cutoffFit.proposedGoodCut}/${cutoffFit.proposedMustGoCut}${proposedCutsApplied ? " applied" : " not yet applied"}.` : "Not enough qualifying Peers to fit cut-offs."),
     check("Forced Avoid applies to no more than 5% of Peers", calibration !== null && calibration.forcedAvoidShare <= 0.05,
       calibration ? `${calibration.forcedAvoidPeers}/${calibration.qualifyingPeers} (${pct(calibration.forcedAvoidShare)}); 1% gate ${RED_FLAG_AVOID_SHARE_THRESHOLD}.` : "No real Peer sample."),
     check("Baseline spend stays within ceilings and database storage stays below 500 MB", Boolean(spendsWithin && sizeBytes < 500_000_000),
@@ -182,6 +189,7 @@ async function main() {
     `## Recalibration\n\n` +
     `- Empirical-Bayes k is fitted by the existing snapshot builder for every available Peer group and input.\n` +
     `- Rule comparison uses real theta/n_eff standings. With no real ground-truth labels, it reports rank agreement (Kendall tau-b); a negative tau is a ranking reversal, and this command does not change the selected rule automatically.\n` +
+    `- Active ranking rule: ${ACTIVE_RANKING_RULE}.${rankingReversed ? ` Reversal decision: ${ruleDecisionComplete ? `${ruleDecision} recorded.` : `not recorded; set LISBON_RULE_DECISION=${ACTIVE_RANKING_RULE} after review (or change the implementation and active-rule constant together).`}` : " No reversal decision is required."}\n` +
     `- Confidence disagreement caps: ${CONFIDENCE_DISAGREEMENT_THRESHOLD_POINTS} percentile points for both Source-vs-Source and text-vs-stars.\n` +
     `- Exceptional-language posterior threshold remains ${(EXCEPTIONAL_POSTERIOR_THRESHOLD * 100).toFixed(0)}%.\n` +
     `- ${redFlagDecision}\n` +

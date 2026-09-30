@@ -41,6 +41,7 @@ const FORMAT_FAMILY: Record<string, string> = {
 };
 export const MIN_PEERS = 30;
 export const DEFAULT_SHRINK_K = 10;
+export const ACTIVE_RANKING_RULE = "weighted-composite" as const;
 const keyOf = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
 // Tier boundaries and floors (ADR 0002, issue #35). Percentiles are mid-ranks on a 0-100 scale.

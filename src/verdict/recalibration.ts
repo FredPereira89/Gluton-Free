@@ -267,6 +267,6 @@ export function recalibratePeerData(candidates: RecalibrationCandidate[], now = 
     forcedAvoidPeers,
     forcedAvoidShare,
     revisitRedFlagGate: forcedAvoidPeers === 0 || forcedAvoidShare > 0.05,
-    provisionalCutoffs: fitProvisionalCutoffs(scored),
+    provisionalCutoffs: fitProvisionalCutoffs(scored.filter((peer) => peer.candidate.baselineSampled)),
   };
 }
