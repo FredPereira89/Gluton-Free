@@ -25,6 +25,7 @@ export async function persistBaselineCandidates(candidates: BaselineCandidate[])
         from listing l join restaurant r on r.id = l.restaurant_id
         where l.source_code = 'google' and l.place_ref = ${candidate.placeId}`;
       if (existing) {
+        await tx`update restaurant set baseline_sampled = true where id = ${existing.restaurant_id}`;
         if (existing.format_provenance === "baseline_auto" && candidate.formatProvenance === "llm") {
           await tx`
             update restaurant set format = ${candidate.format}, format_provenance = 'llm', format_changed_at = now()
@@ -44,9 +45,9 @@ export async function persistBaselineCandidates(candidates: BaselineCandidate[])
       }
 
       const [restaurant] = await tx`
-        insert into restaurant (slug, name, city, area, address, lat, lng, status, format, format_provenance, price_tier, price_provenance)
+        insert into restaurant (slug, name, city, area, address, lat, lng, status, format, format_provenance, price_tier, price_provenance, baseline_sampled)
         values (${slug}, ${candidate.name}, 'Lisbon', ${candidate.area}, ${candidate.address}, ${candidate.latitude}, ${candidate.longitude},
-          'open', ${candidate.format}, ${candidate.formatProvenance}, ${candidate.priceTier}, ${candidate.priceTier ? "source" : null})
+          'open', ${candidate.format}, ${candidate.formatProvenance}, ${candidate.priceTier}, ${candidate.priceTier ? "source" : null}, true)
         returning id`;
       await tx`
         insert into listing (restaurant_id, source_code, place_ref, url, match_provenance, source_rating, source_review_count,
