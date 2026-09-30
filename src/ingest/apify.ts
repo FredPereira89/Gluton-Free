@@ -54,22 +54,31 @@ type NearbyRestaurant = {
 type RunInfo = {
   id?: string; defaultDatasetId?: string; status?: string; usageTotalUsd?: number;
   chargedEventCounts?: Record<string, number>;
-  pricingInfo?: { pricingPerEvent?: { actorChargeEvents?: Record<string, { eventPriceUsd?: number; isOneTimeEvent?: boolean }> } };
+  pricingInfo?: { pricingPerEvent?: { actorChargeEvents?: Record<string, { eventPriceUsd?: number; isOneTimeEvent?: boolean; isPrimaryEvent?: boolean }> } };
 };
+
+const START_EVENT = "apify-actor-start";
+const DATASET_ITEM_EVENT = "apify-default-dataset-item";
 
 /**
  * What Apify charged, at least. Its totals and event counters lag the run by seconds, so the reported total
- * is raised to the events counted at list price, and to the start fees plus every returned item at the
- * cheapest per-result price (a search that returned 25 restaurants was recorded as $0.0001 against $0.25 billed).
+ * is raised to the events counted at list price, and to the start fee plus what every returned item costs.
+ * An item costs its actor's main event (`isPrimaryEvent`, else the dearest one) plus the dataset-item event when that
+ * is a separate charge: the Reviews actor bills $0.00299 per review on top of $0.00001 per result, the search actor $0.01 per restaurant.
  */
 function runCost(info: RunInfo | undefined, items = 0): number {
   if (!info) return 0;
   const events = Object.entries(info.pricingInfo?.pricingPerEvent?.actorChargeEvents ?? {});
   const counts = info.chargedEventCounts ?? {};
-  const counted = events.reduce((sum, [name, event]) => sum + (counts[name] ?? 0) * (event.eventPriceUsd ?? 0), 0);
-  const startFees = events.reduce((sum, [name, event]) => sum + (event.isOneTimeEvent ? (counts[name] ?? 0) * (event.eventPriceUsd ?? 0) : 0), 0);
-  const perResult = events.filter(([, event]) => !event.isOneTimeEvent && (event.eventPriceUsd ?? 0) > 0).map(([, event]) => event.eventPriceUsd!);
-  const fromItems = perResult.length ? startFees + items * Math.min(...perResult) : 0;
+  const price = (event: { eventPriceUsd?: number }) => event.eventPriceUsd ?? 0;
+  const counted = events.reduce((sum, [name, event]) => sum + (counts[name] ?? 0) * price(event), 0);
+  const isStart = ([name, event]: (typeof events)[number]) => name === START_EVENT || event.isOneTimeEvent === true;
+  const startFees = events.filter(isStart).reduce((sum, [name, event]) => sum + Math.max(counts[name] ?? 0, 1) * price(event), 0);
+  const perItem = events.filter((entry) => !isStart(entry));
+  const main = perItem.find(([, event]) => event.isPrimaryEvent) ?? [...perItem].sort((a, b) => price(b[1]) - price(a[1]))[0];
+  const dataset = perItem.find(([name]) => name === DATASET_ITEM_EVENT);
+  const itemPrice = main ? price(main[1]) + (dataset && dataset !== main ? price(dataset[1]) : 0) : 0;
+  const fromItems = itemPrice > 0 ? startFees + items * itemPrice : 0;
   return Math.max(info.usageTotalUsd ?? 0, counted, fromItems);
 }
 
