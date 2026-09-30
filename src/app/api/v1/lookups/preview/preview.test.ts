@@ -92,6 +92,14 @@ describe("estimateLookup", () => {
     expect(estimate.minutes).toBeGreaterThanOrEqual(1);
   });
 
+  it("prices the depth a Lookup really fetches, capped at 200, however many Reviews the Listing has", () => {
+    const huge = estimateLookup([{ reviewCount: 1859 }]);
+    expect(huge.costUsd).toBe(0.02);
+    expect(huge.minutes).toBe(10);
+    expect(estimateLookup([{ reviewCount: 1_000_000 }])).toEqual(huge);
+    expect(huge.textReviews).toBe(100);
+  });
+
   it("estimates nothing for a Restaurant with no Listings", () => {
     expect(estimateLookup([])).toEqual({ textReviews: 0, costUsd: 0, minutes: 1 });
   });
