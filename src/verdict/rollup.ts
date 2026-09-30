@@ -192,7 +192,7 @@ export type Rollup = {
   disagreement: SourceDisagreement | null;
 };
 
-const MONTH_MS = 30.4375 * 24 * 3600 * 1000;
+export const MONTH_MS = 30.4375 * 24 * 3600 * 1000;
 const ageMonths = (now: Date, d: Date) => Math.max(0, (now.getTime() - d.getTime()) / MONTH_MS);
 const recency = (age: number) => Math.pow(0.5, age / PARAMS.halfLifeMonths);
 const textIn12mCount = (text: RollupReview[], now: Date) => text.filter((r) => ageMonths(now, r.publishedAt) <= 12).length;
@@ -464,6 +464,40 @@ function evidenceBars(reviews: RollupReview[], now: Date): Rollup["notEnoughEvid
   if (!bars.foodMentions.met) missed.push(`food mentioned in fewer than ${bars.foodMentions.need} Reviews`);
   if (!bars.newestReview.met) missed.push(`newest Review older than ${bars.newestReview.need} months`);
   return { textReviews: text.length, foodMentions, newestAgeMonths, missed, bars, reasonLine: null };
+}
+
+/** One input's raw (unshrunk) recency-weighted evidence, the building block of a Peer's θ (ADR 0003). */
+export type PeerInputEvidence = {
+  input: Input;
+  sumW: number;
+  nEff: number;
+  /** Raw weighted mean; null when the Restaurant has no observations for this input. */
+  mean: number | null;
+  /** Unbiased (reliability-weighted) within-Restaurant variance of the observations; 0 below two effective observations. */
+  variance: number;
+};
+
+export type PeerEvidence = { inputs: PeerInputEvidence[]; exceptional: { successes: number; trials: number } };
+
+/**
+ * What a Restaurant contributes to the Peer snapshot: null when its Review window (cut by its own
+ * confirmed Change point) misses the Not-enough-evidence bar, so it is not a Peer. Otherwise the
+ * raw weighted means, before any shrinkage — the snapshot derives θ from them (ADR 0003).
+ */
+export function peerEvidence(reviews: RollupReview[], now: Date, changePointAt: Date | null): PeerEvidence | null {
+  const windowed = applyReviewWindow(reviews, now, changePointAt);
+  if (evidenceBars(windowed, now).missed.length) return null;
+  const inputs = INPUTS.map((input): PeerInputEvidence => {
+    const obs = observations(input, windowed, now);
+    const sumW = obs.reduce((s, [w]) => s + w, 0);
+    const sumW2 = obs.reduce((s, [w]) => s + w * w, 0);
+    if (!obs.length || sumW === 0) return { input, sumW: 0, nEff: 0, mean: null, variance: 0 };
+    const mean = obs.reduce((s, [w, x]) => s + w * x, 0) / sumW;
+    const nEff = (sumW * sumW) / sumW2;
+    const population = obs.reduce((s, [w, x]) => s + w * (x - mean) ** 2, 0) / sumW;
+    return { input, sumW, nEff, mean, variance: nEff > 1 ? (population * nEff) / (nEff - 1) : 0 };
+  });
+  return { inputs, exceptional: exceptionalCounts(windowed) };
 }
 
 export function rollup(input: RollupInput): Rollup {

@@ -1,4 +1,4 @@
-import { INFORMATIVE_ONLY, INPUTS, type Input, type Tier } from "@/domain/aspects";
+import { INFORMATIVE_ONLY, INPUT_WEIGHTS, INPUTS, type Input, type Tier } from "@/domain/aspects";
 import { exceptionalPosterior } from "./beta";
 import type { InputStat } from "./rollup";
 
@@ -61,6 +61,18 @@ const LIFECHANGING_FOOD_FLOOR = 98;
 const LIFECHANGING_MIN_PEERS = 50;
 const EXCEPTIONAL_POSTERIOR_THRESHOLD = 0.9;
 
+/** The weighted-mean θ shrunk toward the Peer group's Format mean — one formula for Peers (snapshot build) and the Restaurant being judged. */
+export function shrinkTheta(sumW: number, weightedSum: number, formatMean: number, k: number): number {
+  return (weightedSum + k * formatMean) / (sumW + k);
+}
+
+/** The counted inputs for a Format (informative-only ones dropped) with their ADR 0002 weights, rescaled to sum to 1. */
+export function countedWeights(format: string): Map<Input, number> {
+  const counted = INPUTS.filter((i) => !(INFORMATIVE_ONLY[format] ?? []).includes(i));
+  const total = counted.reduce((s, i) => s + INPUT_WEIGHTS[i], 0);
+  return new Map(counted.map((i) => [i, INPUT_WEIGHTS[i] / total]));
+}
+
 export const formatPercentile = (percentile: number): string => `P${Math.round(percentile)}`;
 
 export function midRank(sorted: number[], value: number): number {
@@ -74,14 +86,18 @@ export function midRank(sorted: number[], value: number): number {
   return (below + equal / 2) * 100 / sorted.length;
 }
 
-function groupFor(snapshot: PeerSnapshot, city: string, format: string, input: Input): PeerGroupStat | undefined {
+/** The Peer groups a Restaurant belongs to, narrowest first: its Format, its Format family, its city. */
+export function peerGroupKeys(city: string, format: string): { level: PeerLevel; key: string }[] {
   const formatKey = keyOf(format);
-  const candidates: { level: PeerLevel; key: string }[] = [
+  return [
     { level: "format", key: formatKey },
     { level: "family", key: FORMAT_FAMILY[formatKey] ?? formatKey },
     { level: "city", key: city },
   ];
-  for (const candidate of candidates) {
+}
+
+function groupFor(snapshot: PeerSnapshot, city: string, format: string, input: Input): PeerGroupStat | undefined {
+  for (const candidate of peerGroupKeys(city, format)) {
     const group = snapshot.groups.find((g) => g.city === city && g.level === candidate.level && keyOf(g.key) === keyOf(candidate.key) && g.input === input);
     if (group && group.peerCount >= MIN_PEERS && group.sortedTheta.length === group.peerCount) return group;
   }
@@ -199,10 +215,10 @@ function standingsFor(stats: InputStat[], format: string, city: string | undefin
     selected.set(stat.input, group);
     // The provisional theta encodes the weighted sum with its zero prior and k=10.
     const weightedSum = stat.theta * (stat.sumW + DEFAULT_SHRINK_K);
-    const theta = (weightedSum + group.k * group.formatMean) / (stat.sumW + group.k);
+    const theta = shrinkTheta(stat.sumW, weightedSum, group.formatMean, group.k);
     standings.push({ input: stat.input, theta, percentile: midRank(group.sortedTheta, theta), level: group.level, key: group.key, peerCount: group.peerCount });
   }
-  const counted = INPUTS.filter((i) => !(INFORMATIVE_ONLY[format] ?? []).includes(i));
+  const counted = [...countedWeights(format).keys()];
   if (counted.some((i) => !selected.has(i))) return null;
 
   const percentileOf = (i: Input) => standings.find((s) => s.input === i)!.percentile;
