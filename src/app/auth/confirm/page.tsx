@@ -5,13 +5,13 @@ import { connection } from "next/server";
 
 export const metadata: Metadata = { title: "Finish signing in", robots: { index: false, follow: false } };
 
-type Props = { searchParams: Promise<{ token_hash?: string; invite?: string; next?: string }> };
+type Props = { searchParams: Promise<{ token_hash?: string; code?: string; invite?: string; next?: string }> };
 
 export default async function ConfirmPage({ searchParams }: Props) {
   await connection();
-  const { token_hash: tokenHash, invite, next } = await searchParams;
+  const { token_hash: tokenHash, code, invite, next } = await searchParams;
 
-  if (!tokenHash) {
+  if (!tokenHash && !code) {
     return (
       <div className="signin">
         <h1>This link is incomplete</h1>
@@ -25,7 +25,8 @@ export default async function ConfirmPage({ searchParams }: Props) {
       <h1>Finish signing in</h1>
       <p className="muted">One tap and you&apos;re in. You stay signed in on this device.</p>
       <form className="form" action="/api/auth/confirm" method="post">
-        <input type="hidden" name="token_hash" value={tokenHash} />
+        {tokenHash && <input type="hidden" name="token_hash" value={tokenHash} />}
+        {code && <input type="hidden" name="code" value={code} />}
         {invite && <input type="hidden" name="invite" value={invite} />}
         {next && <input type="hidden" name="next" value={next} />}
         <button className="btn" type="submit">Continue</button>

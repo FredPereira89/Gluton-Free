@@ -4,7 +4,7 @@ import ConfirmPage, { metadata } from "./page";
 
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 
-const render = async (searchParams: { token_hash?: string; invite?: string; next?: string }) =>
+const render = async (searchParams: { token_hash?: string; code?: string; invite?: string; next?: string }) =>
   renderToStaticMarkup(await ConfirmPage({ searchParams: Promise.resolve(searchParams) }));
 
 describe("the emailed-link landing page", () => {
@@ -19,6 +19,12 @@ describe("the emailed-link landing page", () => {
     expect(html).toContain('name="invite" value="tok"');
     expect(html).toContain('name="next" value="/settings"');
     expect(html).toContain("Continue");
+  });
+
+  it("carries the code of Supabase's default link too", async () => {
+    const html = await render({ code: "abc" });
+    expect(html).toContain('name="code" value="abc"');
+    expect(html).not.toContain("token_hash");
   });
 
   it("says the link is incomplete when there is no token, with no form", async () => {

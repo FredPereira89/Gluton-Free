@@ -8,14 +8,18 @@ export async function POST(request: Request) {
   if (isCrossSite(request)) return new Response("Cross-site request refused", { status: 403 });
   const form = await request.formData();
   const tokenHash = String(form.get("token_hash") ?? "");
+  const code = String(form.get("code") ?? "");
   const invite = String(form.get("invite") ?? "") || null;
   const next = safeNext(String(form.get("next") ?? "/"));
   const cookies: CookieToSet[] = [];
   const go = (path: string) => redirectWithCookies(request, path, cookies);
 
-  if (!tokenHash) return go("/sign-in?error=link_expired");
+  if (!tokenHash && !code) return go("/sign-in?error=link_expired");
   const supabase = createAuthRouteClient(request, (set) => cookies.push(...set));
-  const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" });
+  // token_hash comes from the custom email template; code from Supabase's default link (same browser only).
+  const { data, error } = tokenHash
+    ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" })
+    : await supabase.auth.exchangeCodeForSession(code);
   const user = data.user;
   if (error || !user) {
     console.error(`auth confirm failed: ${error?.message ?? "no user"}`);

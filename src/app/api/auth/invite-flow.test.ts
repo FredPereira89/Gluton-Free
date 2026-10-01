@@ -203,6 +203,12 @@ describe("POST /api/auth/confirm (the Continue button on the emailed link)", () 
     expect((response as import("next/server").NextResponse).cookies.get("sb-pkce")?.value).toBe("verifier");
   });
 
+  it("also accepts the code of Supabase's default link", async () => {
+    expect(where(await press({ code: "abc", invite: TOKEN }))).toBe("/");
+    expect(auth.exchangeCodeForSession).toHaveBeenCalledWith("abc");
+    expect(auth.verifyOtp).not.toHaveBeenCalled();
+  });
+
   it("lets a recorded Invitee back in to the page they wanted", async () => {
     expect(where(await press({ token_hash: "hash", next: "/settings" }))).toBe("/settings");
     expect(joinWithInvite).not.toHaveBeenCalled();
