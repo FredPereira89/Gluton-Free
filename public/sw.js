@@ -21,7 +21,9 @@ self.addEventListener("push", (event) => {
   } catch {
     payload = {};
   }
-  const body = NOTIFICATION_BODY[payload.kind] ?? "You have an update.";
+  const body = payload.kind === "database_size_warning" && Number.isFinite(payload.sizeMb)
+    ? `Database size is ${payload.sizeMb} MB. Review the documented overflow plan.`
+    : NOTIFICATION_BODY[payload.kind] ?? "You have an update.";
   const url = typeof payload.restaurantSlug === "string" ? `/r/${payload.restaurantSlug}` : "/";
   event.waitUntil(self.registration.showNotification("Gluton-Free", {
     body,

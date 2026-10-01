@@ -1,7 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
-import { sendPush } from "@/lib/push-send";
+import { sendDatabaseSizeWarning, sendPush } from "@/lib/push-send";
 
 vi.mock("@/lib/db", () => ({ db: vi.fn() }));
 const webpushSendNotification = vi.hoisted(() => vi.fn());
@@ -110,5 +110,25 @@ describe("sendPush", () => {
     query.mockRejectedValue(new Error("connection reset"));
     await expect(sendPush("verdict_ready", 7)).resolves.toBeUndefined();
     expect(webpushSendNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendDatabaseSizeWarning", () => {
+  it("sends the measured size to every subscribed device without a Restaurant lookup", async () => {
+    query.mockImplementation((strings: TemplateStringsArray) => {
+      const text = sqlText(strings);
+      if (text.includes("from push_subscription")) return Promise.resolve([
+        { id: 1, endpoint: "https://push.example.test/a", p256dh_key: "p256dh-a", auth_key: "auth-a" },
+      ]);
+      throw new Error(`Unexpected query: ${text}`);
+    });
+    webpushSendNotification.mockResolvedValue(undefined);
+
+    await sendDatabaseSizeWarning(351_250_000);
+
+    expect(webpushSendNotification).toHaveBeenCalledTimes(1);
+    const [, payload] = webpushSendNotification.mock.calls[0]!;
+    expect(JSON.parse(payload as string)).toEqual({ kind: "database_size_warning", sizeMb: 351.3 });
+    expect(query.mock.calls.some(([strings]) => sqlText(strings as TemplateStringsArray).includes("from restaurant"))).toBe(false);
   });
 });
