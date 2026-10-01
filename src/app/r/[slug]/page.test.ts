@@ -26,6 +26,22 @@ describe("Restaurant details (issue #53)", () => {
   });
 });
 
+describe("Shared directory labels (issue #111)", () => {
+  it("shows the human Format label and the booking link on the report, for the Owner and an Invitee", async () => {
+    const page = bundle(0);
+    page.restaurant = { ...page.restaurant, format: "casa_de_fado", booking: { label: "Book on TheFork", url: "https://www.thefork.pt/restaurante/sample-r1", kind: "thefork" } };
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    for (const role of ["owner", "invitee"] as const) {
+      vi.mocked(pageRole).mockResolvedValueOnce(role);
+      const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+      expect(html).toContain("Casa de fado");
+      expect(html).not.toContain("Casa_de_fado");
+      expect(html).toContain('href="https://www.thefork.pt/restaurante/sample-r1"');
+      expect(html).toContain("Book on TheFork");
+    }
+  });
+});
+
 describe("Invitee view (issue #109)", () => {
   it("marks every report state for an Invitee so the shell hides Settings, and not for the Owner", async () => {
     for (const variant of [{ ...bundle(1), verdict: null }, bundle(1)]) {

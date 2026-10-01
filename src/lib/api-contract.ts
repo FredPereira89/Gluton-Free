@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CHANGE_POINT_KINDS, TIERS } from "@/domain/aspects";
+import { FORMAT_FAMILIES } from "@/domain/format-labels";
 import { FORMATS } from "@/domain/restaurant-facts";
 import { BlocksSchema, RollupSchema, ShownQuoteSchema } from "@/verdict/blocks";
 import {
@@ -8,6 +9,9 @@ import {
 } from "./invite-contract";
 import { LISTING_SOURCES } from "./listing-source";
 import { parseApiRequest, problemSchema } from "./problem-schema";
+
+// Where to book or find a Restaurant: TheFork when it has a Listing there, otherwise Google Maps.
+export const bookingLinkSchema = z.strictObject({ label: z.string(), url: z.url(), kind: z.enum(["thefork", "google_maps"]) });
 
 const restaurantSchema = z.strictObject({
   id: z.number().int(),
@@ -18,6 +22,7 @@ const restaurantSchema = z.strictObject({
   format: z.string(),
   formatProvenance: z.enum(["llm", "owner", "baseline_auto"]).optional(),
   priceTier: z.enum(["€", "€€", "€€€", "€€€€"]).nullable(),
+  booking: bookingLinkSchema.optional(),
 });
 
 const verdictSchema = z.strictObject({
@@ -209,6 +214,72 @@ export const restaurantListItemSchema = z.strictObject({
 });
 export const restaurantListResponseSchema = paginatedSchema(restaurantListItemSchema);
 export type RestaurantListResponse = z.infer<typeof restaurantListResponseSchema>;
+
+// The directory: every Restaurant with a Verdict, searched, filtered, sorted and paged on the
+// server. Its state lives in the URL, so the query is read from URL parameters (repeat a parameter
+// to pick several values: ?tier=good&tier=must_go).
+export const PRICE_TIERS = ["€", "€€", "€€€", "€€€€"] as const;
+export const DIRECTORY_SORTS = ["tier", "food", "value", "price", "name"] as const;
+export const DIRECTORY_DEFAULT_PAGE_SIZE = 24;
+export const directoryQuerySchema = z.strictObject({
+  // As long as the lookup input, so a pasted link stays in the URL with the rest of the state.
+  q: z.string().trim().max(2048).default(""),
+  sort: z.enum(DIRECTORY_SORTS).default("tier"),
+  tier: z.array(z.enum(TIERS)).default([]),
+  family: z.array(z.enum(FORMAT_FAMILIES.map((family) => family.code))).default([]),
+  price: z.array(z.enum(PRICE_TIERS)).default([]),
+  area: z.array(z.string().trim().min(1).max(80)).default([]),
+  // Not enough evidence Restaurants are hidden unless asked for.
+  nee: z.boolean().default(false),
+  page: z.number().int().min(1).max(10_000).default(1),
+  pageSize: z.number().int().min(1).max(100).default(DIRECTORY_DEFAULT_PAGE_SIZE),
+});
+export type DirectoryQuery = z.infer<typeof directoryQuerySchema>;
+
+export function parseDirectoryQuery(searchParams: URLSearchParams): DirectoryQuery {
+  const one = (name: string) => searchParams.get(name) ?? undefined;
+  const number = (name: string) => (searchParams.has(name) ? Number(searchParams.get(name)) : undefined);
+  const nee = one("nee");
+  return parseApiRequest(directoryQuerySchema, {
+    q: one("q"),
+    sort: one("sort"),
+    tier: searchParams.getAll("tier"),
+    family: searchParams.getAll("family"),
+    price: searchParams.getAll("price"),
+    area: searchParams.getAll("area"),
+    nee: nee === "1" || nee === "true" ? true : nee === "0" || nee === "false" ? false : nee,
+    page: number("page"),
+    pageSize: number("pageSize"),
+  });
+}
+
+export const directoryItemSchema = z.strictObject({
+  slug: z.string(),
+  name: z.string(),
+  state: z.enum(["verdict", "not_enough_evidence"]),
+  tier: z.enum(TIERS).nullable(),
+  provisional: z.boolean(),
+  confidence: z.enum(["low", "medium", "high"]).nullable(),
+  // The human label, never the stored code.
+  format: z.string(),
+  formatFamily: z.enum(FORMAT_FAMILIES.map((family) => family.code)).nullable(),
+  priceTier: z.enum(PRICE_TIERS).nullable(),
+  neighbourhood: z.string(),
+  booking: bookingLinkSchema,
+});
+export const directoryResponseSchema = z.strictObject({
+  items: z.array(directoryItemSchema),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().min(1),
+  // Not enough evidence Restaurants the other filters would show, left out unless nee is on.
+  hiddenNotEnoughEvidence: z.number().int().nonnegative(),
+  // Every neighbourhood in the directory, for the filter, whatever else is filtered.
+  neighbourhoods: z.array(z.strictObject({ name: z.string(), count: z.number().int().positive() })),
+});
+export type DirectoryResponse = z.infer<typeof directoryResponseSchema>;
+export type DirectoryItem = z.infer<typeof directoryItemSchema>;
 export const searchQuerySchema = z.strictObject({
   q: z.string().trim().max(2048),
 });
@@ -354,6 +425,13 @@ export const routes = {
     auth: "invitee",
     request: { query: idCursorQuerySchema },
     responses: { 200: restaurantListResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  directory: {
+    method: "GET",
+    path: "/api/v1/directory",
+    auth: "invitee",
+    request: { query: directoryQuerySchema },
+    responses: { 200: directoryResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   search: {
     method: "GET",

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { PreviewLookupResponse, SearchResponse } from "@/lib/api-contract";
 
@@ -65,9 +65,10 @@ function ResultContent({ result }: { result: Result }) {
   </>;
 }
 
-export default function SearchHome({ canAddRestaurant }: { canAddRestaurant: boolean }) {
+export default function SearchHome({ canAddRestaurant, initialQuery = "" }: { canAddRestaurant: boolean; initialQuery?: string }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResponse>(emptyResults);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -81,6 +82,29 @@ export default function SearchHome({ canAddRestaurant }: { canAddRestaurant: boo
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState(false);
   const previewRequest = useRef<string | null>(null);
+  const pushedQuery = useRef(initialQuery);
+
+  // The search text narrows the directory below, so it lives in the URL with the rest of its state.
+  useEffect(() => {
+    const q = query.trim();
+    if (q === (searchParams.get("q") ?? "")) return;
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (q) params.set("q", q); else params.delete("q");
+      params.delete("page");
+      pushedQuery.current = q;
+      const search = params.toString();
+      router.replace(search ? `/?${search}` : "/", { scroll: false });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query, searchParams, router]);
+
+  // A search text that changed some other way, such as "Clear filters", replaces what is typed.
+  useEffect(() => {
+    if (initialQuery === pushedQuery.current) return;
+    pushedQuery.current = initialQuery;
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
   async function openPreview(placeId: string) {
     previewRequest.current = placeId;

@@ -17,6 +17,7 @@ import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
 import { RefreshWhileBusy } from "@/web/refresh-while-busy";
+import { formatLabel } from "@/domain/format-labels";
 import { TheForkLink } from "@/web/thefork-link";
 import { TheForkUnavailable } from "@/web/thefork-retry";
 import { OwnerQuestions, SourceRetryBanners } from "@/web/owner-questions";
@@ -82,6 +83,10 @@ export default async function VerdictPageRoute({ params }: Props) {
             </a>
           </span>
         ))}
+        {R.booking && <>
+          {" · "}
+          <a href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label} ↗</a>
+        </>}
         {" · "}
         <Link href={`/r/${encodeURIComponent(R.slug)}/history`}>Verdict history</Link>
       </p>
@@ -89,7 +94,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   );
   const baseChips = (
     <>
-      <span className="chip">{cap(formatName)}{owner?.restaurant.formatProvenance === "llm" ? " (proposed)" : ""}</span>
+      <span className="chip">{formatLabel(R.format)}{owner?.restaurant.formatProvenance === "llm" ? " (proposed)" : ""}</span>
       {R.priceTier && <span className="chip">{R.priceTier}</span>}
     </>
   );

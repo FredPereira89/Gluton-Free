@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import HomePage, { metadata } from "./page";
 import { AuthError, requireCaller } from "@/lib/auth";
 
-const { mockSearchHome } = vi.hoisted(() => ({ mockSearchHome: vi.fn() }));
+const { mockSearchHome, mockDirectory, mockLoadDirectory } = vi.hoisted(() => ({ mockSearchHome: vi.fn(), mockDirectory: vi.fn(), mockLoadDirectory: vi.fn() }));
 
 vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
 vi.mock("@/lib/auth", async (importOriginal) => ({
@@ -12,12 +12,16 @@ vi.mock("@/lib/auth", async (importOriginal) => ({
   requireCaller: vi.fn(),
 }));
 vi.mock("./search-home", () => ({
-  default: (props: { canAddRestaurant: boolean }) => mockSearchHome(props),
+  default: (props: { canAddRestaurant: boolean; initialQuery: string }) => mockSearchHome(props),
 }));
+vi.mock("./directory", () => ({ default: (props: unknown) => mockDirectory(props) }));
+vi.mock("@/web/data", () => ({ loadDirectory: mockLoadDirectory }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockSearchHome.mockReturnValue(createElement("div", null, "Signed-in app"));
+  mockDirectory.mockReturnValue(createElement("div", null, "Directory"));
+  mockLoadDirectory.mockResolvedValue({ items: [], total: 0 });
 });
 
 describe("home page", () => {
@@ -43,7 +47,7 @@ describe("home page", () => {
     const html = renderToStaticMarkup(await HomePage());
 
     expect(html).toContain("Signed-in app");
-    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: true });
+    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: true, initialQuery: "" });
   });
 
   it("shows the existing app at / to an Invitee without Owner controls", async () => {
@@ -52,6 +56,33 @@ describe("home page", () => {
     const html = renderToStaticMarkup(await HomePage());
 
     expect(html).toContain("Signed-in app");
-    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: false });
+    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: false, initialQuery: "" });
+  });
+
+  it("shows the directory under the search bar to an Invitee, as read from the URL", async () => {
+    vi.mocked(requireCaller).mockResolvedValue({ userId: "invitee", role: "invitee" });
+
+    const html = renderToStaticMarkup(await HomePage({ searchParams: Promise.resolve({ q: "tasca", sort: "value", tier: ["good", "must_go"], nee: "1" }) }));
+
+    expect(html).toContain("Directory");
+    expect(mockLoadDirectory).toHaveBeenCalledWith(expect.objectContaining({ q: "tasca", sort: "value", tier: ["good", "must_go"], nee: true, page: 1 }));
+    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: false, initialQuery: "tasca" });
+    expect(mockDirectory).toHaveBeenCalledWith(expect.objectContaining({ query: expect.objectContaining({ q: "tasca" }) }));
+  });
+
+  it("falls back to the default view for a URL that does not parse", async () => {
+    vi.mocked(requireCaller).mockResolvedValue({ userId: "owner", role: "owner" });
+
+    await HomePage({ searchParams: Promise.resolve({ sort: "vibes", page: "0" }) });
+
+    expect(mockLoadDirectory).toHaveBeenCalledWith(expect.objectContaining({ sort: "tier", page: 1 }));
+  });
+
+  it("does not load the directory for signed-out visitors", async () => {
+    vi.mocked(requireCaller).mockRejectedValue(new AuthError(401, "unauthenticated", "No session"));
+
+    await HomePage();
+
+    expect(mockLoadDirectory).not.toHaveBeenCalled();
   });
 });

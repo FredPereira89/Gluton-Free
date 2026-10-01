@@ -6,7 +6,9 @@ import {
 } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
-import type { SearchResponse } from "@/lib/api-contract";
+import type { DirectoryQuery, DirectoryResponse, SearchResponse } from "@/lib/api-contract";
+import { buildDirectory } from "@/lib/directory";
+import { bookingLink, type BookingLink } from "@/domain/booking-link";
 import { formatQuestionPayloadSchema, formatQuestionPrompt, questionCandidates, questionPrompt } from "@/lib/owner-question";
 import type { ListingSource } from "@/lib/listing-source";
 import { CHANGE_POINT_LABEL, type ChangePointKind } from "@/domain/aspects";
@@ -119,7 +121,7 @@ export type SourceRow = {
 };
 
 export type VerdictPage = {
-  restaurant: { id: number; slug: string; name: string; city: string; area: string | null; format: string; formatProvenance: "llm" | "owner" | "baseline_auto"; priceTier: string | null };
+  restaurant: { id: number; slug: string; name: string; city: string; area: string | null; format: string; formatProvenance: "llm" | "owner" | "baseline_auto"; priceTier: string | null; booking?: BookingLink };
   sources: SourceRow[];
   verdict: { id: number; state: string; tier: string | null; confidence: string | null; explanation: string | null; createdAt: Date; blocks: Blocks; peerSnapshotId?: number | null } | null;
   distinctions: { id: number; guide: string; level: string; editionYear: number | null; url: string }[];
@@ -133,7 +135,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
   const id = Number(r.id);
   const [listings, [v], distinctions, critics] = await Promise.all([
     sql`
-      select s.code, s.name, s.kind, s.access, l.url, l.source_rating, l.source_review_count,
+      select s.code, s.name, s.kind, s.access, l.url, l.place_ref, l.source_rating, l.source_review_count,
              l.source_text_count, l.newest_review_at, l.fetch_status
       from listing l join source s on s.code = l.source_code
       where l.restaurant_id = ${id} order by s.name`,
@@ -185,6 +187,11 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       format: r.format,
       formatProvenance: r.format_provenance,
       priceTier: r.price_tier,
+      booking: bookingLink({
+        name: r.name,
+        googlePlaceId: listings.find((l) => l.code === "google")?.place_ref ?? null,
+        theForkUrl: listings.find((l) => l.code === "thefork")?.url ?? null,
+      }),
     },
     sources: listings.map((l) => ({
       code: l.code,
@@ -375,4 +382,40 @@ export async function loadVerdictHistory(
     })),
     nextCursor: verdicts.length > limit ? pageRows.at(-1)!.id : null,
   };
+}
+
+// Every open Restaurant with a Verdict, from its latest Verdict, searched, filtered, sorted and
+// paged in `buildDirectory`. About a few hundred rows, so the whole list is read once per request.
+export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryResponse> {
+  const rows = await db()`
+    select r.slug, r.name, r.address, r.area, r.lat, r.lng, r.format, r.price_tier,
+           v.state, v.tier, v.confidence, v.provisional,
+           (select (s->>'percentile')::float8 from jsonb_array_elements(v.blocks->'rollup'->'standings') s where s->>'input' = 'food') as food_percentile,
+           (select (s->>'percentile')::float8 from jsonb_array_elements(v.blocks->'rollup'->'standings') s where s->>'input' = 'value') as value_percentile,
+           (select place_ref from listing where restaurant_id = r.id and source_code = 'google') as google_place_id,
+           (select url from listing where restaurant_id = r.id and source_code = 'thefork') as thefork_url
+    from restaurant r
+    join lateral (select state, tier, confidence, provisional, blocks from verdict where restaurant_id = r.id order by id desc limit 1) v on true
+    where r.status <> 'permanently_closed'`;
+  return buildDirectory(
+    rows.map((r) => ({
+      slug: r.slug,
+      name: r.name,
+      address: r.address,
+      area: r.area,
+      lat: r.lat,
+      lng: r.lng,
+      format: r.format,
+      priceTier: r.price_tier,
+      state: r.state,
+      tier: r.tier,
+      confidence: r.confidence,
+      provisional: r.provisional,
+      foodPercentile: r.food_percentile,
+      valuePercentile: r.value_percentile,
+      googlePlaceId: r.google_place_id,
+      theForkUrl: r.thefork_url,
+    })),
+    query,
+  );
 }

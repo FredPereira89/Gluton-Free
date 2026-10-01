@@ -31,7 +31,7 @@ export type PeerVerdict = {
   ceilingNote: string | null;
 };
 
-const FORMAT_FAMILY: Record<string, string> = {
+export const FORMAT_FAMILY: Record<string, string> = {
   tasca: "traditional_portuguese", restaurante_tradicional: "traditional_portuguese",
   marisqueira_cervejaria: "traditional_portuguese", marisqueira: "traditional_portuguese",
   cervejaria: "traditional_portuguese", churrasqueira: "traditional_portuguese", casa_de_fado: "traditional_portuguese",

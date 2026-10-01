@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { AuthError, requireCaller } from "@/lib/auth";
+import { directoryQueryFromPage } from "@/lib/directory-url";
+import { loadDirectory } from "@/web/data";
+import Directory from "./directory";
 import SearchHome from "./search-home";
 
 export const metadata: Metadata = {
@@ -68,7 +71,7 @@ function LandingPage() {
   );
 }
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> } = {}) {
   let role: "owner" | "invitee" | null = null;
   try {
     const requestHeaders = new Headers(await headers());
@@ -80,5 +83,11 @@ export default async function HomePage() {
   }
 
   if (!role) return <LandingPage />;
-  return <SearchHome canAddRestaurant={role === "owner"} />;
+  // The directory's state lives in the URL, so a refresh or a shared link restores it.
+  const query = directoryQueryFromPage(await searchParams ?? {});
+  const result = await loadDirectory(query);
+  return <>
+    <SearchHome canAddRestaurant={role === "owner"} initialQuery={query.q} />
+    <Directory query={query} result={result} />
+  </>;
 }

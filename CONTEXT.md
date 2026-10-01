@@ -96,6 +96,14 @@ _Avoid_: Category, type, cuisine, segment
 A group of related Formats (Traditional Portuguese, Casual, Fine dining, Quick & café). A Format with too few peers borrows its Format family's peers.
 _Avoid_: Category, group, parent Format
 
+**Neighbourhood**:
+The part of Lisbon a Restaurant is listed under in the directory: the stored area if there is one, else read from its address, else the nearest of a fixed set of centres, else "Elsewhere in Lisbon". Display and filtering only; it never changes the Verdict.
+_Avoid_: District, zone, parish
+
+**Booking link**:
+The one link a Restaurant offers to go and eat there: "Book on TheFork" when a TheFork Listing exists, otherwise "Open in Google Maps". Never carries affiliate parameters.
+_Avoid_: Reservation link, affiliate link
+
 **Price tier**:
 How expensive a Restaurant is, from € to €€€€. Shown with the Verdict; never splits peers.
 _Avoid_: Price level, price range, budget

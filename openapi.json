@@ -215,6 +215,400 @@
         ]
       }
     },
+    "/api/v1/directory": {
+      "get": {
+        "operationId": "directory",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "verdict",
+                              "not_enough_evidence"
+                            ]
+                          },
+                          "tier": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "avoid",
+                                  "ok",
+                                  "good",
+                                  "must_go",
+                                  "life_changing"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "provisional": {
+                            "type": "boolean"
+                          },
+                          "confidence": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "low",
+                                  "medium",
+                                  "high"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "format": {
+                            "type": "string"
+                          },
+                          "formatFamily": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "traditional_portuguese",
+                                  "casual",
+                                  "fine_dining",
+                                  "quick_cafe"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "priceTier": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "€",
+                                  "€€",
+                                  "€€€",
+                                  "€€€€"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "neighbourhood": {
+                            "type": "string"
+                          },
+                          "booking": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "thefork",
+                                  "google_maps"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "label",
+                              "url",
+                              "kind"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "state",
+                          "tier",
+                          "provisional",
+                          "confidence",
+                          "format",
+                          "formatFamily",
+                          "priceTier",
+                          "neighbourhood",
+                          "booking"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "totalPages": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "hiddenNotEnoughEvidence": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "neighbourhoods": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "total",
+                    "totalPages",
+                    "hiddenNotEnoughEvidence",
+                    "neighbourhoods"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": "",
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": "tier",
+              "type": "string",
+              "enum": [
+                "tier",
+                "food",
+                "value",
+                "price",
+                "name"
+              ]
+            }
+          },
+          {
+            "name": "tier",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "avoid",
+                  "ok",
+                  "good",
+                  "must_go",
+                  "life_changing"
+                ]
+              }
+            }
+          },
+          {
+            "name": "family",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "traditional_portuguese",
+                  "casual",
+                  "fine_dining",
+                  "quick_cafe"
+                ]
+              }
+            }
+          },
+          {
+            "name": "price",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "€",
+                  "€€",
+                  "€€€",
+                  "€€€€"
+                ]
+              }
+            }
+          },
+          {
+            "name": "area",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              }
+            }
+          },
+          {
+            "name": "nee",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": 24,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "security": [
+          {
+            "ownerBearer": []
+          },
+          {
+            "ownerSession": []
+          }
+        ]
+      }
+    },
     "/api/v1/search": {
       "get": {
         "operationId": "search",
@@ -1299,6 +1693,31 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "booking": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": "string"
+                            },
+                            "url": {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "thefork",
+                                "google_maps"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "url",
+                            "kind"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -2574,6 +2993,31 @@
                                   "type": "null"
                                 }
                               ]
+                            },
+                            "booking": {
+                              "type": "object",
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "thefork",
+                                    "google_maps"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "label",
+                                "url",
+                                "kind"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -4393,6 +4837,31 @@
                                   "type": "null"
                                 }
                               ]
+                            },
+                            "booking": {
+                              "type": "object",
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "thefork",
+                                    "google_maps"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "label",
+                                "url",
+                                "kind"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [

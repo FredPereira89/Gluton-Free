@@ -1,0 +1,62 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import { directoryQuerySchema, type DirectoryItem, type DirectoryResponse } from "@/lib/api-contract";
+import Directory from "./directory";
+
+vi.mock("./directory-controls", () => ({ default: () => createElement("div", null, "Controls") }));
+
+const item = (overrides: Partial<DirectoryItem> = {}): DirectoryItem => ({
+  slug: "cantina", name: "Cantina Zé", state: "verdict", tier: "must_go", provisional: false, confidence: "high",
+  format: "Casa de fado", formatFamily: "traditional_portuguese", priceTier: "€€", neighbourhood: "Alfama",
+  booking: { label: "Open in Google Maps", url: "https://www.google.com/maps/search/?api=1&query=Cantina", kind: "google_maps" },
+  ...overrides,
+});
+const result = (overrides: Partial<DirectoryResponse> = {}): DirectoryResponse => ({
+  items: [item()], page: 1, pageSize: 24, total: 1, totalPages: 1, hiddenNotEnoughEvidence: 0, neighbourhoods: [], ...overrides,
+});
+const render = (response: DirectoryResponse, query: Parameters<typeof directoryQuerySchema.parse>[0] = {}) =>
+  renderToStaticMarkup(createElement(Directory, { query: directoryQuerySchema.parse(query), result: response }));
+
+describe("directory", () => {
+  it("shows each Restaurant's Tier, Confidence, Format label, Price, neighbourhood and booking link", () => {
+    const html = render(result());
+    expect(html).toContain('href="/r/cantina"');
+    expect(html).toContain("Cantina Zé");
+    expect(html).toContain("Must Go");
+    expect(html).toContain("High Confidence");
+    expect(html).toContain("Casa de fado");
+    expect(html).not.toContain("casa_de_fado");
+    expect(html).toContain("€€");
+    expect(html).toContain("Alfama");
+    expect(html).toContain('href="https://www.google.com/maps/search/?api=1&amp;query=Cantina"');
+    expect(html).toContain("Open in Google Maps");
+    expect(html).toContain('rel="noopener noreferrer"');
+  });
+
+  it("labels a Not enough evidence Restaurant instead of showing a Tier", () => {
+    const html = render(result({ items: [item({ state: "not_enough_evidence", tier: null, confidence: null })] }), { nee: true });
+    expect(html).toContain("Not enough evidence");
+    expect(html).not.toContain("conf-");
+  });
+
+  it("says how many Not enough evidence Restaurants are hidden", () => {
+    expect(render(result({ hiddenNotEnoughEvidence: 10 }))).toContain("10 with Not enough evidence hidden");
+    expect(render(result({ hiddenNotEnoughEvidence: 0 }))).not.toContain("Not enough evidence hidden");
+  });
+
+  it("links the previous and next page, keeping the rest of the view in the URL", () => {
+    const html = render(result({ page: 2, totalPages: 3 }), { q: "tasca", sort: "value", page: 2 });
+    expect(html).toContain("Page 2 of 3");
+    expect(html).toContain('href="/?q=tasca&amp;sort=value"'); // previous: page 1 is the plain URL
+    expect(html).toContain('href="/?q=tasca&amp;sort=value&amp;page=3"');
+    expect(render(result())).not.toContain("Page 1 of 1");
+  });
+
+  it("offers Clear filters when nothing matches", () => {
+    const html = render(result({ items: [], total: 0 }), { tier: ["avoid"] });
+    expect(html).toContain("No Restaurants match");
+    expect(html).toContain('href="/"');
+    expect(html).toContain("Clear filters");
+  });
+});
