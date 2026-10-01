@@ -100,7 +100,7 @@ export async function searchKnownRestaurants(
   return found.map((restaurant) => ({
     slug: restaurant.slug, name: restaurant.name, address: restaurant.address, distanceMeters: null,
     stars: restaurant.stars, reviewCount: restaurant.reviewCount, category: restaurant.category,
-    priceTier: restaurant.priceTier, status: restaurant.status === "temporarily_closed" ? "temporarily_closed" : "open",
+    priceTier: restaurant.priceTier as SearchResponse["known"][number]["priceTier"], status: restaurant.status === "temporarily_closed" ? "temporarily_closed" : "open",
     placeId: restaurant.placeId,
   }));
 }

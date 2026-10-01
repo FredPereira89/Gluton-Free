@@ -1,20 +1,7 @@
-import { z } from "zod";
 import { AuthError, requireOwner, type RequireOwnerOptions } from "./auth";
+import { ApiError, parseApiRequest, problemSchema } from "./problem-schema";
 
-export const problemSchema = z.strictObject({
-  type: z.literal("about:blank"),
-  title: z.string(),
-  status: z.number().int(),
-  detail: z.string(),
-  code: z.string(),
-  resetAt: z.iso.datetime().optional(),
-});
-
-export class ApiError extends Error {
-  constructor(public readonly status: number, public readonly code: string, message: string, public readonly extra?: { resetAt?: string }) {
-    super(message);
-  }
-}
+export { ApiError, parseApiRequest, problemSchema };
 
 // RFC 9457 application/problem+json.
 export function problemResponse(err: { status: number; code: string; message: string; extra?: { resetAt?: string } }): Response {
@@ -35,12 +22,6 @@ export function withApiErrors<Args extends unknown[]>(handler: (...args: Args) =
       return problemResponse({ status: 500, code: "internal_error", message: "Service unavailable" });
     }
   };
-}
-
-export function parseApiRequest<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
-  const result = schema.safeParse(input);
-  if (!result.success) throw new ApiError(400, "invalid_request", "Invalid request");
-  return result.data;
 }
 
 /** requireOwner, but rethrows as the ApiError shape route handlers expect. */
