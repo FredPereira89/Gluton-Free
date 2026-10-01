@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as redeem } from "./invite/route";
 import { POST as magicLink } from "./magic-link/route";
 import { GET as callback } from "./callback/route";
+import { POST as confirm } from "./confirm/route";
 import { createAuthRouteClient, isActiveInvitee } from "@/lib/auth";
 import { inviteLinkIsOpen, isInviteeEmail, joinWithInvite } from "@/lib/invite";
 
@@ -17,6 +18,7 @@ const TOKEN = "A".repeat(43);
 const auth = {
   signInWithOtp: vi.fn(),
   exchangeCodeForSession: vi.fn(),
+  verifyOtp: vi.fn(),
   signOut: vi.fn(),
 };
 
@@ -26,6 +28,7 @@ beforeEach(() => {
   // The PKCE verifier cookie the real client would set when it sends a magic link.
   auth.signInWithOtp.mockResolvedValue({ error: null });
   auth.exchangeCodeForSession.mockResolvedValue({ data: { user: { id: USER_ID, email: "ana@example.test" } }, error: null });
+  auth.verifyOtp.mockResolvedValue({ data: { user: { id: USER_ID, email: "ana@example.test" } }, error: null });
   auth.signOut.mockResolvedValue({ error: null });
   vi.mocked(createAuthRouteClient).mockImplementation((_request, onSetCookies) => {
     onSetCookies([{ name: "sb-pkce", value: "verifier", options: { path: "/" } }]);
@@ -50,7 +53,7 @@ describe("POST /api/auth/invite (redeeming an Invite link)", () => {
     expect(where(response)).toBe(`/invite/${TOKEN}?sent=1`);
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       email: "ana@example.test",
-      options: { shouldCreateUser: true, emailRedirectTo: `https://app.example/api/auth/callback?invite=${TOKEN}` },
+      options: { shouldCreateUser: true, emailRedirectTo: `https://app.example/auth/confirm?invite=${TOKEN}` },
     });
     expect((response as import("next/server").NextResponse).cookies.get("sb-pkce")?.value).toBe("verifier");
   });
@@ -89,7 +92,9 @@ describe("public auth POSTs refuse another site", () => {
   it("sends nothing when a form on another site posts to redeem or sign in", async () => {
     expect((await redeem(cross("/api/auth/invite", { token: TOKEN, email: "ana@example.test" }))).status).toBe(403);
     expect((await magicLink(cross("/api/auth/magic-link", { email: "ana@example.test" }))).status).toBe(403);
+    expect((await confirm(cross("/api/auth/confirm", { token_hash: "h" }))).status).toBe(403);
     expect(auth.signInWithOtp).not.toHaveBeenCalled();
+    expect(auth.verifyOtp).not.toHaveBeenCalled();
   });
 });
 
@@ -99,7 +104,7 @@ describe("POST /api/auth/magic-link (an Invitee signing in again)", () => {
     expect(where(response)).toBe("/sign-in?sent=1");
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       email: "ana@example.test",
-      options: { shouldCreateUser: false, emailRedirectTo: "https://app.example/api/auth/callback?next=%2Fsettings" },
+      options: { shouldCreateUser: false, emailRedirectTo: "https://app.example/auth/confirm?next=%2Fsettings" },
     });
   });
 
@@ -184,5 +189,44 @@ describe("GET /api/auth/callback (the magic link lands)", () => {
   it("carries the session cookies the code exchange set", async () => {
     const response = await land("code=abc");
     expect((response as import("next/server").NextResponse).cookies.get("sb-pkce")?.value).toBe("verifier");
+  });
+});
+
+describe("POST /api/auth/confirm (the Continue button on the emailed link)", () => {
+  const press = (fields: Record<string, string>) => confirm(form("/api/auth/confirm", fields));
+
+  it("spends the token, records the Invitee through the link and signs them in", async () => {
+    const response = await press({ token_hash: "hash", invite: TOKEN });
+    expect(auth.verifyOtp).toHaveBeenCalledWith({ token_hash: "hash", type: "email" });
+    expect(joinWithInvite).toHaveBeenCalledWith({ userId: USER_ID, email: "ana@example.test", token: TOKEN });
+    expect(where(response)).toBe("/");
+    expect((response as import("next/server").NextResponse).cookies.get("sb-pkce")?.value).toBe("verifier");
+  });
+
+  it("lets a recorded Invitee back in to the page they wanted", async () => {
+    expect(where(await press({ token_hash: "hash", next: "/settings" }))).toBe("/settings");
+    expect(joinWithInvite).not.toHaveBeenCalled();
+  });
+
+  it("refuses a stranger without a link and signs them out", async () => {
+    vi.mocked(isActiveInvitee).mockResolvedValue(false);
+    expect(where(await press({ token_hash: "hash" }))).toBe("/sign-in?error=not_allowed");
+    expect(auth.signOut).toHaveBeenCalled();
+  });
+
+  it("shows the dead-link page when the link died before the button was pressed", async () => {
+    vi.mocked(joinWithInvite).mockResolvedValue("refused");
+    vi.mocked(inviteLinkIsOpen).mockResolvedValue(false);
+    expect(where(await press({ token_hash: "hash", invite: TOKEN }))).toBe(`/invite/${TOKEN}`);
+  });
+
+  it("sends a used, expired or missing token back to sign-in", async () => {
+    auth.verifyOtp.mockResolvedValue({ data: { user: null }, error: { message: "One-time token not found" } });
+    expect(where(await press({ token_hash: "hash" }))).toBe("/sign-in?error=link_expired");
+    expect(where(await press({}))).toBe("/sign-in?error=link_expired");
+  });
+
+  it("does not follow an off-site `next`", async () => {
+    expect(where(await press({ token_hash: "hash", next: "//evil.example" }))).toBe("/");
   });
 });

@@ -18,8 +18,9 @@ export async function POST(request: Request) {
   const cookies: CookieToSet[] = [];
   if (await isInviteeEmail(email)) {
     const supabase = createAuthRouteClient(request, (set) => cookies.push(...set));
-    const redirect = new URL("/api/auth/callback", request.url);
-    if (next !== "/") redirect.searchParams.set("next", next);
+    // Always has a query string: the email template appends the token to it.
+    const redirect = new URL("/auth/confirm", request.url);
+    redirect.searchParams.set("next", next);
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: false, emailRedirectTo: redirect.toString() },

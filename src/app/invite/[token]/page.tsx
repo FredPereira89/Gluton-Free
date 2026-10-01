@@ -33,7 +33,7 @@ export default async function InvitePage({ params, searchParams }: Props) {
     return (
       <div className="signin">
         <h1>Check your email</h1>
-        <p className="muted">We sent you a sign-in link. Open it in this browser to finish joining.</p>
+        <p className="muted">We sent you a link. Open it on any device and tap Continue to finish joining.</p>
       </div>
     );
   }
