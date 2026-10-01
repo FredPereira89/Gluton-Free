@@ -40,10 +40,10 @@ const bundleFixture: RestaurantBundle = {
 };
 
 describe("API registry and OpenAPI", () => {
-  it("declares an auth level for every route; owner is the default until a ticket opens a route", () => {
+  it("declares an auth level for every route; owner is the default unless a ticket opens a route to Invitees", () => {
     for (const route of Object.values(routes)) expect(["none", "owner", "invitee"], route.path).toContain(route.auth);
     expect(Object.values(routes).filter((route) => route.auth === "none").map((route) => route.path)).toEqual(["/api/v1/health"]);
-    expect(Object.values(routes).filter((route) => (route.auth as AuthLevel) === "invitee").map((route) => route.path)).toEqual([]);
+    expect(Object.values(routes).filter((route) => (route.auth as AuthLevel) === "invitee").map((route) => route.path)).toEqual(["/api/v1/search"]);
   });
 
   it("registers every /api/v1 handler method", () => {
