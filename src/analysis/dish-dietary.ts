@@ -5,7 +5,7 @@ import type { LlmUsage } from "@/lib/job";
 import { addUsage, anthropic, EXTRACT_MODEL } from "./llm";
 
 export const DISH_DIETARY_VERSION = `${EXTRACT_MODEL}|dish-dietary-v1`;
-const CHUNK_SIZE = 20;
+export const DISH_DIETARY_CHUNK_SIZE = 20;
 
 export type DishDietaryInput = { id: number; text: string };
 export type DishDietaryResult = {
@@ -47,7 +47,7 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
   return result;
 }
 
-function parseReply(text: string, ids: Set<number>): DishDietaryResult[] {
+export function parseDishDietaryReply(text: string, ids: Set<number>): DishDietaryResult[] {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { return []; }
   const reviews = (raw as { reviews?: unknown })?.reviews;
@@ -68,7 +68,7 @@ function parseReply(text: string, ids: Set<number>): DishDietaryResult[] {
 /** Analyses pending Reviews in small batches; missed or malformed entries stay queued for a later pass. */
 export async function extractDishDietarySync(items: readonly DishDietaryInput[], usage: LlmUsage, concurrency = 4): Promise<Map<number, DishDietaryResult>> {
   const results = new Map<number, DishDietaryResult>();
-  const queue = chunks(items, CHUNK_SIZE);
+  const queue = chunks(items, DISH_DIETARY_CHUNK_SIZE);
   async function worker() {
     for (let chunk = queue.shift(); chunk; chunk = queue.shift()) {
       try {
@@ -82,7 +82,7 @@ export async function extractDishDietarySync(items: readonly DishDietaryInput[],
         addUsage(usage, response.usage);
         const text = response.content.find((part) => part.type === "text");
         if (!text || text.type !== "text") continue;
-        for (const result of parseReply(text.text, new Set(chunk.map((review) => review.id)))) results.set(result.reviewId, result);
+        for (const result of parseDishDietaryReply(text.text, new Set(chunk.map((review) => review.id)))) results.set(result.reviewId, result);
       } catch {
         // Provider errors may contain Review text; keep queued rows for a later pipeline run.
         console.error("dish/dietary chunk failed; queued Reviews will retry on a later pipeline run");
@@ -91,4 +91,16 @@ export async function extractDishDietarySync(items: readonly DishDietaryInput[],
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker));
   return results;
+}
+
+/** Shared prompt and schema for the one-off Batch API pass. */
+export function dishDietaryBatchRequests(items: readonly DishDietaryInput[]) {
+  return chunks(items, DISH_DIETARY_CHUNK_SIZE).map((chunk, index) => ({
+    custom_id: `d${index}`,
+    params: {
+      model: EXTRACT_MODEL, max_tokens: 2048, system: SYSTEM,
+      messages: [{ role: "user" as const, content: JSON.stringify({ reviews: chunk.map(({ id, text }) => ({ i: id, text })) }) }],
+      output_config: { format: { type: format.type, schema: format.schema } },
+    },
+  }));
 }

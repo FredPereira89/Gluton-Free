@@ -6,7 +6,7 @@ export function directoryHref(query: DirectoryQuery, options: { resetPage?: bool
   const params = new URLSearchParams();
   if (query.q) params.set("q", query.q);
   if (query.sort !== "tier") params.set("sort", query.sort);
-  for (const name of ["tier", "family", "price", "area"] as const) for (const value of query[name]) params.append(name, value);
+  for (const name of ["tier", "family", "price", "area", "diet"] as const) for (const value of query[name]) params.append(name, value);
   if (query.nee) params.set("nee", "1");
   if (query.pageSize !== DIRECTORY_DEFAULT_PAGE_SIZE) params.set("pageSize", String(query.pageSize));
   if (query.page > 1 && !options.resetPage) params.set("page", String(query.page));

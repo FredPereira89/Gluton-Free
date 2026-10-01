@@ -1,6 +1,8 @@
 export const DIETS = ["vegetarian", "vegan", "gluten_free"] as const;
 export type Diet = typeof DIETS[number];
 
+export const DIET_LABEL = { vegetarian: "Vegetarian", vegan: "Vegan", gluten_free: "Gluten-free" } as const;
+
 export type StandoutDishReview = { reviewId: number; dishes: readonly string[] };
 export type DietaryReview = { reviewId: number; praise: readonly Diet[]; complaints: readonly Diet[] };
 export type StandoutDish = { name: string; count: number };

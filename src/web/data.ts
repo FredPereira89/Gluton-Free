@@ -162,22 +162,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
     changePointAt = changePoint?.date ? new Date(changePoint.date as string) : null;
   }
   const windowSince = reviewWindowCutoff(asOf, changePointAt);
-  const factRows = await sql`
-    with windowed as (
-      select r.id, l.source_code,
-        row_number() over (partition by l.source_code order by r.published_at desc, r.id desc) as source_rank
-      from review r
-      join listing l on l.id = r.listing_id
-      join source s on s.code = l.source_code and s.kind = 'crowd'
-      where l.restaurant_id = ${id} and r.text is not null
-        and r.published_at >= ${windowSince} and r.published_at <= ${asOf}
-        and r.fetched_at <= ${asOf}
-    )
-    select w.id, f.standout_dishes, f.dietary_praise, f.dietary_complaints
-    from windowed w
-    join review_analysis a on a.review_id = w.id and a.extractor_version = ${EXTRACTOR_VERSION}
-    join review_dish_dietary f on f.review_id = w.id and f.pass_version = ${DISH_DIETARY_VERSION}
-    where w.source_rank <= ${PARAMS.reviewWindowCap}`;
+  const factRows = await loadDishDietaryFacts([{ id, as_of: asOf, since: windowSince }]);
   const dishReviews: StandoutDishReview[] = factRows.map((row) => ({
     reviewId: Number(row.id), dishes: row.standout_dishes as string[],
   }));
@@ -432,10 +417,27 @@ export async function loadVerdictHistory(
 
 // Every open Restaurant with a Verdict, from its latest Verdict, searched, filtered, sorted and
 // paged in `buildDirectory`. About a few hundred rows, so the whole list is read once per request.
+/** Shared report/directory eligibility: the latest Verdict's Review window, cap and pass versions. */
+async function loadDishDietaryFacts(windows: { id: number; as_of: Date; since: Date }[]) {
+  return windows.length ? await db()`
+    with windowed as (
+      select r.id, l.restaurant_id, row_number() over (partition by l.restaurant_id, l.source_code order by r.published_at desc, r.id desc) as source_rank
+      from jsonb_to_recordset(${db().json(windows)}::jsonb) w(id bigint, as_of timestamptz, since timestamptz)
+      join listing l on l.restaurant_id = w.id
+      join source s on s.code = l.source_code and s.kind = 'crowd'
+      join review r on r.listing_id = l.id
+      where r.text is not null and r.published_at >= w.since and r.published_at <= w.as_of and r.fetched_at <= w.as_of
+    )
+    select w.restaurant_id, w.id, f.standout_dishes, f.dietary_praise, f.dietary_complaints from windowed w
+    join review_analysis a on a.review_id = w.id and a.extractor_version = ${EXTRACTOR_VERSION}
+    join review_dish_dietary f on f.review_id = w.id and f.pass_version = ${DISH_DIETARY_VERSION}
+    where w.source_rank <= ${PARAMS.reviewWindowCap}` : [];
+}
+
 export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryResponse> {
   const now = new Date();
   const rows = await db()`
-    select r.slug, r.name, r.address, r.area, r.lat, r.lng, r.format, r.price_tier,
+    select r.id, v.created_at, v.blocks->'rollup'->>'changePointAt' as change_point_at, r.slug, r.name, r.address, r.area, r.lat, r.lng, r.format, r.price_tier,
            v.state, v.tier, v.confidence, v.provisional,
            (select (s->>'percentile')::float8 from jsonb_array_elements(v.blocks->'rollup'->'standings') s where s->>'input' = 'food') as food_percentile,
            (select (s->>'percentile')::float8 from jsonb_array_elements(v.blocks->'rollup'->'standings') s where s->>'input' = 'value') as value_percentile,
@@ -443,10 +445,14 @@ export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryRes
            (select place_ref from listing where restaurant_id = r.id and source_code = 'google') as google_place_id,
            (select url from listing where restaurant_id = r.id and source_code = 'thefork') as thefork_url
     from restaurant r
-    join lateral (select state, tier, confidence, provisional, blocks from verdict where restaurant_id = r.id order by id desc limit 1) v on true
+    join lateral (select created_at, state, tier, confidence, provisional, blocks from verdict where restaurant_id = r.id order by id desc limit 1) v on true
     where r.status <> 'permanently_closed'`;
+  const windows = rows.map((r) => ({ id: Number(r.id), as_of: new Date(r.created_at), since: reviewWindowCutoff(new Date(r.created_at), r.change_point_at ? new Date(r.change_point_at) : null) }));
+  const facts = await loadDishDietaryFacts(windows);
+  const categories = rows.length ? await db()`select restaurant_id, categories from listing where restaurant_id in (select jsonb_array_elements_text(${db().json(rows.map((r) => r.id))}::jsonb)::bigint)` : [];
   return buildDirectory(
     rows.map((r) => ({
+      dietaryFits: dietaryFits(facts.filter((f) => Number(f.restaurant_id) === Number(r.id)).map((f) => ({ reviewId: Number(f.id), praise: f.dietary_praise, complaints: f.dietary_complaints })), categories.filter((l) => Number(l.restaurant_id) === Number(r.id)).flatMap((l) => l.categories ?? [])),
       slug: r.slug,
       name: r.name,
       address: r.address,

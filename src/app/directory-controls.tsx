@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DIETS, DIET_LABEL } from "@/domain/dish-dietary";
 import { TIERS, TIER_LABEL } from "@/domain/aspects";
 import { FORMAT_FAMILIES } from "@/domain/format-labels";
 import { DIRECTORY_SORTS, PRICE_TIERS, type DirectoryQuery } from "@/lib/api-contract";
@@ -15,7 +16,7 @@ const SORT_LABEL: Record<(typeof DIRECTORY_SORTS)[number], string> = {
   name: "Name",
 };
 
-type ListFilter = "tier" | "family" | "price" | "area";
+type ListFilter = "tier" | "family" | "price" | "area" | "diet";
 
 function toggled<T>(values: readonly T[], value: T): T[] {
   return values.includes(value) ? values.filter((each) => each !== value) : [...values, value];
@@ -24,7 +25,7 @@ function toggled<T>(values: readonly T[], value: T): T[] {
 export default function DirectoryControls({ query, neighbourhoods }: { query: DirectoryQuery; neighbourhoods: { name: string; count: number }[] }) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const activeFilters = query.tier.length + query.family.length + query.price.length + query.area.length + (query.nee ? 1 : 0);
+  const activeFilters = query.tier.length + query.family.length + query.price.length + query.area.length + query.diet.length + (query.nee ? 1 : 0);
 
   // Escape closes the phone sheet.
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function DirectoryControls({ query, neighbourhoods }: { query: Di
       </div>
       {group("tier", "Tier", TIERS.map((tier) => ({ value: tier, label: TIER_LABEL[tier] })).reverse())}
       {group("family", "Format family", FORMAT_FAMILIES.map((family) => ({ value: family.code, label: family.label })))}
+      {group("diet", "Dietary fit", DIETS.map((diet) => ({ value: diet, label: DIET_LABEL[diet] })))}
       {group("price", "Price", PRICE_TIERS.map((price) => ({ value: price, label: price })))}
       {group("area", "Neighbourhood", neighbourhoods.map(({ name, count }) => ({ value: name, label: name, count })))}
       <label className="dir-option dir-nee">

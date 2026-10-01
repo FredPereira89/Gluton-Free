@@ -42,13 +42,32 @@ async function dispatch(search = "", init: ConstructorParameters<typeof NextRequ
 }
 
 const dbRow = (overrides: Record<string, unknown>) => ({
+  id: 1, created_at: new Date(),
   slug: "x", name: "X", address: null, area: "Alfama", lat: null, lng: null, format: "tasca", price_tier: "€€",
   state: "verdict", tier: "good", confidence: "medium", provisional: false,
   food_percentile: 50, value_percentile: 50, google_place_id: "ChIJabcde", thefork_url: null,
   ...overrides,
 });
 
+function directoryDb(rows: Record<string, unknown>[], facts: Record<string, unknown>[] = [], categories: Record<string, unknown>[] = []) {
+  const sql = Object.assign(async (strings: TemplateStringsArray) => {
+    const query = strings.join(" ");
+    return query.includes("with windowed") ? facts : query.includes("select restaurant_id, categories") ? categories : rows;
+  }, { json: (value: unknown) => JSON.stringify(value) });
+  return sql as unknown as ReturnType<typeof db>;
+}
 describe("GET /api/v1/directory", () => {
+  it("filters Dietary fit server-side using category proof and Review praise, with URL filters", async () => {
+    vi.mocked(db).mockReturnValue(directoryDb(
+      [dbRow({ id: 1, slug: "a", name: "Tasca A" }), dbRow({ id: 2, slug: "b", name: "Tasca B" })],
+      [1, 2, 3].map((id) => ({ id, restaurant_id: 1, dietary_praise: ["vegan"], dietary_complaints: [] })),
+      [{ restaurant_id: 2, categories: ["Gluten-free restaurant"] }],
+    ));
+    const response = await GET(new Request("https://app.example/api/v1/directory?diet=vegan&q=tasca&area=Alfama"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).items).toMatchObject([{ slug: "a", dietaryFits: ["vegan"] }]);
+  });
+
   it("is open to the Owner and an Invitee, closed to everyone else", async () => {
     vi.mocked(db).mockReturnValue((async (strings: TemplateStringsArray, userId: string) =>
       strings.join(" ").includes("from invitee") ? (userId === inviteeId ? [{ ok: 1 }] : []) : []) as unknown as ReturnType<typeof db>);
@@ -65,11 +84,11 @@ describe("GET /api/v1/directory", () => {
   });
 
   it("answers search, sort, filters and paging from the URL, with human labels and a booking link", async () => {
-    vi.mocked(db).mockReturnValue((async () => [
+    vi.mocked(db).mockReturnValue(directoryDb([
       dbRow({ slug: "a", name: "Alfa Tasca", tier: "good", food_percentile: 30 }),
       dbRow({ slug: "b", name: "Beta Tasca", tier: "must_go", food_percentile: 90, thefork_url: "https://www.thefork.pt/restaurante/beta-r1?utm=x" }),
       dbRow({ slug: "c", name: "Gama Marisco", format: "marisqueira_cervejaria", area: "Chiado" }),
-    ]) as unknown as ReturnType<typeof db>);
+    ]));
 
     const response = await GET(new Request("https://app.example/api/v1/directory?q=tasca&sort=food&area=Alfama&pageSize=1&page=2"));
     expect(response.status).toBe(200);
@@ -83,7 +102,7 @@ describe("GET /api/v1/directory", () => {
   });
 
   it("includes Not enough evidence Restaurants only on request", async () => {
-    vi.mocked(db).mockReturnValue((async () => [dbRow({ slug: "t", state: "not_enough_evidence", tier: null, confidence: null })]) as unknown as ReturnType<typeof db>);
+    vi.mocked(db).mockReturnValue(directoryDb([dbRow({ slug: "t", state: "not_enough_evidence", tier: null, confidence: null })]));
     const hidden = routes.directory.responses[200].parse(await (await GET(new Request("https://app.example/api/v1/directory"))).json());
     expect(hidden).toMatchObject({ total: 0, hiddenNotEnoughEvidence: 1 });
     const shown = routes.directory.responses[200].parse(await (await GET(new Request("https://app.example/api/v1/directory?nee=1"))).json());

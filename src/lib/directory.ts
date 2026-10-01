@@ -8,6 +8,7 @@ import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "./api-con
 // One Restaurant as the directory reads it: the latest Verdict, the Listings that matter for the
 // booking link, and the Peer standings behind the Food and Value sorts.
 export type DirectoryRow = {
+  dietaryFits?: DirectoryItem["dietaryFits"];
   slug: string;
   name: string;
   address: string | null;
@@ -31,6 +32,7 @@ const CONFIDENCE_RANK = { low: 1, medium: 2, high: 3 } as const;
 
 function toItem(row: DirectoryRow): DirectoryItem {
   return {
+    dietaryFits: row.dietaryFits ?? [],
     slug: row.slug,
     name: row.name,
     state: row.state,
@@ -65,7 +67,8 @@ export function buildDirectory(rows: DirectoryRow[], query: DirectoryQuery): Dir
     (query.tier.length === 0 || (entry.item.tier !== null && query.tier.includes(entry.item.tier))) &&
     (query.family.length === 0 || (entry.item.formatFamily !== null && query.family.includes(entry.item.formatFamily))) &&
     (query.price.length === 0 || (entry.item.priceTier !== null && query.price.includes(entry.item.priceTier))) &&
-    (query.area.length === 0 || query.area.includes(entry.item.neighbourhood));
+    (query.area.length === 0 || query.area.includes(entry.item.neighbourhood)) &&
+    (query.diet.length === 0 || query.diet.some((diet) => entry.item.dietaryFits.includes(diet)));
   const matching = all.filter(matches);
   const visible = matching.filter(({ row }) => query.nee || row.state !== "not_enough_evidence");
   type Entry = (typeof all)[number];

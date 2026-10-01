@@ -9,6 +9,7 @@ vi.mock("./directory-controls", () => ({ default: () => createElement("div", nul
 const item = (overrides: Partial<DirectoryItem> = {}): DirectoryItem => ({
   slug: "cantina", name: "Cantina Zé", state: "verdict", tier: "must_go", provisional: false, confidence: "high",
   format: "Casa de fado", formatFamily: "traditional_portuguese", priceTier: "€€", neighbourhood: "Alfama", trend: null,
+  dietaryFits: [],
   booking: { label: "Open in Google Maps", url: "https://www.google.com/maps/search/?api=1&query=Cantina", kind: "google_maps" },
   ...overrides,
 });
@@ -69,4 +70,10 @@ describe("directory", () => {
     expect(html).toContain('href="/"');
     expect(html).toContain("Clear filters");
   });
+});
+
+it("shows accessible Dietary fit icons and clears an empty dietary filter", () => {
+  const html = render(result({ items: [item({ dietaryFits: ["vegan", "gluten_free"] })] }));
+  expect(html).toContain('title="Vegan"'); expect(html).toContain('title="Gluten-free"');
+  expect(render(result({ items: [], total: 0 }), { diet: ["vegan"] })).toContain("Clear filters");
 });
