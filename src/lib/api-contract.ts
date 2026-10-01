@@ -2,6 +2,10 @@ import { z } from "zod";
 import { CHANGE_POINT_KINDS, TIERS } from "@/domain/aspects";
 import { FORMATS } from "@/domain/restaurant-facts";
 import { BlocksSchema, RollupSchema } from "@/verdict/blocks";
+import {
+  createInviteLinkBodySchema, inviteLinkListResponseSchema, inviteLinkSchema, inviteeListResponseSchema, inviteeSchema,
+  revokeInviteLinkResponseSchema, setInviteeLockOutBodySchema,
+} from "./invite-contract";
 import { LISTING_SOURCES } from "./listing-source";
 import { parseApiRequest, problemSchema } from "./problem";
 
@@ -489,6 +493,31 @@ export const routes = {
     method: "DELETE", path: "/api/v1/push-subscriptions/{id}", auth: "owner",
     request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
     responses: { 200: deletePushSubscriptionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  listInviteLinks: {
+    method: "GET", path: "/api/v1/invite-links", auth: "owner",
+    request: {},
+    responses: { 200: inviteLinkListResponseSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  createInviteLink: {
+    method: "POST", path: "/api/v1/invite-links", auth: "owner",
+    request: { body: createInviteLinkBodySchema },
+    responses: { 201: inviteLinkSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  revokeInviteLink: {
+    method: "POST", path: "/api/v1/invite-links/{id}/revoke", auth: "owner",
+    request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
+    responses: { 200: revokeInviteLinkResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  listInvitees: {
+    method: "GET", path: "/api/v1/invitees", auth: "owner",
+    request: {},
+    responses: { 200: inviteeListResponseSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  setInviteeLockOut: {
+    method: "PATCH", path: "/api/v1/invitees/{userId}", auth: "owner",
+    request: { params: z.strictObject({ userId: z.uuid() }), body: setInviteeLockOutBodySchema },
+    responses: { 200: inviteeSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
 } as const satisfies Record<string, { method: string; path: string; auth: AuthLevel; [field: string]: unknown }>;
 

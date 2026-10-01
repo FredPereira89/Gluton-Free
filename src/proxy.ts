@@ -1,5 +1,5 @@
-// Auth gate: every page/route requires OWNER_USER_ID, except sign-in, /api/v1/health, and routes the
-// registry opens to Invitees. See docs/adr/0006-owner-authorization-in-the-api-layer.md and 0008.
+// Auth gate: every page/route requires OWNER_USER_ID, except sign-in, Invite link redemption and its auth routes,
+// /api/v1/health, and routes the registry opens to Invitees. See docs/adr/0006-owner-authorization-in-the-api-layer.md and 0008.
 import { NextResponse, type NextRequest } from "next/server";
 import { AuthError, requireCaller } from "@/lib/auth";
 import { problemResponse } from "@/lib/problem";
@@ -33,5 +33,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|sign-in|api/auth/sign-in|api/v1/health|openapi.json).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sign-in|invite/|api/auth/sign-in|api/auth/invite|api/auth/magic-link|api/auth/callback|api/v1/health|openapi.json).*)"],
 };

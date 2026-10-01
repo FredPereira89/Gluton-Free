@@ -1,11 +1,5 @@
-import { NextResponse } from "next/server";
 import { createAuthRouteClient, type CookieToSet } from "@/lib/auth";
-
-// Only allow a same-site relative path, so `next` can't be used for an open redirect.
-function safeNext(next: string): string {
-  if (next.startsWith("/") && !next.startsWith("//") && !next.includes("://")) return next;
-  return "/";
-}
+import { redirectWithCookies, safeNext } from "@/lib/auth-flow";
 
 export async function POST(request: Request) {
   const form = await request.formData();
@@ -25,12 +19,8 @@ export async function POST(request: Request) {
     const signIn = new URL("/sign-in", request.url);
     signIn.searchParams.set("error", "invalid_credentials");
     if (next !== "/") signIn.searchParams.set("next", next);
-    const response = NextResponse.redirect(signIn, { status: 303 });
-    for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
-    return response;
+    return redirectWithCookies(request, `${signIn.pathname}${signIn.search}`, cookiesToSet);
   }
 
-  const response = NextResponse.redirect(new URL(next, request.url), { status: 303 });
-  for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
-  return response;
+  return redirectWithCookies(request, next, cookiesToSet);
 }

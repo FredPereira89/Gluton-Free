@@ -47,9 +47,19 @@ function checkCsrf(request: Request): void {
 export type CallerLevel = Exclude<AuthLevel, "none">;
 export type Caller = { userId: string; role: CallerLevel };
 
-/** A recorded Invitee who has not been locked out. */
-async function isActiveInvitee(userId: string): Promise<boolean> {
-  const rows = await db()`select 1 from invitee where user_id = ${userId} and not locked_out`;
+/**
+ * A recorded Invitee who has not been locked out. Each check also stamps last seen, at most once
+ * every five minutes, so the Owner can see who is using the beta without a write per request.
+ */
+export async function isActiveInvitee(userId: string): Promise<boolean> {
+  const rows = await db()`
+    with active as (select user_id from invitee where user_id = ${userId} and not locked_out),
+    seen as (
+      update invitee set last_seen_at = now()
+      where user_id in (select user_id from active)
+        and (last_seen_at is null or last_seen_at < now() - interval '5 minutes')
+    )
+    select 1 from active`;
   return rows.length > 0;
 }
 

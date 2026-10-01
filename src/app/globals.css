@@ -201,6 +201,12 @@ body{margin:0;padding:16px 16px 64px}
 .settings-section p{color:var(--muted);font-size:13.5px}
 .settings-section strong{color:var(--ink)}
 .settings-section .btn{margin-top:2px}
+.signin h2{font-size:16px;font-weight:700}
+.invite-list{display:grid;gap:10px;list-style:none;padding:0;margin:0}
+.invite-row{display:grid;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
+.invite-url{font:inherit;font-size:12.5px;color:var(--muted);background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%;min-width:0}
+.invite-actions{display:flex;gap:8px;flex-wrap:wrap}
+.invite-actions .btn{padding:6px 12px;font-size:13px;margin-top:0}
 .owner-questions{display:grid;gap:12px;margin-top:8px}
 .owner-question{display:grid;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
 .source-retry-banners{display:grid;gap:10px;margin:0 0 18px}
