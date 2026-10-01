@@ -16,7 +16,7 @@ Decided in [Mobile-ready API shape and authentication](https://github.com/FredPe
 
 ## Consequences
 
-- Every route in the route registry declares `auth: "owner"`, and a test fails if one doesn't. The only exceptions are the sign-in page and a data-free `/api/v1/health`.
+- Every route in the route registry declares `auth: "owner"`, and a test fails if one doesn't. The only exceptions are the sign-in page and a data-free `/api/v1/health`. ADR 0008 later adds a second level, `invitee`; owner stays the default.
 - Supabase is used by clients for Auth only. Access JWTs are verified on the server against the project's JWKS: a bearer token from mobile, httpOnly cookies on the web, where a cookie-authenticated write must also carry a matching `Origin`.
 - The `SITE_PASSWORD` basic-auth gate is removed. It uses the same `Authorization` header a bearer token needs, and it behaves badly in an installed iOS web app.
 - Going multi-user later means adding a tenant key, and either RLS policies or tenant-scoped queries on every table. That is a rewrite of data access, accepted because multi-user is out of scope.

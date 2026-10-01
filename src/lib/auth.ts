@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient, parseCookieHeader, type CookieOptions } from "@supabase/ssr";
+import type { AuthLevel } from "./api-contract";
+import { db } from "./db";
 
 // RFC 9457 problem+json codes; kept as a stable enum for API consumers.
 export type AuthErrorCode = "unauthenticated" | "forbidden" | "csrf" | "not_configured";
@@ -41,14 +43,30 @@ function checkCsrf(request: Request): void {
   }
 }
 
-function requireOwnerSub(sub: string | undefined): string {
-  const ownerId = env("OWNER_USER_ID");
-  if (!sub) throw new AuthError(401, "unauthenticated", "Token has no subject claim");
-  if (sub !== ownerId) throw new AuthError(403, "forbidden", "Token subject is not the owner");
-  return sub;
+/** What a route needs of its caller: the Owner alone, or the Owner or any recorded Invitee. */
+export type CallerLevel = Exclude<AuthLevel, "none">;
+export type Caller = { userId: string; role: CallerLevel };
+
+/** A recorded Invitee who has not been locked out. */
+async function isActiveInvitee(userId: string): Promise<boolean> {
+  const rows = await db()`select 1 from invitee where user_id = ${userId} and not locked_out`;
+  return rows.length > 0;
 }
 
-async function verifyBearer(token: string, fetchImpl: typeof fetch | undefined): Promise<string> {
+/**
+ * Resolves a verified token subject to the Owner, an Invitee, or nobody. A locked-out Invitee
+ * and a user the Owner never invited are refused identically. The Owner never touches the
+ * Invitee table.
+ */
+async function authorize(sub: string | undefined, level: CallerLevel): Promise<Caller> {
+  const ownerId = env("OWNER_USER_ID");
+  if (!sub) throw new AuthError(401, "unauthenticated", "Token has no subject claim");
+  if (sub === ownerId) return { userId: sub, role: "owner" };
+  if (level === "invitee" && (await isActiveInvitee(sub))) return { userId: sub, role: "invitee" };
+  throw new AuthError(403, "forbidden", level === "owner" ? "Token subject is not the owner" : "Token subject is not an Invitee or the owner");
+}
+
+async function verifyBearer(token: string, fetchImpl: typeof fetch | undefined): Promise<string | undefined> {
   const url = env("NEXT_PUBLIC_SUPABASE_URL");
   const key = env("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
   const supabase = createClient(url, key, {
@@ -57,14 +75,14 @@ async function verifyBearer(token: string, fetchImpl: typeof fetch | undefined):
   });
   const { data, error } = await supabase.auth.getClaims(token);
   if (error || !data) throw new AuthError(401, "unauthenticated", error?.message ?? "Invalid bearer token");
-  return requireOwnerSub(data.claims.sub);
+  return data.claims.sub;
 }
 
 async function verifyCookieSession(
   request: Request,
   fetchImpl: typeof fetch | undefined,
   onSetCookies: ((cookies: CookieToSet[]) => void) | undefined,
-): Promise<string> {
+): Promise<string | undefined> {
   const url = env("NEXT_PUBLIC_SUPABASE_URL");
   const key = env("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
   const cookieHeader = request.headers.get("cookie") ?? "";
@@ -77,23 +95,29 @@ async function verifyCookieSession(
   });
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data) throw new AuthError(401, "unauthenticated", error?.message ?? "No session");
-  return requireOwnerSub(data.claims.sub);
+  return data.claims.sub;
 }
 
 /**
- * The single canonical owner-authorization check, reused by middleware for every
- * protected page and API route. Bearer tokens (mobile clients) win over cookies
- * (the web session); either way the resolved JWT subject must equal OWNER_USER_ID.
+ * The single canonical authorization check, reused by the proxy for every protected page and
+ * API route. Bearer tokens (mobile clients) win over cookies (the web session); either way the
+ * verified JWT subject must be the Owner (OWNER_USER_ID) or, on an invitee-level route, a
+ * recorded Invitee who is not locked out. Anyone else is refused with 403.
  */
-export async function requireOwner(request: Request, options: RequireOwnerOptions = {}): Promise<string> {
+export async function requireCaller(request: Request, level: CallerLevel, options: RequireOwnerOptions = {}): Promise<Caller> {
   const authorization = request.headers.get("authorization") ?? "";
   if (authorization.startsWith("Bearer ")) {
     // Bearer-token requests (mobile clients) are exempt from the Origin/CSRF check:
     // browsers never attach an app's bearer token automatically the way they do cookies.
-    return verifyBearer(authorization.slice(7), options.fetch);
+    return authorize(await verifyBearer(authorization.slice(7), options.fetch), level);
   }
   checkCsrf(request);
-  return verifyCookieSession(request, options.fetch, options.onSetCookies);
+  return authorize(await verifyCookieSession(request, options.fetch, options.onSetCookies), level);
+}
+
+/** The owner-only check: the caller must be OWNER_USER_ID. An Invitee is refused. */
+export async function requireOwner(request: Request, options: RequireOwnerOptions = {}): Promise<string> {
+  return (await requireCaller(request, "owner", options)).userId;
 }
 
 /** A cookie-backed Supabase client for the sign-in/sign-out routes. */

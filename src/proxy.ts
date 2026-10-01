@@ -1,13 +1,16 @@
-// Owner-auth gate: every page/route requires OWNER_USER_ID except sign-in and /api/v1/health.
-// See docs/adr/0006-owner-authorization-in-the-api-layer.md.
+// Auth gate: every page/route requires OWNER_USER_ID, except sign-in, /api/v1/health, and routes the
+// registry opens to Invitees. See docs/adr/0006-owner-authorization-in-the-api-layer.md and 0008.
 import { NextResponse, type NextRequest } from "next/server";
-import { AuthError, requireOwner } from "@/lib/auth";
+import { AuthError, requireCaller } from "@/lib/auth";
 import { problemResponse } from "@/lib/problem";
+import { requiredAuthLevel } from "@/lib/route-auth";
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
   try {
-    await requireOwner(request, {
+    const level = requiredAuthLevel(request.method, request.nextUrl.pathname);
+    if (level === "none") return response;
+    await requireCaller(request, level, {
       onSetCookies: (cookies) => {
         for (const { name, value, options } of cookies) response.cookies.set(name, value, options);
       },

@@ -6,11 +6,18 @@ import { POST as signOut } from "@/app/api/auth/sign-out/route";
 import { GET as getVerdict } from "@/app/api/v1/restaurants/[slug]/verdict/route";
 import { routes } from "./api-contract";
 import { loadVerdictPage } from "@/web/data";
-import { AuthError, requireOwner } from "./auth";
+import { db } from "./db";
+import { AuthError, requireCaller, requireOwner } from "./auth";
 import { problemSchema } from "./problem";
+import { requiredAuthLevel } from "./route-auth";
 import { proxy } from "@/proxy";
 
 vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn() }));
+vi.mock("./db", () => ({ db: vi.fn() }));
+vi.mock("./route-auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./route-auth")>();
+  return { ...actual, requiredAuthLevel: vi.fn(actual.requiredAuthLevel) };
+});
 
 const SUPABASE_URL = "https://owner-check-test.supabase.co";
 const OWNER_ID = "11111111-1111-1111-1111-111111111111";
@@ -20,7 +27,16 @@ const KID = "test-key-1";
 const { publicKey, privateKey } = await jose.generateKeyPair("ES256", { extractable: true });
 const publicJwk = { ...(await jose.exportJWK(publicKey)), kid: KID, alg: "ES256", use: "sig" };
 
+const INVITEE_ID = "33333333-3333-3333-3333-333333333333";
+const LOCKED_OUT_ID = "44444444-4444-4444-4444-444444444444";
+const recordedInvitees = new Map([[INVITEE_ID, { lockedOut: false }], [LOCKED_OUT_ID, { lockedOut: true }]]);
+/** Stands in for `select 1 from invitee where user_id = $1 and not locked_out`. */
+const inviteeQuery = vi.fn(async (_strings: TemplateStringsArray, userId: string) =>
+  recordedInvitees.get(userId)?.lockedOut === false ? [{ ok: 1 }] : []);
+
 beforeEach(() => {
+  vi.mocked(db).mockReturnValue(inviteeQuery as unknown as ReturnType<typeof db>);
+  inviteeQuery.mockClear();
   process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "test-anon-key";
   process.env.OWNER_USER_ID = OWNER_ID;
@@ -236,5 +252,119 @@ describe("protected request handlers", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("https://app.example/sign-in");
+  });
+});
+
+describe("requireCaller: who the caller is", () => {
+  async function bearer(sub: string): Promise<Request> {
+    return request({ headers: { authorization: `Bearer ${await signToken(sub)}` } });
+  }
+
+  it("resolves the Owner without consulting the Invitee table", async () => {
+    await expect(requireCaller(await bearer(OWNER_ID), "owner", { fetch: jwksFetch() })).resolves.toEqual({ userId: OWNER_ID, role: "owner" });
+    await expect(requireCaller(await bearer(OWNER_ID), "invitee", { fetch: jwksFetch() })).resolves.toEqual({ userId: OWNER_ID, role: "owner" });
+    expect(inviteeQuery).not.toHaveBeenCalled();
+  });
+
+  it("resolves a recorded Invitee on an invitee-level route", async () => {
+    await expect(requireCaller(await bearer(INVITEE_ID), "invitee", { fetch: jwksFetch() })).resolves.toEqual({ userId: INVITEE_ID, role: "invitee" });
+  });
+
+  it("resolves a recorded Invitee through a cookie session too", async () => {
+    const cookie = await cookiesForOwnerSession(INVITEE_ID);
+    await expect(requireCaller(request({ headers: { cookie } }), "invitee", { fetch: jwksFetch() })).resolves.toMatchObject({ role: "invitee" });
+  });
+
+  it("refuses an Invitee on an owner-level route", async () => {
+    await expect(requireCaller(await bearer(INVITEE_ID), "owner", { fetch: jwksFetch() })).rejects.toMatchObject({ status: 403, code: "forbidden" });
+  });
+
+  it("refuses a locked-out Invitee like a stranger", async () => {
+    const lockedOut = await requireCaller(await bearer(LOCKED_OUT_ID), "invitee", { fetch: jwksFetch() }).catch((e) => e);
+    const stranger = await requireCaller(await bearer(OTHER_ID), "invitee", { fetch: jwksFetch() }).catch((e) => e);
+    expect(lockedOut).toBeInstanceOf(AuthError);
+    expect(lockedOut).toMatchObject({ status: 403, code: "forbidden" });
+    expect(stranger).toMatchObject({ status: lockedOut.status, code: lockedOut.code, message: lockedOut.message });
+  });
+
+  it("refuses a signed-in user who is neither the Owner nor a recorded Invitee", async () => {
+    await expect(requireCaller(await bearer(OTHER_ID), "invitee", { fetch: jwksFetch() })).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("fails closed when the Invitee table cannot be read", async () => {
+    inviteeQuery.mockRejectedValueOnce(new Error("connection refused"));
+    await expect(requireCaller(await bearer(INVITEE_ID), "invitee", { fetch: jwksFetch() })).rejects.toThrow("connection refused");
+  });
+
+  it("keeps requireOwner owner-only for a recorded Invitee", async () => {
+    await expect(requireOwner(await bearer(INVITEE_ID), { fetch: jwksFetch() })).rejects.toMatchObject({ status: 403 });
+    expect(inviteeQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("the proxy and the route registry's auth levels", () => {
+  function apiRequest(path: string, init: ConstructorParameters<typeof NextRequest>[1] = {}): NextRequest {
+    return new NextRequest(`https://app.example${path}`, init);
+  }
+  const concretePath = (template: string) => template.replace(/\{[^}]+\}/g, "1");
+  const ownerRoutes = Object.values(routes).filter((route) => route.auth === "owner");
+
+  it.each(ownerRoutes.map((route) => [`${route.method} ${route.path}`, route] as const))(
+    "refuses an Invitee session on owner route %s",
+    async (_label, route) => {
+      vi.stubGlobal("fetch", jwksFetch());
+      const token = await signToken(INVITEE_ID);
+      const response = await proxy(apiRequest(concretePath(route.path), { method: route.method, headers: { authorization: `Bearer ${token}` } }));
+      expect(response.status).toBe(403);
+      expect(problemSchema.parse(await response.json()).code).toBe("forbidden");
+    },
+  );
+
+  it("lets the Owner through every owner route, unchanged", async () => {
+    vi.stubGlobal("fetch", jwksFetch());
+    const token = await signToken(OWNER_ID);
+    for (const route of ownerRoutes) {
+      const response = await proxy(apiRequest(concretePath(route.path), { method: route.method, headers: { authorization: `Bearer ${token}` } }));
+      expect(response.headers.get("x-middleware-next"), route.path).toBe("1");
+    }
+    expect(inviteeQuery).not.toHaveBeenCalled();
+  });
+
+  it("refuses locked-out users and strangers on owner routes", async () => {
+    vi.stubGlobal("fetch", jwksFetch());
+    for (const sub of [LOCKED_OUT_ID, OTHER_ID]) {
+      const response = await proxy(apiRequest("/api/v1/restaurants/x/verdict", { headers: { authorization: `Bearer ${await signToken(sub)}` } }));
+      expect(response.status).toBe(403);
+    }
+  });
+
+  it("keeps owner pages owner-only for an Invitee session", async () => {
+    vi.stubGlobal("fetch", jwksFetch());
+    const token = await signToken(INVITEE_ID);
+    for (const path of ["/", "/r/some-place", "/baseline-checks"]) {
+      const response = await proxy(apiRequest(path, { headers: { authorization: `Bearer ${token}` } }));
+      expect(response.status, path).toBe(307);
+      expect(new URL(response.headers.get("location")!).pathname).toBe("/sign-in");
+    }
+  });
+
+  it("recognises an Invitee session on a route that declares the invitee level", async () => {
+    vi.stubGlobal("fetch", jwksFetch());
+    vi.mocked(requiredAuthLevel).mockReturnValue("invitee");
+    try {
+      const invitee = await proxy(apiRequest("/api/v1/restaurants/x/verdict", { headers: { authorization: `Bearer ${await signToken(INVITEE_ID)}` } }));
+      const stranger = await proxy(apiRequest("/api/v1/restaurants/x/verdict", { headers: { authorization: `Bearer ${await signToken(OTHER_ID)}` } }));
+      expect(invitee.headers.get("x-middleware-next")).toBe("1");
+      expect(stranger.status).toBe(403);
+    } finally {
+      vi.mocked(requiredAuthLevel).mockReset();
+    }
+  });
+
+  it("treats unregistered paths and methods as owner-level", () => {
+    expect(requiredAuthLevel("GET", "/api/v1/restaurants/x/verdict")).toBe("owner");
+    expect(requiredAuthLevel("DELETE", "/api/v1/restaurants/x/verdict")).toBe("owner");
+    expect(requiredAuthLevel("GET", "/api/v1/not-a-route")).toBe("owner");
+    expect(requiredAuthLevel("GET", "/r/some-place")).toBe("owner");
   });
 });

@@ -50,7 +50,7 @@ export function createOpenApiDocument() {
       required: true,
       content: { "application/json": { schema: jsonSchema(request.body) } },
     };
-    if (route.auth === "owner") {
+    if (route.auth !== "none") {
       operation.security = [{ ownerBearer: [] }, { ownerSession: [] }];
     }
     (paths[route.path] ??= {})[route.method.toLowerCase()] = operation;

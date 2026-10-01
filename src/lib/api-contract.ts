@@ -308,6 +308,10 @@ export const pushSubscriptionBodySchema = z.discriminatedUnion("type", [webPushS
 export const pushSubscriptionResponseSchema = z.strictObject({ id: z.number().int().positive().safe() });
 export const deletePushSubscriptionResponseSchema = z.strictObject({ deleted: z.literal(true) });
 
+// Who may call a route: nobody-in-particular ("none", data-free only), the Owner alone, or the Owner
+// and any Invitee (ADR 0008). Every route declares its level; owner is the default for new routes.
+export type AuthLevel = "none" | "owner" | "invitee";
+
 export const routes = {
   health: {
     method: "GET",
@@ -481,7 +485,7 @@ export const routes = {
     request: { params: z.strictObject({ id: z.coerce.number().int().positive().safe() }) },
     responses: { 200: deletePushSubscriptionResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
-} as const;
+} as const satisfies Record<string, { method: string; path: string; auth: AuthLevel; [field: string]: unknown }>;
 
 type ResponseSchema = z.ZodType;
 export function apiJsonResponse<S extends ResponseSchema>(schema: S, status: number, value: unknown): Response {
