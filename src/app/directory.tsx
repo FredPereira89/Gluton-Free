@@ -1,3 +1,4 @@
+import { DIET_LABEL } from "@/domain/dish-dietary";
 import Link from "next/link";
 import { TierBadge, TrendChip } from "@/web/atoms";
 import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "@/lib/api-contract";
@@ -23,6 +24,7 @@ function Row({ item }: { item: DirectoryItem }) {
     <td data-label="Confidence">{item.confidence ? <ConfidenceDots level={item.confidence} /> : <span className="muted">–</span>}</td>
     <td data-label="Trend">{item.trend ? <TrendChip trend={item.trend} /> : <span className="muted">–</span>}</td>
     <td data-label="Format">{item.format || <span className="muted">–</span>}</td>
+    <td data-label="Dietary fit">{item.dietaryFits.map((diet) => <span key={diet} className="chip" title={DIET_LABEL[diet]}><span aria-hidden="true">{diet === "gluten_free" ? "GF" : diet === "vegan" ? "\u{1F331}" : "\u{1F96C}"}</span><span className="sr-only">{DIET_LABEL[diet]}</span></span>)}</td>
     <td data-label="Price">{item.priceTier ?? <span className="muted">–</span>}</td>
     <td data-label="Area">{item.neighbourhood}</td>
     <td className="dir-book">
@@ -32,7 +34,7 @@ function Row({ item }: { item: DirectoryItem }) {
 }
 
 export default function Directory({ query, result }: { query: DirectoryQuery; result: DirectoryResponse }) {
-  const filtered = !!query.q || query.tier.length > 0 || query.family.length > 0 || query.price.length > 0 || query.area.length > 0;
+  const filtered = !!query.q || query.tier.length > 0 || query.family.length > 0 || query.price.length > 0 || query.area.length > 0 || query.diet.length > 0;
   const view = (page: number) => directoryHref({ ...query, page });
   return <section className="directory" aria-labelledby="directory-title">
     <h2 id="directory-title">All Restaurants</h2>
@@ -47,7 +49,7 @@ export default function Directory({ query, result }: { query: DirectoryQuery; re
         {(filtered || query.nee) && <Link className="btn" href="/">Clear filters</Link>}
       </div>
       : <div className="dir-scroll"><table className="dir-table">
-        <thead><tr><th scope="col">Restaurant</th><th scope="col">Tier</th><th scope="col">Confidence</th><th scope="col">Trend</th><th scope="col">Format</th><th scope="col">Price</th><th scope="col">Area</th><th scope="col">Book</th></tr></thead>
+        <thead><tr><th scope="col">Restaurant</th><th scope="col">Tier</th><th scope="col">Confidence</th><th scope="col">Trend</th><th scope="col">Format</th><th scope="col">Dietary fit</th><th scope="col">Price</th><th scope="col">Area</th><th scope="col">Book</th></tr></thead>
         <tbody>{result.items.map((item) => <Row key={item.slug} item={item} />)}</tbody>
       </table></div>}
     {result.totalPages > 1 && <nav className="dir-pages" aria-label="Pages">

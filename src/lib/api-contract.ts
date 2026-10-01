@@ -238,6 +238,7 @@ export const directoryQuerySchema = z.strictObject({
   family: z.array(z.enum(FORMAT_FAMILIES.map((family) => family.code))).default([]),
   price: z.array(z.enum(PRICE_TIERS)).default([]),
   area: z.array(z.string().trim().min(1).max(80)).default([]),
+  diet: z.array(z.enum(DIETS)).default([]),
   // Not enough evidence Restaurants are hidden unless asked for.
   nee: z.boolean().default(false),
   page: z.number().int().min(1).max(10_000).default(1),
@@ -256,6 +257,7 @@ export function parseDirectoryQuery(searchParams: URLSearchParams): DirectoryQue
     family: searchParams.getAll("family"),
     price: searchParams.getAll("price"),
     area: searchParams.getAll("area"),
+    diet: searchParams.getAll("diet"),
     nee: nee === "1" || nee === "true" ? true : nee === "0" || nee === "false" ? false : nee,
     page: number("page"),
     pageSize: number("pageSize"),
@@ -276,6 +278,7 @@ export const directoryItemSchema = z.strictObject({
   neighbourhood: z.string(),
   // Null where the Trend rule hides it (Low Confidence, under a year of Reviews).
   trend: z.enum(["improving", "steady", "slipping"]).nullable(),
+  dietaryFits: z.array(z.enum(DIETS)).default([]),
   booking: bookingLinkSchema,
 });
 export const directoryResponseSchema = z.strictObject({

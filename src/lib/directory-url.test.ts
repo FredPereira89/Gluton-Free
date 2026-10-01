@@ -10,7 +10,7 @@ describe("directory URL", () => {
   });
 
   it("writes search, sort, filters, the toggle and the page, and reads them back", () => {
-    const query = { ...base, q: "café", sort: "value" as const, tier: ["good" as const, "must_go" as const], family: ["casual" as const], price: ["€€" as const], area: ["Santos & Madragoa"], nee: true, page: 3 };
+    const query = { ...base, q: "café", sort: "value" as const, tier: ["good" as const, "must_go" as const], family: ["casual" as const], price: ["€€" as const], area: ["Santos & Madragoa"], diet: ["vegan" as const, "gluten_free" as const], nee: true, page: 3 };
     const href = directoryHref(query);
     expect(href.startsWith("/?")).toBe(true);
     expect(parseDirectoryQuery(new URLSearchParams(href.slice(2)))).toEqual(query);

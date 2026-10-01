@@ -206,6 +206,12 @@ describe("Lookup pipeline", () => {
     await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
     const [afterDisplayChange] = await database`select tier, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
     expect(afterDisplayChange).toEqual(initialTier);
+    const { loadDirectory } = await import("@/web/data");
+    const { directoryQuerySchema } = await import("@/lib/api-contract");
+    const directory = await loadDirectory(directoryQuerySchema.parse({ diet: ["vegan"], nee: true }));
+    const [directoryRestaurant] = await database`select slug from restaurant where id = ${restaurantId}`;
+    expect(directory.items.find((item) => item.slug === directoryRestaurant!.slug)?.dietaryFits).toContain("vegan");
+
 
     const parse = vi.spyOn(fakeAnthropic.messages, "parse");
     await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");

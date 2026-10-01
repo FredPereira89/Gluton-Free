@@ -23,6 +23,7 @@ describe("directory", () => {
     expect(result.items).toEqual([{
       slug: "cantina", name: "Cantina", state: "verdict", tier: "must_go", provisional: false, confidence: "high",
       format: "Café & pastelaria", formatFamily: "quick_cafe", priceTier: "€", neighbourhood: "Chiado", trend: null,
+      dietaryFits: [],
       booking: { label: "Book on TheFork", url: "https://www.thefork.pt/restaurante/cantina-r9", kind: "thefork" },
     }]);
   });
@@ -143,7 +144,7 @@ describe("directory URL state", () => {
     const parsed = parseDirectoryQuery(new URLSearchParams("q=taberna&sort=food&tier=good&tier=must_go&family=casual&price=%E2%82%AC%E2%82%AC&area=Alfama&nee=1&page=2"));
     expect(parsed).toEqual({
       q: "taberna", sort: "food", tier: ["good", "must_go"], family: ["casual"], price: ["€€"], area: ["Alfama"],
-      nee: true, page: 2, pageSize: 24,
+      diet: [], nee: true, page: 2, pageSize: 24,
     });
   });
 
@@ -160,11 +161,16 @@ describe("directory URL state", () => {
 
   it("has defaults for an empty URL", () => {
     expect(parseDirectoryQuery(new URLSearchParams())).toEqual({
-      q: "", sort: "tier", tier: [], family: [], price: [], area: [], nee: false, page: 1, pageSize: 24,
+      q: "", sort: "tier", tier: [], family: [], price: [], area: [], diet: [], nee: false, page: 1, pageSize: 24,
     });
   });
 
   it.each(["sort=vibes", "tier=gold", "family=bistro", "price=%24", "nee=maybe", "page=0", "page=abc", "pageSize=1000"])("rejects %s", (search) => {
     expect(() => parseDirectoryQuery(new URLSearchParams(search))).toThrow();
   });
+});
+
+it("combines Dietary fit with search and other filters before pagination", () => {
+  const rows = [row({ name: "Vegan tasca", dietaryFits: ["vegan", "vegetarian"] }), row({ name: "Other tasca", dietaryFits: [] })];
+  expect(names(rows, { diet: ["vegan"], q: "tasca", area: ["Alfama"], pageSize: 1 })).toEqual(["Vegan tasca"]);
 });

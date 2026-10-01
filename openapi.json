@@ -332,6 +332,18 @@
                               }
                             ]
                           },
+                          "dietaryFits": {
+                            "default": [],
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "vegetarian",
+                                "vegan",
+                                "gluten_free"
+                              ]
+                            }
+                          },
                           "booking": {
                             "type": "object",
                             "properties": {
@@ -370,6 +382,7 @@
                           "priceTier",
                           "neighbourhood",
                           "trend",
+                          "dietaryFits",
                           "booking"
                         ],
                         "additionalProperties": false
@@ -580,6 +593,23 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 80
+              }
+            }
+          },
+          {
+            "name": "diet",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "vegetarian",
+                  "vegan",
+                  "gluten_free"
+                ]
               }
             }
           },
