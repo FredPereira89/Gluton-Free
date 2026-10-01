@@ -16,6 +16,8 @@ export type QuoteProps = {
   reviewId: number;
   restaurantSlug: string;
   access?: "public_ok" | "personal_only";
+  // An Invitee cannot request translations (that route is Owner-only), so only a stored one is offered.
+  readOnly?: boolean;
 };
 
 export function Quote(q: QuoteProps) {
@@ -54,9 +56,9 @@ export function Quote(q: QuoteProps) {
         <span>
           {q.sourceName} · {q.month}
         </span>
-        {q.access && <span className={`acc ${q.access === "personal_only" ? "personal" : "public"}`}>{q.access === "personal_only" ? "Personal only" : "Public OK"}</span>}
+        {q.access && !q.readOnly && <span className={`acc ${q.access === "personal_only" ? "personal" : "public"}`}>{q.access === "personal_only" ? "Personal only" : "Public OK"}</span>}
         <span className="tag">{q.aspectLabel}</span>
-        {!q.lang?.startsWith("en") && <button className="tr" type="button" disabled={loading} onClick={toggleTranslation}>{loading ? "Translating…" : translated ? "Original" : "Translate"}</button>}
+        {!q.lang?.startsWith("en") && (!q.readOnly || textEn) && <button className="tr" type="button" disabled={loading} onClick={toggleTranslation}>{loading ? "Translating…" : translated ? "Original" : "Translate"}</button>}
         {error && <span role="alert">Translation unavailable. Try again.</span>}
         {q.sourceUrl && (
           <a className="small" href={q.sourceUrl} rel="noreferrer nofollow" target="_blank" title={`Opens the Restaurant’s page on ${q.sourceName} (never the individual Review)`}>

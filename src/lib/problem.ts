@@ -1,4 +1,4 @@
-import { AuthError, requireOwner, type RequireOwnerOptions } from "./auth";
+import { AuthError, requireCaller, requireOwner, type Caller, type CallerLevel, type RequireOwnerOptions } from "./auth";
 import { ApiError, parseApiRequest, problemSchema } from "./problem-schema";
 
 export { ApiError, parseApiRequest, problemSchema };
@@ -28,6 +28,16 @@ export function withApiErrors<Args extends unknown[]>(handler: (...args: Args) =
 export async function requireOwnerApi(request: Request, options?: RequireOwnerOptions): Promise<string> {
   try {
     return await requireOwner(request, options);
+  } catch (error) {
+    if (error instanceof AuthError) throw new ApiError(error.status, error.code, error.message);
+    throw error;
+  }
+}
+
+/** requireCaller, but rethrows as the ApiError shape route handlers expect. */
+export async function requireCallerApi(request: Request, level: CallerLevel, options?: RequireOwnerOptions): Promise<Caller> {
+  try {
+    return await requireCaller(request, level, options);
   } catch (error) {
     if (error instanceof AuthError) throw new ApiError(error.status, error.code, error.message);
     throw error;

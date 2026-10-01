@@ -9,6 +9,7 @@ import { db } from "./db";
 vi.mock("./db", () => ({ db: vi.fn() }));
 
 const ownerId = "11111111-1111-1111-1111-111111111111";
+const inviteeId = "33333333-3333-3333-3333-333333333333";
 const { publicKey, privateKey } = await jose.generateKeyPair("ES256", { extractable: true });
 const publicJwk = { ...(await jose.exportJWK(publicKey)), kid: "list-test", alg: "ES256", use: "sig" };
 
@@ -48,8 +49,9 @@ const restaurants = [
 ];
 
 describe("GET /api/v1/restaurants", () => {
-  it("requires the owner before reading the list", async () => {
-    vi.mocked(db).mockReturnValue((async () => []) as unknown as ReturnType<typeof db>);
+  it("requires the owner or an Invitee before reading the list", async () => {
+    vi.mocked(db).mockReturnValue((async (strings: TemplateStringsArray, userId: string) =>
+      strings.join(" ").includes("from invitee") && userId === inviteeId ? [{ ok: 1 }] : []) as unknown as ReturnType<typeof db>);
 
     const missing = await dispatch();
     expect(missing.status).toBe(401);
@@ -58,12 +60,16 @@ describe("GET /api/v1/restaurants", () => {
     const foreign = await dispatch({ headers: { authorization: `Bearer ${await token("22222222-2222-2222-2222-222222222222")}` } });
     expect(foreign.status).toBe(403);
     expect(routes.restaurantList.responses[403].parse(await foreign.json()).code).toBe("forbidden");
-    expect(db).not.toHaveBeenCalled();
+    expect(db).toHaveBeenCalledTimes(1); // only the Invitee lookup, never the list
 
     const owner = await dispatch({ headers: { authorization: `Bearer ${await token(ownerId)}` } });
     expect(owner.status).toBe(200);
     expect(routes.restaurantList.responses[200].parse(await owner.json())).toEqual({ items: [], nextCursor: null });
-    expect(db).toHaveBeenCalledTimes(1);
+    expect(db).toHaveBeenCalledTimes(2);
+
+    const invitee = await dispatch({ headers: { authorization: `Bearer ${await token(inviteeId)}` } });
+    expect(invitee.status).toBe(200);
+    expect(routes.restaurantList.responses[200].parse(await invitee.json())).toEqual({ items: [], nextCursor: null });
   });
 
   it("reaches every Restaurant once across cursor pages", async () => {

@@ -127,7 +127,9 @@ describe("Critic piece handlers (issue #62)", () => {
   it("exposes the attached piece in the strict Restaurant bundle", async () => {
     const created = await POST(request("POST", valid), context("no-verdict"));
     const { id } = routes.createCriticPiece.responses[201].parse(await created.json());
-    const response = await getRestaurant(new Request("http://localhost/api/v1/restaurants/no-verdict"), context("no-verdict"));
+    const response = await getRestaurant(new Request("http://localhost/api/v1/restaurants/no-verdict", {
+      headers: { authorization: `Bearer ${ownerToken}` },
+    }), context("no-verdict"));
     expect(response.status).toBe(200);
     const bundle = routes.restaurantBundle.responses[200].parse(await response.json());
     expect(bundle.critics).toEqual([{ id, ...valid }]);

@@ -31,6 +31,7 @@ vi.mock("@/analysis/extract", async (importOriginal) => {
 vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(), requireOwner: vi.fn().mockResolvedValue("owner"),
 }));
+vi.mock("@/lib/page-role", () => ({ pageRole: vi.fn().mockResolvedValue("owner") }));
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@trigger.dev/sdk", () => ({ tasks: { trigger: vi.fn(async (id: string, payload: never) => {

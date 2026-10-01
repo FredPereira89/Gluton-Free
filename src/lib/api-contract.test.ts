@@ -11,9 +11,14 @@ import { POST as translateQuote } from "@/app/api/v1/restaurants/[slug]/quotes/[
 import { rollup, type RollupReview } from "@/verdict/rollup";
 import { loadRestaurantBundle, loadVerdictPage, type VerdictPage } from "@/web/data";
 import { acceptedJobResponse, acceptedJobSchema, type AuthLevel, paginatedSchema, parsePagination, routes, type RestaurantBundle } from "./api-contract";
+import { AuthError, requireCaller } from "./auth";
 import { problemSchema } from "./problem";
 
 vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn(), loadRestaurantBundle: vi.fn() }));
+vi.mock("./auth", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./auth")>(), requireCaller: vi.fn().mockResolvedValue({ userId: "owner-1", role: "owner" }),
+}));
+vi.mock("@/lib/page-role", () => ({ pageRole: vi.fn().mockResolvedValue("owner") }));
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
@@ -43,7 +48,7 @@ describe("API registry and OpenAPI", () => {
   it("declares an auth level for every route; owner is the default unless a ticket opens a route to Invitees", () => {
     for (const route of Object.values(routes)) expect(["none", "owner", "invitee"], route.path).toContain(route.auth);
     expect(Object.values(routes).filter((route) => route.auth === "none").map((route) => route.path)).toEqual(["/api/v1/health"]);
-    expect(Object.values(routes).filter((route) => (route.auth as AuthLevel) === "invitee").map((route) => route.path)).toEqual(["/api/v1/search"]);
+    expect(Object.values(routes).filter((route) => (route.auth as AuthLevel) === "invitee").map((route) => route.path)).toEqual(["/api/v1/restaurants", "/api/v1/search", "/api/v1/restaurants/{slug}", "/api/v1/restaurants/{slug}/verdicts"]);
   });
 
   it("registers every /api/v1 handler method", () => {
@@ -219,7 +224,7 @@ describe("handler responses", () => {
     const response = await restaurantBundle(new Request(url), { params: Promise.resolve({ slug: "o-velho-eurico" }) });
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-cache");
-    const body = routes.restaurantBundle.responses[200].parse(await response.json());
+    const body = routes.restaurantBundle.responses[200].parse(await response.json()) as RestaurantBundle;
     expect(body.restaurant.name).toBe("O Velho Eurico");
     expect(body.sources[0]).toMatchObject({ reviewCount: 5, textCount: 2, rating: 4.5 });
     expect(body.verdict?.blocks.rollup.state).toBe("not_enough_evidence");
@@ -231,6 +236,41 @@ describe("handler responses", () => {
     expect(repeated.headers.get("etag")).toBe(etag);
     expect(repeated.headers.get("cache-control")).toBe("private, no-cache");
     expect(await repeated.text()).toBe("");
+  });
+
+  it("serves an Invitee the projection: no Sources table, Owner questions, active job or proposed marker, and no personal-only Review text", async () => {
+    const quote = (reviewId: number, text: string, source: string) => ({ reviewId, aspect: "food" as const, polarity: 1 as const, text, textEn: null, lang: "pt", stars: 5, source, month: "2026-08" });
+    vi.mocked(loadRestaurantBundle).mockResolvedValue({
+      ...bundleFixture,
+      restaurant: { ...bundleFixture.restaurant, formatProvenance: "llm" },
+      verdict: { ...bundleFixture.verdict!, blocks: { rollup: bundleFixture.verdict!.blocks.rollup, quotes: [quote(1, "SCRUBBED personal-only quote", "google")] } },
+      activeJob: { id: 5, kind: "refresh", status: "running", step: null, createdAt: "2026-09-24T11:00:00.000Z" },
+      ownerQuestions: [{ id: 6, kind: "retry_source", source: "google", prompt: "Retry Google?" }],
+    });
+    vi.mocked(requireCaller).mockResolvedValueOnce({ userId: "invitee-1", role: "invitee" });
+    const response = await restaurantBundle(new Request("https://app.example/api/v1/restaurants/o-velho-eurico"), { params: Promise.resolve({ slug: "o-velho-eurico" }) });
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).not.toContain("SCRUBBED");
+    const body = JSON.parse(text);
+    for (const key of ["sources", "ownerQuestions", "activeJob", "unavailableSources"]) expect(body, key).not.toHaveProperty(key);
+    expect(body.restaurant).not.toHaveProperty("formatProvenance");
+    expect(body.restaurant.name).toBe("O Velho Eurico");
+    expect(vi.mocked(requireCaller).mock.calls.at(-1)![1]).toBe("invitee");
+  });
+
+  it("serves the Owner the full bundle for the same Restaurant", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(bundleFixture);
+    const response = await restaurantBundle(new Request("https://app.example/api/v1/restaurants/o-velho-eurico"), { params: Promise.resolve({ slug: "o-velho-eurico" }) });
+    expect(await response.json()).toEqual(JSON.parse(JSON.stringify(bundleFixture)));
+  });
+
+  it("refuses a caller who is neither the Owner nor an Invitee, without touching the data", async () => {
+    vi.mocked(loadRestaurantBundle).mockClear();
+    vi.mocked(requireCaller).mockRejectedValueOnce(new AuthError(403, "forbidden", "Token subject is not an Invitee or the owner"));
+    const response = await restaurantBundle(new Request("https://app.example/api/v1/restaurants/o-velho-eurico"), { params: Promise.resolve({ slug: "o-velho-eurico" }) });
+    expect(response.status).toBe(403);
+    expect(loadRestaurantBundle).not.toHaveBeenCalled();
   });
 
   it("returns a not_found problem for an unknown Restaurant slug", async () => {

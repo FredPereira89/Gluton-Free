@@ -341,7 +341,7 @@ describe("the proxy and the route registry's auth levels", () => {
   it("keeps owner pages owner-only for an Invitee session, sending them to the welcome page rather than a sign-in form", async () => {
     vi.stubGlobal("fetch", jwksFetch());
     const token = await signToken(INVITEE_ID);
-    for (const path of ["/", "/r/some-place", "/baseline-checks"]) {
+    for (const path of ["/settings", "/baseline-checks"]) {
       const response = await proxy(apiRequest(path, { headers: { authorization: `Bearer ${token}` } }));
       expect(response.status, path).toBe(307);
       expect(new URL(response.headers.get("location")!).pathname).toBe("/welcome");
@@ -365,6 +365,15 @@ describe("the proxy and the route registry's auth levels", () => {
     expect(requiredAuthLevel("GET", "/api/v1/restaurants/x/verdict")).toBe("owner");
     expect(requiredAuthLevel("DELETE", "/api/v1/restaurants/x/verdict")).toBe("owner");
     expect(requiredAuthLevel("GET", "/api/v1/not-a-route")).toBe("owner");
-    expect(requiredAuthLevel("GET", "/r/some-place")).toBe("owner");
+    expect(requiredAuthLevel("GET", "/settings")).toBe("owner");
+    expect(requiredAuthLevel("GET", "/r/some-place/anything-else")).toBe("owner");
+  });
+
+  it("opens the Restaurant list, the report and its Verdict history to Invitees, pages and API alike, read-only", () => {
+    for (const path of ["/restaurants", "/r/some-place", "/r/some-place/history", "/api/v1/restaurants", "/api/v1/restaurants/some-place", "/api/v1/restaurants/some-place/verdicts"]) {
+      expect(requiredAuthLevel("GET", path), path).toBe("invitee");
+    }
+    expect(requiredAuthLevel("POST", "/api/v1/restaurants")).toBe("owner");
+    expect(requiredAuthLevel("DELETE", "/api/v1/restaurants/some-place")).toBe("owner");
   });
 });

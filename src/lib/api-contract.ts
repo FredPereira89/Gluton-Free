@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CHANGE_POINT_KINDS, TIERS } from "@/domain/aspects";
 import { FORMATS } from "@/domain/restaurant-facts";
-import { BlocksSchema, RollupSchema } from "@/verdict/blocks";
+import { BlocksSchema, RollupSchema, ShownQuoteSchema } from "@/verdict/blocks";
 import {
   createInviteLinkBodySchema, inviteLinkListResponseSchema, inviteLinkSchema, inviteeListResponseSchema, inviteeSchema,
   revokeInviteLinkResponseSchema, setInviteeLockOutBodySchema,
@@ -88,19 +88,21 @@ const changePointOwnerQuestionSchema = z.strictObject({
 export const ownerQuestionSchema = z.discriminatedUnion("kind", [listingOwnerQuestionSchema, formatOwnerQuestionSchema, retrySourceOwnerQuestionSchema, changePointOwnerQuestionSchema]);
 export type OwnerQuestion = z.infer<typeof ownerQuestionSchema>;
 
+const bundleVerdictSchema = z.strictObject({
+  id: z.number().int(),
+  state: z.enum(["verdict", "not_enough_evidence"]),
+  tier: z.enum(TIERS).nullable(),
+  confidence: z.enum(["low", "medium", "high"]).nullable(),
+  explanation: z.string().nullable(),
+  issuedAt: z.iso.datetime(),
+  provisional: z.boolean(),
+  peerSnapshotId: z.number().int().nullable().optional(),
+  blocks: BlocksSchema,
+});
+
 export const restaurantBundleSchema = z.strictObject({
   restaurant: restaurantSchema,
-  verdict: z.strictObject({
-    id: z.number().int(),
-    state: z.enum(["verdict", "not_enough_evidence"]),
-    tier: z.enum(TIERS).nullable(),
-    confidence: z.enum(["low", "medium", "high"]).nullable(),
-    explanation: z.string().nullable(),
-    issuedAt: z.iso.datetime(),
-    provisional: z.boolean(),
-    peerSnapshotId: z.number().int().nullable().optional(),
-    blocks: BlocksSchema,
-  }).nullable(),
+  verdict: bundleVerdictSchema.nullable(),
   sources: z.array(bundleSourceSchema),
   distinctions: z.array(z.strictObject({ id: z.number().int().positive().safe(), guide: z.string(), level: z.string(), editionYear: z.number().int().nullable(), url: z.url() })),
   critics: z.array(z.strictObject({
@@ -121,6 +123,28 @@ export const restaurantBundleSchema = z.strictObject({
 export const quoteTranslationResponseSchema = z.strictObject({ textEn: z.string().min(1) });
 export const quoteTranslationBodySchema = z.strictObject({ original: z.string().min(1).max(240) });
 export type RestaurantBundle = z.infer<typeof restaurantBundleSchema>;
+
+// What an Invitee reads of the same Restaurant (ADR 0008). Review text survives only from public-OK
+// Sources; the Sources table, Owner questions, the active job and the proposed Format marker are gone.
+const redFlagSchema = RollupSchema.shape.redFlags.element;
+const inviteeRollupSchema = RollupSchema.extend({
+  redFlags: z.array(redFlagSchema.extend({
+    incidents: z.array(redFlagSchema.shape.incidents.unwrap().element.extend({ evidence: z.string().optional() })).optional(),
+  })),
+});
+export const inviteeBundleSchema = restaurantBundleSchema
+  .omit({ sources: true, activeJob: true, ownerQuestions: true, unavailableSources: true })
+  .extend({
+    restaurant: restaurantSchema.omit({ formatProvenance: true }),
+    verdict: bundleVerdictSchema.extend({
+      blocks: z.strictObject({
+        rollup: inviteeRollupSchema,
+        quotes: z.array(ShownQuoteSchema.extend({ access: z.literal("public_ok") })),
+      }),
+    }).nullable(),
+    sourceNames: z.record(z.string(), z.string()),
+  });
+export type InviteeBundle = z.infer<typeof inviteeBundleSchema>;
 
 export const createChangePointBodySchema = z.strictObject({
   kind: z.enum(CHANGE_POINT_KINDS),
@@ -327,7 +351,7 @@ export const routes = {
   restaurantList: {
     method: "GET",
     path: "/api/v1/restaurants",
-    auth: "owner",
+    auth: "invitee",
     request: { query: idCursorQuerySchema },
     responses: { 200: restaurantListResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
   },
@@ -353,9 +377,9 @@ export const routes = {
   restaurantBundle: {
     method: "GET",
     path: "/api/v1/restaurants/{slug}",
-    auth: "owner",
+    auth: "invitee",
     request: { params: z.strictObject({ slug: z.string().min(1) }) },
-    responses: { 200: restaurantBundleSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+    responses: { 200: z.union([restaurantBundleSchema, inviteeBundleSchema]), 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   updateRestaurantFacts: {
     method: "PATCH",
@@ -374,7 +398,7 @@ export const routes = {
   verdictHistory: {
     method: "GET",
     path: "/api/v1/restaurants/{slug}/verdicts",
-    auth: "owner",
+    auth: "invitee",
     request: { params: z.strictObject({ slug: z.string().min(1) }), query: idCursorQuerySchema },
     responses: { 200: verdictHistoryResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },

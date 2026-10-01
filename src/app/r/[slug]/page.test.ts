@@ -3,12 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { INPUTS } from "@/domain/aspects";
 import type { RestaurantBundle } from "@/lib/api-contract";
 import { rollup, type RollupFlag, type RollupReview } from "@/verdict/rollup";
+import { pageRole } from "@/lib/page-role";
 import { loadRestaurantBundle } from "@/web/data";
 import VerdictPageRoute from "./page";
 
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/web/data", () => ({ loadRestaurantBundle: vi.fn() }));
+vi.mock("@/lib/page-role", () => ({ pageRole: vi.fn().mockResolvedValue("owner") }));
 
 const now = new Date("2026-09-01T00:00:00.000Z");
 const publishedAt = new Date("2026-08-01T00:00:00.000Z");
@@ -21,6 +23,73 @@ describe("Restaurant details (issue #53)", () => {
     expect(html).toContain("Format");
     expect(html).toContain("Price tier");
     expect(html).toContain("Save Restaurant details");
+  });
+});
+
+describe("Invitee view (issue #109)", () => {
+  const SCRUBBED_PERSONAL = "SCRUBBED personal-only quote";
+  const SCRUBBED_PUBLIC = "SCRUBBED shareable quote";
+  const SCRUBBED_EVIDENCE = "SCRUBBED personal-only incident evidence";
+  function ownerBundle(): RestaurantBundle {
+    const page = bundle(1);
+    page.restaurant = { ...page.restaurant, formatProvenance: "llm" };
+    page.sources.push({ code: "tripadvisor", name: "Tripadvisor", kind: "crowd", access: "public_ok", matchProvenance: "pasted", url: "https://example.com/ta",
+      rating: 4, reviewCount: 3, textCount: 3, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" });
+    const flag = page.verdict!.blocks.rollup.redFlags[0]!;
+    flag.incidents = flag.incidents!.map((incident) => ({ ...incident, evidence: SCRUBBED_EVIDENCE }));
+    page.verdict!.blocks.rollup.themes = [{ code: "food_delicious", aspect: "food", polarity: 1, count: 3, share: 0.15 }];
+    const quote = (reviewId: number, text: string, source: string) => ({ reviewId, aspect: "food" as const, polarity: 1 as const, text, textEn: null, lang: "pt", stars: 5, source, month: "2026-08" });
+    page.verdict!.blocks.quotes = [quote(7, SCRUBBED_PERSONAL, "google"), quote(8, SCRUBBED_PUBLIC, "tripadvisor")];
+    page.distinctions = [{ id: 7, guide: "Guia Repsol", level: "Solete", editionYear: 2026, url: "https://www.guiarepsol.com/sample" }];
+    page.critics = [{ id: 9, publication: "Time Out", title: "Sample piece", url: "https://example.com/piece", publishedOn: null, language: null, printedRating: null }];
+    page.changePoints = [{ id: 4, occurredOn: "2026-03-01", description: "New chef" }];
+    page.activeJob = { id: 5, kind: "refresh", status: "running", step: "reading new Reviews", createdAt: now.toISOString(), newReviews: 8 };
+    page.ownerQuestions = [{ id: 6, kind: "retry_source", source: "google", prompt: "Retry Google?" }];
+    page.unavailableSources = [{ source: "thefork", detail: "TheFork matching could not run" }];
+    return page;
+  }
+  const render = async () => renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+
+  it("shows an Invitee the Verdict and read-only evidence, with no Review text from a personal-only Source", async () => {
+    vi.mocked(pageRole).mockResolvedValueOnce("invitee");
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
+    const html = await render();
+    expect(html).toContain("Sample Restaurant");
+    expect(html).toContain("The food is good.");
+    expect(html).toContain(SCRUBBED_PUBLIC);
+    expect(html).toContain("Guia Repsol");
+    expect(html).toContain("Solete (2026)");
+    expect(html).toContain("Time Out");
+    expect(html).toContain("2026-03-01: New chef");
+    expect(html).toContain("Verdict history");
+    expect(html).not.toContain("SCRUBBED personal-only");
+  });
+
+  it("renders no Owner tool, Sources table, Owner question, job line or proposed marker for an Invitee", async () => {
+    vi.mocked(pageRole).mockResolvedValueOnce("invitee");
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
+    const html = await render();
+    for (const owner of [
+      "<form", "<button", "<input", "<select", "Save Restaurant details", "Add Distinction", "Declare Change point", "Delete ", "Translate",
+      "Owner questions", "Retry Google", "new Reviews being read", "(proposed)", "TheFork", "Add it by hand", "Personal only", "Public OK", "<th>Access</th>", "<h2>Sources</h2>",
+    ]) expect(html, owner).not.toContain(owner);
+    expect(html).not.toMatch(/Current.*job/);
+  });
+
+  it("renders the Owner's tools and Sources table when the caller is the Owner", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
+    const html = await render();
+    for (const owner of ["Save Restaurant details", "Add Distinction", "Declare Change point", "Owner questions", "(proposed)", SCRUBBED_PERSONAL, SCRUBBED_EVIDENCE, "<h2>Sources</h2>"]) expect(html, owner).toContain(owner);
+    expect(html).toMatch(/Current.*job/);
+  });
+
+  it("projects a Restaurant with no Verdict yet and the Not-enough-evidence layout too", async () => {
+    vi.mocked(pageRole).mockResolvedValueOnce("invitee");
+    vi.mocked(loadRestaurantBundle).mockResolvedValue({ ...ownerBundle(), verdict: null });
+    const html = await render();
+    expect(html).toContain("No Verdict yet");
+    expect(html).not.toContain("<form");
+    expect(html).not.toContain("Owner questions");
   });
 });
 

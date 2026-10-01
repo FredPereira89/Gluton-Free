@@ -20,7 +20,8 @@ const restaurants: Record<string, { name: string; verdicts: typeof verdicts }> =
 
 // Mirrors the loader's query: the Restaurant left-joined to its Verdicts older than the cursor, newest first.
 function fakeDb() {
-  vi.mocked(db).mockReturnValue((async (_strings: TemplateStringsArray, before: string, slug: string, take: number) => {
+  vi.mocked(db).mockReturnValue((async (strings: TemplateStringsArray, before: string, slug: string, take: number) => {
+    if (strings.join(" ").includes("from invitee")) return before === inviteeId ? [{ ok: 1 }] : [];
     const restaurant = restaurants[slug];
     if (!restaurant) return [];
     const older = restaurant.verdicts.filter((v) => BigInt(v.id) < BigInt(before)).sort((a, b) => Number(b.id) - Number(a.id));
@@ -34,6 +35,7 @@ function get(slug: string, query = "") {
 }
 
 const ownerId = "11111111-1111-1111-1111-111111111111";
+const inviteeId = "33333333-3333-3333-3333-333333333333";
 const { publicKey, privateKey } = await jose.generateKeyPair("ES256", { extractable: true });
 const publicJwk = { ...(await jose.exportJWK(publicKey)), kid: "history-test", alg: "ES256", use: "sig" };
 
@@ -117,7 +119,7 @@ describe("GET /api/v1/restaurants/:slug/verdicts", () => {
     },
   );
 
-  it("requires the owner before reading the history", async () => {
+  it("requires the owner or an Invitee before reading the history", async () => {
     const missing = await dispatch("o-velho-eurico");
     expect(missing.status).toBe(401);
     expect(routes.verdictHistory.responses[401].parse(await missing.json()).code).toBe("unauthenticated");
@@ -125,10 +127,14 @@ describe("GET /api/v1/restaurants/:slug/verdicts", () => {
     const foreign = await dispatch("o-velho-eurico", { headers: { authorization: `Bearer ${await token("22222222-2222-2222-2222-222222222222")}` } });
     expect(foreign.status).toBe(403);
     expect(routes.verdictHistory.responses[403].parse(await foreign.json()).code).toBe("forbidden");
-    expect(db).not.toHaveBeenCalled();
+    expect(db).toHaveBeenCalledTimes(1); // only the Invitee lookup, never the Verdicts
 
     const owner = await dispatch("o-velho-eurico", { headers: { authorization: `Bearer ${await token(ownerId)}` } });
     expect(owner.status).toBe(200);
     expect(routes.verdictHistory.responses[200].parse(await owner.json()).items).toHaveLength(3);
+
+    const invitee = await dispatch("o-velho-eurico", { headers: { authorization: `Bearer ${await token(inviteeId)}` } });
+    expect(invitee.status).toBe(200);
+    expect(routes.verdictHistory.responses[200].parse(await invitee.json()).items).toHaveLength(3);
   });
 });

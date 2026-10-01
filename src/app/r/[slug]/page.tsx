@@ -6,10 +6,12 @@ import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, TIER_LABEL, type FlagType, type Tier } from "@/domain/aspects";
 import { THEMES } from "@/domain/themes";
 import { formatPercentile } from "@/verdict/peer";
-import { PARAMS, type RedFlagGroup, type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
+import { PARAMS, type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
 import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripRow, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
-import type { RestaurantBundle } from "@/lib/api-contract";
+import type { InviteeBundle, RestaurantBundle } from "@/lib/api-contract";
+import { projectInviteeBundle } from "@/lib/invitee-projection";
+import { pageRole } from "@/lib/page-role";
 import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
@@ -24,6 +26,15 @@ import { ChangePoints } from "@/web/change-points";
 import { CriticPieces } from "@/web/critic-pieces";
 
 type Props = { params: Promise<{ slug: string }> };
+
+// Both the Owner's bundle and the Invitee projection render through this one page. What only the
+// Owner has (Sources table, tools, jobs, questions) is read from `owner`, which is null for an Invitee.
+type InviteeVerdict = NonNullable<InviteeBundle["verdict"]>;
+type ReportVerdict = Omit<InviteeVerdict, "blocks"> & {
+  blocks: { rollup: InviteeVerdict["blocks"]["rollup"]; quotes: (Omit<InviteeVerdict["blocks"]["quotes"][number], "access"> & { access?: "public_ok" | "personal_only" })[] };
+};
+type RedFlagGroup = ReportVerdict["blocks"]["rollup"]["redFlags"][number];
+type SourceLink = { name: string; url: string | null; access?: "public_ok" | "personal_only" };
 
 const FORMAT_NAME: Record<string, string> = { tasca: "tasca" };
 const FLAG_LABEL: Record<FlagType, string> = {
@@ -43,11 +54,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function VerdictPageRoute({ params }: Props) {
   await connection();
   const { slug } = await params;
-  const page = await loadRestaurantBundle(slug);
-  if (!page) notFound();
-  const { restaurant: R, verdict: v } = page;
+  const [role, loaded] = await Promise.all([pageRole(), loadRestaurantBundle(slug)]);
+  if (!loaded) notFound();
+  const owner = role === "owner" ? loaded : null;
+  const page: RestaurantBundle | InviteeBundle = owner ?? projectInviteeBundle(loaded);
+  const { restaurant: R } = page;
+  const v: ReportVerdict | null = page.verdict;
   const formatName = FORMAT_NAME[R.format] ?? R.format;
-  const crowd = page.sources.filter((s) => s.kind === "crowd");
+  const crowd = owner?.sources.filter((s) => s.kind === "crowd") ?? [];
+  const sourceByCode = new Map<string, SourceLink>(owner
+    ? owner.sources.map((s) => [s.code, s])
+    : Object.entries((page as InviteeBundle).sourceNames).map(([code, name]) => [code, { name, url: null }]));
+  const activeJob = owner?.activeJob ?? null;
 
   const head = (
     <div className="name">
@@ -69,17 +87,17 @@ export default async function VerdictPageRoute({ params }: Props) {
   );
   const baseChips = (
     <>
-      <span className="chip">{cap(formatName)}{R.formatProvenance === "llm" ? " (proposed)" : ""}</span>
+      <span className="chip">{cap(formatName)}{owner?.restaurant.formatProvenance === "llm" ? " (proposed)" : ""}</span>
       {R.priceTier && <span className="chip">{R.priceTier}</span>}
     </>
   );
   const activity = (
     <>
-      <RefreshWhileBusy status={page.activeJob?.status ?? null} />
-      {page.activeJob?.kind === "refresh" && (page.activeJob.status === "queued" || page.activeJob.status === "running") && (
+      <RefreshWhileBusy status={activeJob?.status ?? null} />
+      {activeJob?.kind === "refresh" && (activeJob.status === "queued" || activeJob.status === "running") && (
         <div className="banner refresh-banner" role="status" aria-live="polite">
           <span className="spin" aria-hidden="true" />
-          <span>{page.activeJob.newReviews === undefined ? "Finding new Reviews" : `${page.activeJob.newReviews} new Reviews being read`}</span>
+          <span>{activeJob.newReviews === undefined ? "Finding new Reviews" : `${activeJob.newReviews} new Reviews being read`}</span>
         </div>
       )}
     </>
@@ -94,10 +112,10 @@ export default async function VerdictPageRoute({ params }: Props) {
           <div className="chips">{baseChips}</div>
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
-        <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
-        <Sources page={page} />
-        {page.activeJob?.kind === "lookup" && <LookupProgress jobId={page.activeJob.id} />}
-        <BundleExtras page={page} />
+        {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
+        {owner ? <Sources page={owner} /> : <ReadOnlyEvidence page={page as InviteeBundle} />}
+        {activeJob?.kind === "lookup" && <LookupProgress jobId={activeJob.id} />}
+        <BundleExtras page={page} owner={owner} />
       </div>
     );
   }
@@ -111,7 +129,6 @@ export default async function VerdictPageRoute({ params }: Props) {
   );
   const tierChange = changePointLine ?? (r.tierChange && <p className="small muted">Was {TIER_LABEL[r.tierChange.from]} until {dateLabel(r.tierChange.at)}</p>);
   const perSource = r.counts.perSource;
-  const sourceByCode = new Map(page.sources.map((s) => [s.code, s]));
 
   if (r.state === "not_enough_evidence") {
     const nee = r.notEnoughEvidence;
@@ -162,9 +179,9 @@ export default async function VerdictPageRoute({ params }: Props) {
             ))}
           </div>
         </section>
-        <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
-        <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} />
-        <BundleExtras page={page} />
+        {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
+        {owner ? <Sources page={owner} perSource={perSource} sourceReadings={r.sourceReadings} /> : <ReadOnlyEvidence page={page as InviteeBundle} />}
+        <BundleExtras page={page} owner={owner} />
         <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
       </div>
     );
@@ -181,9 +198,9 @@ export default async function VerdictPageRoute({ params }: Props) {
           {tierChange}
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         </section>
-        <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
-        <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} />
-        <BundleExtras page={page} />
+        {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
+        {owner ? <Sources page={owner} perSource={perSource} sourceReadings={r.sourceReadings} /> : <ReadOnlyEvidence page={page as InviteeBundle} />}
+        <BundleExtras page={page} owner={owner} />
       </div>
     );
   }
@@ -210,7 +227,7 @@ export default async function VerdictPageRoute({ params }: Props) {
       text={q.text} textEn={q.textEn} lang={q.lang} stars={q.stars}
       sourceName={s?.name ?? q.source} sourceUrl={s?.url ?? null}
       month={monthLabel(q.month)} aspectLabel={ASPECT_LABEL[q.aspect]}
-      negative={q.polarity < 0} access={q.access ?? s?.access} />;
+      negative={q.polarity < 0} access={q.access ?? s?.access} readOnly={!owner} />;
   };
 
   return (
@@ -323,15 +340,15 @@ export default async function VerdictPageRoute({ params }: Props) {
         </p>}
       </section>
 
-      <SourceRetryBanners slug={R.slug} questions={page.ownerQuestions} />
-      <Sources page={page} perSource={perSource} sourceReadings={r.sourceReadings} />
-      <BundleExtras page={page} />
+      {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
+      {owner ? <Sources page={owner} perSource={perSource} sourceReadings={r.sourceReadings} /> : <ReadOnlyEvidence page={page as InviteeBundle} />}
+      <BundleExtras page={page} owner={owner} />
       <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
     </div>
   );
 }
 
-function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: Map<string, RestaurantBundle["sources"][number]> }) {
+function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: Map<string, SourceLink> }) {
   return (
     <aside className={`flag ${g.forcesAvoid ? "" : "minor"}`} aria-label={`${g.group === "health" ? "Health" : "Money"} red flag`}>
       <span className="ico" aria-hidden="true">!</span>
@@ -345,9 +362,9 @@ function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: M
           const source = sources.get(incident.source);
           return (
             <figure className="flag-quote" key={incident.reviewId}>
-              <blockquote>“{incident.evidence}”</blockquote>
+              {incident.evidence !== undefined && <blockquote>“{incident.evidence}”</blockquote>}
               <figcaption className="small muted">
-                {source ? <a href={source.url} rel="noreferrer nofollow" target="_blank">{source.name}</a> : incident.source}
+                {source?.url ? <a href={source.url} rel="noreferrer nofollow" target="_blank">{source.name}</a> : source?.name ?? incident.source}
                 {` · ${monthLabel(incident.publishedAt.slice(0, 7))}`}
                 {incident.stars !== null && incident.stars !== undefined && <span className="stars" aria-label={`${incident.stars} stars`}>{` · ${"★".repeat(incident.stars)}${"☆".repeat(5 - incident.stars)}`}</span>}
               </figcaption>
@@ -424,19 +441,44 @@ function Sources({ page, perSource, sourceReadings }: { page: RestaurantBundle; 
   );
 }
 
-function BundleExtras({ page }: { page: RestaurantBundle }) {
+// Distinctions and critic pieces for an Invitee: the Owner's lists without the forms.
+function ReadOnlyEvidence({ page }: { page: InviteeBundle }) {
+  if (page.distinctions.length === 0 && page.critics.length === 0) return null;
+  return (
+    <section className="sec">
+      <h2>Distinctions and critics</h2>
+      <div className="ev-list">
+        {page.distinctions.map((item) => <div key={item.id}>
+          <b>{item.guide}</b> · {item.level}{item.editionYear === null ? "" : ` (${item.editionYear})`}{" "}
+          <a href={item.url} rel="noreferrer" target="_blank">↗</a>
+        </div>)}
+        {page.distinctions.length > 0 && <p className="small muted">Distinctions are credited to their guide and never move the Tier.</p>}
+        {page.critics.map((item) => <div key={item.id}>
+          <b>{item.publication}</b> ·{" "}
+          <a href={item.url} rel="noreferrer" target="_blank">“{item.title}” ↗</a>
+          {item.publishedOn && ` · ${item.publishedOn}`}
+          {item.language && ` · ${item.language}`}
+          {item.printedRating && ` · ${item.printedRating} (printed rating)`}
+        </div>)}
+        {page.critics.length > 0 && <p className="small muted">Critic pieces are credited to their publication and never move the Tier.</p>}
+      </div>
+    </section>
+  );
+}
+
+function BundleExtras({ page, owner }: { page: RestaurantBundle | InviteeBundle; owner: RestaurantBundle | null }) {
   const r = page.verdict?.blocks.rollup;
   const history = r?.sourceHistory ?? [];
   const showComposite = !!r && !r.provisional && r.series.some((q) => q.compositePercentile != null);
   const disagreement = r?.disagreement;
-  const names = Object.fromEntries(page.sources.map((s) => [s.code, s.name]));
+  const names = owner ? Object.fromEntries(owner.sources.map((s) => [s.code, s.name])) : (page as InviteeBundle).sourceNames;
   return (
     <section className="sec">
       <h2>Restaurant details</h2>
-      <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
-        priceTier={page.restaurant.priceTier} busy={page.activeJob !== null} />
-      {page.activeJob && (
-        <p>Current {page.activeJob.kind} job: {page.activeJob.status}{page.activeJob.step ? ` · ${page.activeJob.step}` : ""}.</p>
+      {owner && <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
+        priceTier={page.restaurant.priceTier} busy={owner.activeJob !== null} />}
+      {owner?.activeJob && (
+        <p>Current {owner.activeJob.kind} job: {owner.activeJob.status}{owner.activeJob.step ? ` · ${owner.activeJob.step}` : ""}.</p>
       )}
       {showComposite && <CompositeHistoryChart series={r!.series} changePointAt={r!.changePointAt} />}
       {disagreement && <p className="small muted">{disagreementLine(disagreement, names)}</p>}
@@ -447,26 +489,36 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
           <ul>{page.series.map((point) => <li key={point.quarter}>{point.quarter}: {point.volume} Reviews, {point.textVolume} with text</li>)}</ul>
         </div>
       )}
-      <div>
-        <h2>Change points</h2>
-        <ChangePoints slug={page.restaurant.slug} items={page.changePoints} disabled={page.activeJob !== null} />
-      </div>
-      {page.ownerQuestions.length > 0 && (
+      {owner ? (
         <div>
-          <h2>Owner questions</h2>
-          <OwnerQuestions slug={page.restaurant.slug} questions={page.ownerQuestions} />
+          <h2>Change points</h2>
+          <ChangePoints slug={page.restaurant.slug} items={page.changePoints} disabled={owner.activeJob !== null} />
+        </div>
+      ) : page.changePoints.length > 0 && (
+        <div>
+          <h2>Change points</h2>
+          <div className="ev-list">
+            {page.changePoints.map((point) => <div key={point.id}>{point.occurredOn}: {point.description}</div>)}
+            <p className="small muted">Only the newest Change point governs the Review window.</p>
+          </div>
         </div>
       )}
-      {page.unavailableSources.map((unavailable) => (
+      {owner && owner.ownerQuestions.length > 0 && (
+        <div>
+          <h2>Owner questions</h2>
+          <OwnerQuestions slug={page.restaurant.slug} questions={owner.ownerQuestions} />
+        </div>
+      )}
+      {owner?.unavailableSources.map((unavailable) => (
         <TheForkUnavailable key={unavailable.source} slug={page.restaurant.slug} detail={unavailable.detail} />
       ))}
-      {!page.sources.some((s) => s.code === "thefork") && (
+      {owner && !owner.sources.some((s) => s.code === "thefork") && (
         <div>
           <h2>TheFork page</h2>
           <p className="small muted">No TheFork Listing found for this Restaurant.</p>
           <details>
             <summary className="small">Wrong or missing? Add it by hand</summary>
-            <TheForkLink slug={page.restaurant.slug} busy={page.activeJob !== null} />
+            <TheForkLink slug={page.restaurant.slug} busy={owner.activeJob !== null} />
           </details>
         </div>
       )}

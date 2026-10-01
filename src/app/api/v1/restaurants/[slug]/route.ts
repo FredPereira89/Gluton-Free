@@ -1,14 +1,17 @@
 import { createHash } from "node:crypto";
 import { routes } from "@/lib/api-contract";
-import { ApiError, parseApiRequest, problemResponse, requireOwnerApi, withApiErrors } from "@/lib/problem";
+import { projectInviteeBundle } from "@/lib/invitee-projection";
+import { ApiError, parseApiRequest, problemResponse, requireCallerApi, requireOwnerApi, withApiErrors } from "@/lib/problem";
 import { updateRestaurantFacts } from "@/lib/restaurant-facts-owner";
 import { loadRestaurantBundle } from "@/web/data";
 
 export const GET = withApiErrors(async (request: Request, { params }: { params: Promise<{ slug: string }> }) => {
+  // The role is re-read here rather than trusted from the proxy: the projection is the privacy boundary (ADR 0008).
+  const { role } = await requireCallerApi(request, "invitee");
   const { slug } = parseApiRequest(routes.restaurantBundle.request.params, await params);
   const bundle = await loadRestaurantBundle(slug);
   if (!bundle) return problemResponse({ status: 404, code: "not_found", message: "Restaurant not found" });
-  const body = JSON.stringify(routes.restaurantBundle.responses[200].parse(bundle));
+  const body = JSON.stringify(routes.restaurantBundle.responses[200].parse(role === "owner" ? bundle : projectInviteeBundle(bundle)));
   const etag = `"${createHash("sha256").update(body).digest("hex")}"`;
   const headers = { "Cache-Control": "private, no-cache", ETag: etag };
   if (request.headers.get("if-none-match")?.split(",").some((tag) => tag.trim() === etag)) {
