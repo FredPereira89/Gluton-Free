@@ -22,6 +22,30 @@ function review(path: string, address: string) {
 }
 
 describe("baseline Tripadvisor pipeline", () => {
+  it.each([
+    ["R. da Madalena 50 R/C, 1100-321 Lisboa", "Rua da Madalena 50, Lisbon 1100-321 Portugal"],
+    ["Tv. do Pregoeiro 15, 1600-587 Lisboa", "Travessa do Pregoeiro 15, Lisbon 1600-587 Portugal"],
+    ["Lg. dos Jerónimos 6A, 1400-209 Lisboa", "Largo dos Jeronimos 6A, 1400-209, Lisbon, PT"],
+  ])("matches abbreviated and unabbreviated street names: %s", async (googleAddress, tripadvisorAddress) => {
+    const providers: BaselineTripadvisorProviders = {
+      search: async () => ({ items: [{ title: "Casa Azul", url_path: "Restaurant_Review-g1-d1.html", reviews_count: 1 }], costUsd: 0 }),
+      fetch: async (path) => ({ normalised: review(path, tripadvisorAddress), returnedCount: 1, costUsd: 0 }),
+    };
+    const result = await runBaselineTripadvisor([restaurant("sampled", "Casa Azul", googleAddress)], providers, { now, spend: new BaselineSpendBudget() });
+    console.log(JSON.stringify(result.skipped));
+    expect(result.matches).toHaveLength(1);
+  });
+
+  it("does not match a different house number or street on the same road type", async () => {
+    const providers: BaselineTripadvisorProviders = {
+      search: async () => ({ items: [{ title: "Casa Azul", url_path: "Restaurant_Review-g1-d1.html", reviews_count: 1 }], costUsd: 0 }),
+      fetch: async (path) => ({ normalised: review(path, "Travessa do Pregoeiro 17, Lisbon"), returnedCount: 1, costUsd: 0 }),
+    };
+    const result = await runBaselineTripadvisor([restaurant("sampled", "Casa Azul", "Tv. do Pregoeiro 15, Lisboa")], providers, { now, spend: new BaselineSpendBudget() });
+    expect(result.matches).toHaveLength(0);
+    expect(result.skipped[0]!.reason).toBe("uncertain");
+  });
+
   it("attaches and fetches a confident sampled match; records uncertain matches without fetching their windows", async () => {
     const sampled = [restaurant("sampled", "Casa Azul", "Rua Azul 7, Lisboa"),
       restaurant("uncertain", "Casa Azul", "Rua Verde 9, Lisboa")];

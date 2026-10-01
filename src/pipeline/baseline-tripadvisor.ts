@@ -31,8 +31,12 @@ export type BaselineTripadvisorProviders = {
 };
 export type BaselineTripadvisorReport = { matches: BaselineTripadvisorMatch[]; skipped: BaselineTripadvisorSkip[]; costsUsd: { dataforseo: number; llm: number } };
 
+const STREET_ABBREVIATIONS: Record<string, string> = {
+  r: "rua", tv: "travessa", trav: "travessa", av: "avenida", lg: "largo", calc: "calcada", pc: "praca", pct: "praceta", est: "estrada",
+};
+
 function street(address: string | null): string | null {
-  const first = normaliseName(address?.split(",")[0] ?? "");
+  const first = normaliseName((address?.split(",")[0] ?? "").replace(/ +r[/]c(?![a-z])/gi, "")).split(" ").map((word) => STREET_ABBREVIATIONS[word] ?? word).join(" ");
   // A street without a house number cannot disambiguate adjacent businesses.
   return /\d/.test(first) ? first : null;
 }
