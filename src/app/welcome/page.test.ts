@@ -7,4 +7,8 @@ describe("the Invitee welcome page", () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(renderToStaticMarkup(WelcomePage())).toContain("You&#x27;re in");
   });
+
+  it("lets an Invitee sign out, since they cannot reach the Owner pages that offer it", () => {
+    expect(renderToStaticMarkup(WelcomePage())).toContain("/api/auth/sign-out");
+  });
 });

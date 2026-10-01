@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAuthRouteClient, type CookieToSet } from "@/lib/auth";
+import { isCrossSite } from "@/lib/auth-flow";
 
-// Reached only through the owner-auth gate in src/proxy.ts, so no separate check is needed here.
+// Public: anyone signed in, Invitees included, can end their own session. Refuses other sites so a
+// page elsewhere can't sign people out.
 export async function POST(request: Request) {
+  if (isCrossSite(request)) return new Response("Cross-site request refused", { status: 403 });
   const cookiesToSet: CookieToSet[] = [];
   const supabase = createAuthRouteClient(request, (cookies) => cookiesToSet.push(...cookies));
   await supabase.auth.signOut();

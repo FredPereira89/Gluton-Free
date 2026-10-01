@@ -3,6 +3,7 @@ import { POST as redeem } from "./invite/route";
 import { POST as magicLink } from "./magic-link/route";
 import { GET as callback } from "./callback/route";
 import { POST as confirm } from "./confirm/route";
+import { POST as signOut } from "./sign-out/route";
 import { createAuthRouteClient, isActiveInvitee } from "@/lib/auth";
 import { inviteLinkIsOpen, isInviteeEmail, joinWithInvite } from "@/lib/invite";
 
@@ -93,8 +94,16 @@ describe("public auth POSTs refuse another site", () => {
     expect((await redeem(cross("/api/auth/invite", { token: TOKEN, email: "ana@example.test" }))).status).toBe(403);
     expect((await magicLink(cross("/api/auth/magic-link", { email: "ana@example.test" }))).status).toBe(403);
     expect((await confirm(cross("/api/auth/confirm", { token_hash: "h" }))).status).toBe(403);
+    expect((await signOut(cross("/api/auth/sign-out", {}))).status).toBe(403);
     expect(auth.signInWithOtp).not.toHaveBeenCalled();
     expect(auth.verifyOtp).not.toHaveBeenCalled();
+    expect(auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it("lets anyone signed in, an Invitee included, sign themselves out", async () => {
+    const response = await signOut(form("/api/auth/sign-out", {}));
+    expect(auth.signOut).toHaveBeenCalled();
+    expect(where(response)).toBe("/sign-in");
   });
 });
 
