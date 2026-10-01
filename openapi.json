@@ -207,10 +207,10 @@
         ],
         "security": [
           {
-            "ownerBearer": []
+            "inviteeBearer": []
           },
           {
-            "ownerSession": []
+            "inviteeSession": []
           }
         ]
       }
@@ -647,10 +647,10 @@
         ],
         "security": [
           {
-            "ownerBearer": []
+            "inviteeBearer": []
           },
           {
-            "ownerSession": []
+            "inviteeSession": []
           }
         ]
       }
@@ -1149,10 +1149,10 @@
         ],
         "security": [
           {
-            "ownerBearer": []
+            "inviteeBearer": []
           },
           {
-            "ownerSession": []
+            "inviteeSession": []
           }
         ]
       }
@@ -6458,10 +6458,10 @@
         ],
         "security": [
           {
-            "ownerBearer": []
+            "inviteeBearer": []
           },
           {
-            "ownerSession": []
+            "inviteeSession": []
           }
         ]
       },
@@ -6790,10 +6790,10 @@
         ],
         "security": [
           {
-            "ownerBearer": []
+            "inviteeBearer": []
           },
           {
-            "ownerSession": []
+            "inviteeSession": []
           }
         ]
       },
@@ -6999,10 +6999,10 @@
         },
         "security": [
           {
-            "ownerBearer": []
+            "inviteeBearer": []
           },
           {
-            "ownerSession": []
+            "inviteeSession": []
           }
         ]
       }
@@ -7356,10 +7356,10 @@
         ],
         "security": [
           {
-            "ownerBearer": []
+            "inviteeBearer": []
           },
           {
-            "ownerSession": []
+            "inviteeSession": []
           }
         ]
       }
@@ -11185,6 +11185,18 @@
         "in": "header",
         "name": "Cookie",
         "description": "Owner's project-specific Supabase web session cookies"
+      },
+      "inviteeBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "An active Invitee's Supabase Auth access token"
+      },
+      "inviteeSession": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Cookie",
+        "description": "An active Invitee's Supabase Auth web session cookies"
       }
     },
     "schemas": {

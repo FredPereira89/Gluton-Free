@@ -91,6 +91,9 @@ describe("API registry and OpenAPI", () => {
     const document = await response.json();
     expect(document).toEqual(JSON.parse(readFileSync(new URL("../../openapi.json", import.meta.url), "utf8")));
     expect(document.openapi).toBe("3.1.0");
+    const feedbackOperations = document.paths["/api/v1/restaurants/{slug}/verdict-feedback"];
+    expect(feedbackOperations.get.security).toEqual([{ inviteeBearer: [] }, { inviteeSession: [] }]);
+    expect(feedbackOperations.put.security).toEqual([{ inviteeBearer: [] }, { inviteeSession: [] }]);
   });
 
   it("excludes forbidden response field names throughout openapi.json", () => {

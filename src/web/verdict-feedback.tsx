@@ -1,13 +1,8 @@
 "use client";
 
 import { useEffect, useId, useState, type FormEvent } from "react";
+import { VERDICT_FEEDBACK_JUDGEMENTS, VERDICT_FEEDBACK_LABELS } from "@/domain/verdict-feedback";
 import { verdictFeedbackResponseSchema, type VerdictFeedback, type VerdictFeedbackJudgement } from "@/lib/api-contract";
-
-const choices: { value: VerdictFeedbackJudgement; label: string }[] = [
-  { value: "too_high", label: "Too high" },
-  { value: "about_right", label: "About right" },
-  { value: "too_low", label: "Too low" },
-];
 
 function errorMessage(body: unknown, fallback: string): string {
   if (body && typeof body === "object" && "detail" in body && typeof body.detail === "string") return body.detail;
@@ -101,17 +96,17 @@ export function VerdictFeedback({ restaurantSlug, verdictId }: { restaurantSlug:
           <fieldset disabled={saving}>
             <legend>Choose one</legend>
             <div className="verdict-feedback-choices">
-              {choices.map((choice) => (
-                <label key={choice.value}>
+              {VERDICT_FEEDBACK_JUDGEMENTS.map((choice) => (
+                <label key={choice}>
                   <input
                     type="radio"
                     name={`${id}-judgement`}
-                    value={choice.value}
+                    value={choice}
                     required
-                    checked={judgement === choice.value}
-                    onChange={() => setJudgement(choice.value)}
+                    checked={judgement === choice}
+                    onChange={() => setJudgement(choice)}
                   />
-                  {choice.label}
+                  {VERDICT_FEEDBACK_LABELS[choice]}
                 </label>
               ))}
             </div>

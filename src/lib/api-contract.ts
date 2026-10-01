@@ -3,6 +3,7 @@ import { CHANGE_POINT_KINDS, TIERS } from "@/domain/aspects";
 import { FORMAT_FAMILIES } from "@/domain/format-labels";
 import { FORMATS } from "@/domain/restaurant-facts";
 import { DIETS } from "@/domain/dish-dietary";
+import { VERDICT_FEEDBACK_JUDGEMENTS } from "@/domain/verdict-feedback";
 import { BlocksSchema, RollupSchema, ShownQuoteSchema } from "@/verdict/blocks";
 import {
   createInviteLinkBodySchema, inviteLinkListResponseSchema, inviteLinkSchema, inviteeListResponseSchema, inviteeSchema,
@@ -196,7 +197,7 @@ export const verdictResponseSchema = z.strictObject({
   sources: z.array(sourceSchema),
 });
 
-export const verdictFeedbackJudgementSchema = z.enum(["too_high", "about_right", "too_low"]);
+export const verdictFeedbackJudgementSchema = z.enum(VERDICT_FEEDBACK_JUDGEMENTS);
 export type VerdictFeedbackJudgement = z.infer<typeof verdictFeedbackJudgementSchema>;
 export const verdictFeedbackSchema = z.strictObject({
   verdictId: z.number().int().positive().safe(),

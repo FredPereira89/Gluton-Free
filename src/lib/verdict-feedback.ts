@@ -84,6 +84,7 @@ export async function saveVerdictFeedback(
 }
 
 export type VerdictFeedbackInboxEntry = {
+  userId: string;
   email: string | null;
   judgement: VerdictFeedbackJudgement;
   eatenHere: boolean | null;
@@ -101,6 +102,7 @@ export type VerdictFeedbackInboxGroup = {
 };
 
 type InboxRow = {
+  invitee_user_id: string;
   restaurant_name: string;
   restaurant_slug: string;
   tier: Tier;
@@ -111,13 +113,12 @@ type InboxRow = {
   email: string | null;
 };
 
-const JUDGEMENTS: VerdictFeedbackJudgement[] = ["too_high", "about_right", "too_low"];
-
 /** Owner inbox, grouped by Restaurant and the Tier of the Verdict each Invitee answered. */
 export async function listVerdictFeedbackInbox(): Promise<VerdictFeedbackInboxGroup[]> {
   const rows = await db()<InboxRow[]>`
     select r.name as restaurant_name, r.slug as restaurant_slug, v.tier,
-           f.judgement, f.eaten_here, f.note, f.submitted_at, i.email
+           f.judgement, f.eaten_here, f.note, f.submitted_at,
+           i.user_id as invitee_user_id, i.email
     from verdict_feedback f
     join restaurant r on r.id = f.restaurant_id
     join verdict v on v.id = f.verdict_id
@@ -145,6 +146,7 @@ export async function listVerdictFeedbackInbox(): Promise<VerdictFeedbackInboxGr
     group.total += 1;
     group.counts[row.judgement] += 1;
     group.entries.push({
+      userId: row.invitee_user_id,
       email: row.email,
       judgement: row.judgement,
       eatenHere: row.eaten_here,

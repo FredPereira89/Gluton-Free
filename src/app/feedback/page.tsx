@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { TIER_LABEL } from "@/domain/aspects";
+import { VERDICT_FEEDBACK_LABELS } from "@/domain/verdict-feedback";
 import { listVerdictFeedbackInbox, type VerdictFeedbackInboxGroup } from "@/lib/verdict-feedback";
 
 export const metadata: Metadata = { title: "Verdict feedback · Gluton-Free" };
@@ -38,12 +39,12 @@ function FeedbackGroup({ group }: { group: VerdictFeedbackInboxGroup }) {
         {group.entries.map((entry, index) => (
           <li key={`${entry.email ?? "invitee"}-${entry.submittedAt}-${index}`}>
             <div className="feedback-entry-heading">
-              <strong>{entry.email ?? "Invitee"}</strong>
+              <strong>{entry.email ?? `Invitee ${entry.userId.slice(0, 8)}`}</strong>
               <time dateTime={entry.submittedAt}>{new Intl.DateTimeFormat("en-GB", {
                 dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Lisbon",
               }).format(new Date(entry.submittedAt))}</time>
             </div>
-            <p>{entry.judgement === "too_high" ? "Thinks the Verdict is too high" : entry.judgement === "too_low" ? "Thinks the Verdict is too low" : "Thinks the Verdict is about right"}</p>
+            <p>Thinks the Verdict is {VERDICT_FEEDBACK_LABELS[entry.judgement].toLowerCase()}</p>
             {entry.eatenHere === true && <p className="small muted">I've eaten here</p>}
             {entry.eatenHere === false && <p className="small muted">Has not eaten here</p>}
             {entry.note && <p className="feedback-note">{entry.note}</p>}

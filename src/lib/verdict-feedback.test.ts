@@ -55,10 +55,10 @@ describe("saveVerdictFeedback", () => {
 
   it("groups the Owner inbox by Restaurant and Verdict Tier with judgement counts", async () => {
     query.mockResolvedValueOnce([
-      { restaurant_name: "A Tasca", restaurant_slug: "a-tasca", tier: "good", judgement: "too_high", eaten_here: true, note: null, submitted_at: new Date("2026-10-02T10:00:00Z"), email: "one@example.test" },
-      { restaurant_name: "A Tasca", restaurant_slug: "a-tasca", tier: "good", judgement: "too_high", eaten_here: null, note: "Felt overvalued", submitted_at: new Date("2026-10-02T09:00:00Z"), email: "two@example.test" },
-      { restaurant_name: "A Tasca", restaurant_slug: "a-tasca", tier: "good", judgement: "about_right", eaten_here: null, note: null, submitted_at: new Date("2026-10-02T08:00:00Z"), email: "three@example.test" },
-      { restaurant_name: "Bistro", restaurant_slug: "bistro", tier: "good", judgement: "too_low", eaten_here: null, note: null, submitted_at: new Date("2026-10-02T07:00:00Z"), email: "four@example.test" },
+      { invitee_user_id: "invitee-1", restaurant_name: "A Tasca", restaurant_slug: "a-tasca", tier: "good", judgement: "too_high", eaten_here: true, note: null, submitted_at: new Date("2026-10-02T10:00:00Z"), email: "one@example.test" },
+      { invitee_user_id: "invitee-2", restaurant_name: "A Tasca", restaurant_slug: "a-tasca", tier: "good", judgement: "too_high", eaten_here: null, note: "Felt overvalued", submitted_at: new Date("2026-10-02T09:00:00Z"), email: "two@example.test" },
+      { invitee_user_id: "invitee-3", restaurant_name: "A Tasca", restaurant_slug: "a-tasca", tier: "good", judgement: "about_right", eaten_here: null, note: null, submitted_at: new Date("2026-10-02T08:00:00Z"), email: "three@example.test" },
+      { invitee_user_id: "invitee-4", restaurant_name: "Bistro", restaurant_slug: "bistro", tier: "good", judgement: "too_low", eaten_here: null, note: null, submitted_at: new Date("2026-10-02T07:00:00Z"), email: "four@example.test" },
     ]);
     const groups = await listVerdictFeedbackInbox();
 
