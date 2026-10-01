@@ -542,3 +542,41 @@ describe("Decision-first report (issue #112)", () => {
     expect(await render("invitee", bundle(0))).not.toContain("<h2>Sources</h2>");
   });
 });
+
+describe("Trend chip (issue #113)", () => {
+  const series = (perQuarter: number) => ["2025-Q3", "2025-Q4", "2026-Q1", "2026-Q2", "2026-Q3"].map((quarter, i) => ({
+    quarter, composite: 0, compositePercentile: 50 + perQuarter * i, enoughReviews: true, volume: 10, textVolume: 10,
+  }));
+  const render = async (role: "owner" | "invitee", page: RestaurantBundle) => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    vi.mocked(pageRole).mockResolvedValueOnce(role);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(now);
+    try {
+      return renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    } finally {
+      vi.useRealTimers();
+    }
+  };
+  const withTrend = (perQuarter: number, confidence: "low" | "medium" | "high") => {
+    const page = bundleWithPeers(40, 40);
+    page.verdict!.blocks.rollup.series = series(perQuarter);
+    page.verdict!.blocks.rollup.confidence = { ...page.verdict!.blocks.rollup.confidence, level: confidence };
+    return page;
+  };
+
+  it("shows the Trend in the report hero to the Owner and an Invitee", async () => {
+    for (const role of ["owner", "invitee"] as const) {
+      expect(await render(role, withTrend(10, "high")), role).toContain("trend-improving");
+      expect(await render(role, withTrend(-10, "medium")), role).toContain("trend-slipping");
+      expect(await render(role, withTrend(0, "medium")), role).toContain("trend-steady");
+    }
+  });
+
+  it("shows no Trend at Low Confidence or with under a year of Reviews", async () => {
+    expect(await render("owner", withTrend(10, "low"))).not.toMatch(/trend-(improving|steady|slipping)/);
+    const young = withTrend(10, "high");
+    young.verdict!.blocks.rollup.series = series(10).slice(2);
+    expect(await render("owner", young)).not.toMatch(/trend-(improving|steady|slipping)/);
+  });
+});

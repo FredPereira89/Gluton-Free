@@ -13,7 +13,8 @@ import {
 } from "@/verdict/plain-report";
 import { formatPercentile } from "@/verdict/peer";
 import { type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
-import { ConfChip, dateLabel, Explanation, monthLabel, TierBadge } from "@/web/atoms";
+import { trendOf } from "@/verdict/trend";
+import { ConfChip, dateLabel, Explanation, monthLabel, TierBadge, TrendChip } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
 import type { InviteeBundle, RestaurantBundle } from "@/lib/api-contract";
 import { projectInviteeBundle } from "@/lib/invitee-projection";
@@ -227,6 +228,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         <div className="chips">
           {baseChips}
           <ConfChip level={r.confidence.level} />
+          <TrendChip trend={r.provisional ? null : trendOf(r.series, r.confidence.level, new Date())} />
         </div>
         {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} owner={!!owner} />)}
         {historyLink}

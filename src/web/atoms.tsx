@@ -2,6 +2,7 @@
 import { Fragment, type ReactNode } from "react";
 import { INPUT_LABEL, TIERS, TIER_LABEL, type Tier } from "@/domain/aspects";
 import type { Blocks } from "@/verdict/blocks";
+import type { Trend } from "@/verdict/trend";
 import { formatPercentile } from "@/verdict/peer";
 
 const TIER_CLASS: Record<Tier, string> = { avoid: "t-avoid", ok: "t-ok", good: "t-good", must_go: "t-must", life_changing: "t-life" };
@@ -21,6 +22,23 @@ export function TierBadge({ tier, size = "", dashed = false }: { tier: Tier; siz
 }
 
 const CONF = { low: ["Low", 1], medium: ["Medium", 2], high: ["High", 3] } as const;
+
+const TREND = {
+  improving: ["Improving", "↑"],
+  steady: ["Steady", "→"],
+  slipping: ["Slipping", "↓"],
+} as const;
+
+/** The Trend chip (issue #113): where the Restaurant's standing among its Peers is heading. Renders nothing without a Trend. */
+export function TrendChip({ trend }: { trend: Trend | null | undefined }) {
+  if (!trend) return null;
+  const [label, arrow] = TREND[trend];
+  return (
+    <span className={`chip trend-${trend}`} title="Standing among similar restaurants over the last 12 months">
+      <span aria-hidden="true">{arrow}</span> {label}
+    </span>
+  );
+}
 
 export function ConfChip({ level }: { level: "low" | "medium" | "high" }) {
   const [label, n] = CONF[level];

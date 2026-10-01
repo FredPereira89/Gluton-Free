@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TierBadge } from "@/web/atoms";
+import { TierBadge, TrendChip } from "@/web/atoms";
 import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "@/lib/api-contract";
 import { directoryHref } from "@/lib/directory-url";
 import DirectoryControls from "./directory-controls";
@@ -21,6 +21,7 @@ function Row({ item }: { item: DirectoryItem }) {
       {item.tier ? <TierBadge tier={item.tier} dashed={item.provisional} /> : <span className="chip nee">Not enough evidence</span>}
     </td>
     <td data-label="Confidence">{item.confidence ? <ConfidenceDots level={item.confidence} /> : <span className="muted">–</span>}</td>
+    <td data-label="Trend">{item.trend ? <TrendChip trend={item.trend} /> : <span className="muted">–</span>}</td>
     <td data-label="Format">{item.format || <span className="muted">–</span>}</td>
     <td data-label="Price">{item.priceTier ?? <span className="muted">–</span>}</td>
     <td data-label="Area">{item.neighbourhood}</td>
@@ -46,7 +47,7 @@ export default function Directory({ query, result }: { query: DirectoryQuery; re
         {(filtered || query.nee) && <Link className="btn" href="/">Clear filters</Link>}
       </div>
       : <div className="dir-scroll"><table className="dir-table">
-        <thead><tr><th scope="col">Restaurant</th><th scope="col">Tier</th><th scope="col">Confidence</th><th scope="col">Format</th><th scope="col">Price</th><th scope="col">Area</th><th scope="col">Book</th></tr></thead>
+        <thead><tr><th scope="col">Restaurant</th><th scope="col">Tier</th><th scope="col">Confidence</th><th scope="col">Trend</th><th scope="col">Format</th><th scope="col">Price</th><th scope="col">Area</th><th scope="col">Book</th></tr></thead>
         <tbody>{result.items.map((item) => <Row key={item.slug} item={item} />)}</tbody>
       </table></div>}
     {result.totalPages > 1 && <nav className="dir-pages" aria-label="Pages">

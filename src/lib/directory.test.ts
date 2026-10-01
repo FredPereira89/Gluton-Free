@@ -8,7 +8,7 @@ function row(overrides: Partial<DirectoryRow> = {}): DirectoryRow {
   return {
     slug: `r-${seq}`, name: `Restaurant ${seq}`, address: null, area: "Alfama", lat: null, lng: null,
     format: "tasca", priceTier: "€€", state: "verdict", tier: "good", confidence: "medium", provisional: false,
-    foodPercentile: 50, valuePercentile: 50, googlePlaceId: `ChIJ${seq}abcd`, theForkUrl: null,
+    foodPercentile: 50, valuePercentile: 50, trend: null, googlePlaceId: `ChIJ${seq}abcd`, theForkUrl: null,
     ...overrides,
   };
 }
@@ -22,9 +22,14 @@ describe("directory", () => {
     ], query());
     expect(result.items).toEqual([{
       slug: "cantina", name: "Cantina", state: "verdict", tier: "must_go", provisional: false, confidence: "high",
-      format: "Café & pastelaria", formatFamily: "quick_cafe", priceTier: "€", neighbourhood: "Chiado",
+      format: "Café & pastelaria", formatFamily: "quick_cafe", priceTier: "€", neighbourhood: "Chiado", trend: null,
       booking: { label: "Book on TheFork", url: "https://www.thefork.pt/restaurante/cantina-r9", kind: "thefork" },
     }]);
+  });
+
+  it("carries each Restaurant's Trend through to its row, empty where the rule hid it", () => {
+    const result = buildDirectory([row({ name: "Up", trend: "improving" }), row({ name: "Down", trend: "slipping" }), row({ name: "Flat", trend: "steady" }), row({ name: "Hidden", trend: null })], query({ sort: "name" }));
+    expect(Object.fromEntries(result.items.map((item) => [item.name, item.trend]))).toEqual({ Up: "improving", Down: "slipping", Flat: "steady", Hidden: null });
   });
 
   it("hides Not enough evidence Restaurants by default and shows them on request", () => {

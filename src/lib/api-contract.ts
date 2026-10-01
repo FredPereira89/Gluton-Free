@@ -266,6 +266,8 @@ export const directoryItemSchema = z.strictObject({
   formatFamily: z.enum(FORMAT_FAMILIES.map((family) => family.code)).nullable(),
   priceTier: z.enum(PRICE_TIERS).nullable(),
   neighbourhood: z.string(),
+  // Null where the Trend rule hides it (Low Confidence, under a year of Reviews).
+  trend: z.enum(["improving", "steady", "slipping"]).nullable(),
   booking: bookingLinkSchema,
 });
 export const directoryResponseSchema = z.strictObject({
