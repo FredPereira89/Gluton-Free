@@ -24,6 +24,13 @@ export async function proxy(request: NextRequest) {
       return isApi ? problemResponse(notConfigured) : new NextResponse(notConfigured.message, { status: 503 });
     }
     if (isApi) return problemResponse(error);
+    // Signed in but not the Owner (an Invitee): every page is Owner-only for now, so show them the welcome page, not a sign-in form.
+    if (error.status === 403 && error.code === "forbidden") {
+      const welcome = request.nextUrl.clone();
+      welcome.pathname = "/welcome";
+      welcome.search = "";
+      return NextResponse.redirect(welcome);
+    }
     const signIn = request.nextUrl.clone();
     signIn.pathname = "/sign-in";
     signIn.search = "";

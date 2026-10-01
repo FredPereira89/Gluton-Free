@@ -15,10 +15,24 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
   return (
     <div className="signin">
       <h1>Sign in</h1>
+      <p className="muted">Invited? Enter your email and we&apos;ll send you a link.</p>
+      <form className="form" action="/api/auth/magic-link" method="post">
+        <label className="field">
+          Email
+          <input type="email" name="email" autoComplete="email" required autoFocus />
+        </label>
+        {next && <input type="hidden" name="next" value={next} />}
+        {sent === "1" && <p className="muted">If that email is on the list, a sign-in link is on its way. Open it and tap Continue.</p>}
+        {error && LINK_ERROR_TEXT[error] && <p className="error">{LINK_ERROR_TEXT[error]}</p>}
+        <button className="btn" type="submit">
+          Email me a link
+        </button>
+      </form>
+      <h2>Owner sign in</h2>
       <form className="form" action="/api/auth/sign-in" method="post">
         <label className="field">
           Email
-          <input type="email" name="email" autoComplete="username" required autoFocus />
+          <input type="email" name="email" autoComplete="username" required />
         </label>
         <label className="field">
           Password
@@ -28,19 +42,6 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
         {error === "invalid_credentials" && <p className="error">Wrong email or password.</p>}
         <button className="btn" type="submit">
           Sign in
-        </button>
-      </form>
-      <h2>Invited? Get a sign-in link</h2>
-      <form className="form" action="/api/auth/magic-link" method="post">
-        <label className="field">
-          Email
-          <input type="email" name="email" autoComplete="email" required />
-        </label>
-        {next && <input type="hidden" name="next" value={next} />}
-        {sent === "1" && <p className="muted">If that email is on the list, a sign-in link is on its way. Open it in this browser.</p>}
-        {error && LINK_ERROR_TEXT[error] && <p className="error">{LINK_ERROR_TEXT[error]}</p>}
-        <button className="btn btn-secondary" type="submit">
-          Email me a link
         </button>
       </form>
     </div>

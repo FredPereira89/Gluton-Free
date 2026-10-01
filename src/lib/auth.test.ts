@@ -338,13 +338,13 @@ describe("the proxy and the route registry's auth levels", () => {
     }
   });
 
-  it("keeps owner pages owner-only for an Invitee session", async () => {
+  it("keeps owner pages owner-only for an Invitee session, sending them to the welcome page rather than a sign-in form", async () => {
     vi.stubGlobal("fetch", jwksFetch());
     const token = await signToken(INVITEE_ID);
     for (const path of ["/", "/r/some-place", "/baseline-checks"]) {
       const response = await proxy(apiRequest(path, { headers: { authorization: `Bearer ${token}` } }));
       expect(response.status, path).toBe(307);
-      expect(new URL(response.headers.get("location")!).pathname).toBe("/sign-in");
+      expect(new URL(response.headers.get("location")!).pathname).toBe("/welcome");
     }
   });
 

@@ -9,6 +9,7 @@ export default function WelcomePage() {
     <div className="signin">
       <h1>You&apos;re in</h1>
       <p className="muted">Thanks for joining the beta. You&apos;re signed in on this device and will stay signed in. We&apos;ll open more as it&apos;s ready.</p>
+      <p className="muted">Signed out or on a new device? Open this site, choose &ldquo;Email me a link&rdquo; and use the same email.</p>
     </div>
   );
 }
