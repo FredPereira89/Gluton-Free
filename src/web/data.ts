@@ -65,7 +65,8 @@ export async function searchKnownRestaurants(
     let restaurant = restaurants.get(id);
     if (!restaurant) {
       restaurant = {
-        id, slug: row.slug, name: row.name, address: row.address, status: row.status, priceTier: row.price_tier,
+        id, slug: row.slug, name: row.name, address: row.address, status: row.status,
+        priceTier: row.price_tier as SearchResponse["known"][number]["priceTier"],
         placeId: null, stars: null, reviewCount: null, category: null, listings: [],
       };
       restaurants.set(id, restaurant);
