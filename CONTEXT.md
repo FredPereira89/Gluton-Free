@@ -101,12 +101,40 @@ How expensive a Restaurant is, from € to €€€€. Shown with the Verdict;
 _Avoid_: Price level, price range, budget
 
 **Access tag**:
-The label on every Source saying how its Reviews may be used: public-OK (usable if Gluton-Free goes public) or personal-only.
+The label on every Source saying how its Reviews may be used: public-OK (usable if Gluton-Free goes public) or personal-only. Verbatim text from a personal-only Source is shown only to the Owner.
 _Avoid_: License, permission
+
+**Owner**:
+The one person who runs Gluton-Free: starts Lookups, answers Owner questions and declares Change points.
+_Avoid_: Admin, operator
+
+**Invitee**:
+A person the Owner has let into the beta to read Verdicts and give feedback. An Invitee never starts a Lookup and never sees verbatim Review text from a personal-only Source.
+_Avoid_: User, tester, guest, member
+
+**Invite link**:
+A revocable link, optionally capped in uses, through which a person becomes an Invitee by signing in with their email.
+_Avoid_: Invite code, referral, access token
 
 **Theme**:
 A recurring point Reviews make about one Aspect, positive or negative, drawn from a fixed list (e.g. generous portions, an unordered couvert charged). Evidence shows each Theme with the share of Reviews that raise it.
 _Avoid_: Topic, tag, keyword
+
+**Dietary fit**:
+That a Restaurant suits a diet (vegetarian, vegan, gluten-free), held when its Source category says so or when at least three independent Reviews in its Review window praise its options for that diet and praise outnumbers complaints. Thin evidence means no Dietary fit is shown, never a "no".
+_Avoid_: Tag, dietary tag, label
+
+**Standout dish**:
+A dish that at least three independent Reviews in the Review window name as memorable, counted after matching different spellings and languages of the same dish.
+_Avoid_: Signature dish, best dish, recommendation
+
+**Trend**:
+The direction of a Restaurant's standing among its Peers over the last 12 months: Improving, Steady or Slipping. Not shown when Confidence is Low or there is less than a year of Reviews.
+_Avoid_: Momentum, trajectory
+
+**Verdict feedback**:
+An Invitee's judgement of a Verdict: too high, about right or too low, optionally with whether they have eaten there and a note. It never changes the Verdict.
+_Avoid_: Rating, vote, review
 
 **Evidence**:
 The material shown alongside a Verdict to justify it: themes, representative quotes, the breakdown by Source, and any Distinctions and critic pieces.
