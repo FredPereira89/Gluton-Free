@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { config } from "./proxy";
+import { NextRequest } from "next/server";
+import { config, proxy } from "./proxy";
 
 // Next runs the proxy only for paths the matcher accepts; a path it rejects is public.
 const proxied = (path: string) => new RegExp(`^${config.matcher[0]}$`).test(path);
@@ -11,9 +12,16 @@ describe("which paths the auth gate covers", () => {
     ]) expect(proxied(path), path).toBe(false);
   });
 
-  it("still gates pages, sign-out and the admin routes, including ones that look similar", () => {
+  it("matches pages, sign-out and the admin routes so the proxy can enforce their auth level", () => {
     for (const path of [
-      "/", "/settings", "/api/v1/invite-links", "/api/v1/invitees", "/invites",
+      "/settings", "/api/v1/invite-links", "/api/v1/invitees", "/invites",
     ]) expect(proxied(path), path).toBe(true);
+  });
+
+  it("lets the landing page and privacy notice render publicly", async () => {
+    for (const path of ["/", "/privacy", "/privacy/"]) {
+      const response = await proxy(new NextRequest(`https://app.example${path}`));
+      expect(response.headers.get("x-middleware-next"), path).toBe("1");
+    }
   });
 });

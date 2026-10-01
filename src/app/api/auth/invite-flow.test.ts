@@ -138,13 +138,13 @@ describe("GET /api/auth/callback (the magic link lands)", () => {
     const response = await land(`code=abc&invite=${TOKEN}`);
     expect(auth.exchangeCodeForSession).toHaveBeenCalledWith("abc");
     expect(joinWithInvite).toHaveBeenCalledWith({ userId: USER_ID, email: "ana@example.test", token: TOKEN });
-    expect(where(response)).toBe("/welcome");
+    expect(where(response)).toBe("/");
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 
   it("signs an existing Invitee straight in", async () => {
     vi.mocked(joinWithInvite).mockResolvedValue("existing");
-    expect(where(await land(`code=abc&invite=${TOKEN}`))).toBe("/welcome");
+    expect(where(await land(`code=abc&invite=${TOKEN}`))).toBe("/");
   });
 
   it("refuses when the link died between the email and the click, and signs the session out", async () => {
@@ -191,8 +191,8 @@ describe("GET /api/auth/callback (the magic link lands)", () => {
   });
 
   it("does not follow an off-site `next`", async () => {
-    expect(where(await land("code=abc&next=https%3A%2F%2Fevil.example"))).toBe("/welcome");
-    expect(where(await land("code=abc&next=%2F%2Fevil.example"))).toBe("/welcome");
+    expect(where(await land("code=abc&next=https%3A%2F%2Fevil.example"))).toBe("/");
+    expect(where(await land("code=abc&next=%2F%2Fevil.example"))).toBe("/");
   });
 
   it("carries the session cookies the code exchange set", async () => {
@@ -208,18 +208,18 @@ describe("POST /api/auth/confirm (the Continue button on the emailed link)", () 
     const response = await press({ token_hash: "hash", invite: TOKEN });
     expect(auth.verifyOtp).toHaveBeenCalledWith({ token_hash: "hash", type: "email" });
     expect(joinWithInvite).toHaveBeenCalledWith({ userId: USER_ID, email: "ana@example.test", token: TOKEN });
-    expect(where(response)).toBe("/welcome");
+    expect(where(response)).toBe("/");
     expect((response as import("next/server").NextResponse).cookies.get("sb-pkce")?.value).toBe("verifier");
   });
 
   it("joins through the link remembered in the account when the email link carries none (any device)", async () => {
     auth.verifyOtp.mockResolvedValue({ data: { user: { id: USER_ID, email: "ana@example.test", user_metadata: { invite: TOKEN } } }, error: null });
-    expect(where(await press({ token_hash: "hash" }))).toBe("/welcome");
+    expect(where(await press({ token_hash: "hash" }))).toBe("/");
     expect(joinWithInvite).toHaveBeenCalledWith({ userId: USER_ID, email: "ana@example.test", token: TOKEN });
   });
 
   it("also accepts the code of Supabase's default link", async () => {
-    expect(where(await press({ code: "abc", invite: TOKEN }))).toBe("/welcome");
+    expect(where(await press({ code: "abc", invite: TOKEN }))).toBe("/");
     expect(auth.exchangeCodeForSession).toHaveBeenCalledWith("abc");
     expect(auth.verifyOtp).not.toHaveBeenCalled();
   });
@@ -248,6 +248,6 @@ describe("POST /api/auth/confirm (the Continue button on the emailed link)", () 
   });
 
   it("does not follow an off-site `next`", async () => {
-    expect(where(await press({ token_hash: "hash", next: "//evil.example" }))).toBe("/welcome");
+    expect(where(await press({ token_hash: "hash", next: "//evil.example" }))).toBe("/");
   });
 });

@@ -1,5 +1,6 @@
-// Auth gate: every page/route requires OWNER_USER_ID, except sign-in, Invite link redemption and its auth routes,
-// /api/v1/health, and routes the registry opens to Invitees. See docs/adr/0006-owner-authorization-in-the-api-layer.md and 0008.
+// Auth gate: protected pages/routes require OWNER_USER_ID, except sign-in, Invite link redemption and its auth routes,
+// /api/v1/health, and routes the registry opens to Invitees. The landing page is public but recognizes signed-in callers.
+// See docs/adr/0006-owner-authorization-in-the-api-layer.md and 0008.
 import { NextResponse, type NextRequest } from "next/server";
 import { AuthError, requireCaller } from "@/lib/auth";
 import { problemResponse } from "@/lib/problem";
@@ -7,8 +8,11 @@ import { requiredAuthLevel } from "@/lib/route-auth";
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
+  const pathname = request.nextUrl.pathname.replace(/\/+$/, "") || "/";
+  const isLandingPage = pathname === "/";
+  if (pathname === "/privacy") return response;
   try {
-    const level = requiredAuthLevel(request.method, request.nextUrl.pathname);
+    const level = isLandingPage ? "invitee" : requiredAuthLevel(request.method, request.nextUrl.pathname);
     if (level === "none") return response;
     await requireCaller(request, level, {
       onSetCookies: (cookies) => {
@@ -17,6 +21,7 @@ export async function proxy(request: NextRequest) {
     });
     return response;
   } catch (error) {
+    if (isLandingPage && error instanceof AuthError) return response;
     const isApi = request.nextUrl.pathname.startsWith("/api/");
     if (!(error instanceof AuthError)) {
       console.error(`proxy auth check failed: ${error instanceof Error ? error.message : String(error)}`);

@@ -6,7 +6,7 @@ type Session = { auth: { signOut: () => Promise<unknown> } };
 
 /**
  * Decides where a person who just proved their email goes: the Owner straight through; an Invitee
- * through the Invite link they redeemed (recorded now) or, without one, only if already recorded, to /welcome.
+ * through the Invite link they redeemed (recorded now) or, without one, only if already recorded.
  * Anyone else is signed straight back out. Returns the path to redirect to.
  */
 export async function admitSignedIn(supabase: Session, user: SignedIn, invite: string | null, next: string): Promise<string> {
@@ -15,8 +15,8 @@ export async function admitSignedIn(supabase: Session, user: SignedIn, invite: s
   const admitted = invite
     ? user.email !== undefined && (await joinWithInvite({ userId: user.id, email: user.email, token: invite })) !== "refused"
     : await isActiveInvitee(user.id);
-  // Pages are Owner-only for now, so an Invitee with no specific page in mind goes to /welcome, not a bounce to sign-in.
-  if (admitted) return invite || next === "/" ? "/welcome" : next;
+  // A newly admitted Invitee starts at the app home; returning Invitees keep their safe destination.
+  if (admitted) return invite ? "/" : next;
 
   await supabase.auth.signOut();
   // A dead link gets its own page; a live one that still refused means this person is locked out.

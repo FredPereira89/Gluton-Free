@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -44,6 +45,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
           Sign in
         </button>
       </form>
+      <p className="small muted">Read our <Link href="/privacy">privacy notice</Link>.</p>
     </div>
   );
 }
