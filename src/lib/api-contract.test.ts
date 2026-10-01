@@ -133,10 +133,11 @@ describe("handler responses", () => {
     });
     const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
     expect(markup).toContain('class="nee">Not enough evidence</span>');
-    expect(markup).toContain("Reopened after renovation on 10 Aug 2026; 9 Reviews since");
-    expect(markup).toMatch(/Reviews with text<\/span><span class="mono small">9 <span class="muted">\/ 15/);
-    expect(markup).toMatch(/Reviews that mention the food<\/span><span class="mono small">9 <span class="muted">\/ 8/);
-    expect(markup).toContain("within 18 months");
+    expect(markup).toContain("Reopened after renovation since Aug 2026: only reviews since then count");
+    expect(markup).not.toContain("9 Reviews since");
+    expect(markup).toContain("Needs at least 15 reviews with written text; has 9");
+    expect(markup).not.toContain("talk about the food");
+    expect(markup).not.toContain("Needs a review from the last 18 months");
     expect(markup).toContain("4.5");
     expect(markup).toContain("29");
   });
@@ -155,12 +156,12 @@ describe("handler responses", () => {
     expect(markup).toContain("fetched");
     expect(markup).toContain("Not enough evidence");
     expect(markup).toContain("Current lookup job: running");
-    expect(markup).toContain("2026-Q3: 5 Reviews, 3 with text");
+    expect(markup).not.toContain("2026-Q3: 5 Reviews");
     expect(markup).not.toContain("+1.23");
     expect(markup).toContain('href="/r/o-velho-eurico/history"');
   });
 
-  it("renders O Velho Eurico's full-history stars and Review volume by Source, including gaps on a provisional Verdict", async () => {
+  it("no longer renders the stars-and-volume chart, and words a provisional Verdict plainly", async () => {
     const now = new Date("2026-09-24T12:00:00.000Z");
     const makeReview = (id: number, source: string, publishedAt: string, stars: number | null): RollupReview => ({
       id, source, publishedAt: new Date(publishedAt), stars, hasText: true, subRatings: null,
@@ -181,14 +182,10 @@ describe("handler responses", () => {
     });
     const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
     expect(markup).toContain("O Velho Eurico");
-    expect(markup).toContain("Stars and Review volume over time");
-    expect(markup).toContain('aria-label="Google quarterly stars and Review volume"');
-    expect(markup).toContain('aria-label="Tripadvisor quarterly stars and Review volume"');
-    expect(markup).toContain("2023-Q1: 4.00 stars from 5 ratings");
-    expect(markup).toContain("2023-Q3: 4 Reviews");
-    expect(markup).not.toContain("2023-Q3: 2.00 stars");
-    expect(markup).toContain("2026-Q3");
-    expect(markup).toContain("Provisional");
+    expect(markup).not.toContain("Stars and Review volume over time");
+    expect(markup).not.toContain("quarterly stars and Review volume");
+    expect(markup).not.toContain("stars from 5 ratings");
+    expect(markup).toContain("Early verdict: fewer comparisons yet");
   });
 
   it("renders percentile rows and names the frozen Peer snapshot", async () => {
@@ -210,7 +207,8 @@ describe("handler responses", () => {
       blocks: { rollup: evidence, quotes: [] },
     } });
     const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
-    expect(markup).toContain("Where it stands among 30 tascas");
+    expect(markup).toContain("How we judged this");
+    expect(markup).toContain("Compared with 30 tascas in Lisbon");
     expect(markup).toMatch(/better than \d+% of tascas/);
     expect(markup).toContain("not counted");
     expect(markup).toContain("P50");

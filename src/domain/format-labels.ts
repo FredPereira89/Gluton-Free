@@ -46,3 +46,34 @@ export function formatLabel(format: string): string {
 export function formatFamily(format: string): FormatFamily | null {
   return isFormat(format) ? FAMILY_OF[format] : null;
 }
+
+const FORMAT_PLURAL: Record<Format, string> = {
+  tasca: "tascas",
+  restaurante_tradicional: "traditional restaurants",
+  marisqueira_cervejaria: "marisqueiras & cervejarias",
+  churrasqueira: "churrasqueiras",
+  casa_de_fado: "casas de fado",
+  casual_contemporary: "casual contemporary restaurants",
+  international_casual: "international casual restaurants",
+  fine_dining: "fine dining restaurants",
+  cafe_pastelaria: "cafés & pastelarias",
+  brunch_all_day_cafe: "brunch & all-day cafés",
+  snack_street: "snack & street-food spots",
+};
+
+const FAMILY_PLURAL: Record<FormatFamily, string> = {
+  traditional_portuguese: "traditional Portuguese restaurants",
+  casual: "casual restaurants",
+  fine_dining: "fine dining restaurants",
+  quick_cafe: "quick-bite & café spots",
+};
+
+/** What a group of Restaurants of one Format is called in running text, lowercase: "tascas". */
+export function formatPlural(format: string): string {
+  return isFormat(format) ? FORMAT_PLURAL[format] : `${formatLabel(format).toLowerCase()} restaurants`;
+}
+
+/** The same for a Format family: "traditional Portuguese restaurants". */
+export function familyPlural(family: string): string {
+  return family in FAMILY_PLURAL ? FAMILY_PLURAL[family as FormatFamily] : "restaurants";
+}

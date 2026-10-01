@@ -1667,6 +1667,12 @@
                             "null"
                           ]
                         },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "format": {
                           "type": "string"
                         },
@@ -2962,6 +2968,12 @@
                               "type": "string"
                             },
                             "area": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "address": {
                               "type": [
                                 "string",
                                 "null"
@@ -4814,6 +4826,12 @@
                               "type": "string"
                             },
                             "area": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "address": {
                               "type": [
                                 "string",
                                 "null"

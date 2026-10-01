@@ -121,7 +121,7 @@ export type SourceRow = {
 };
 
 export type VerdictPage = {
-  restaurant: { id: number; slug: string; name: string; city: string; area: string | null; format: string; formatProvenance: "llm" | "owner" | "baseline_auto"; priceTier: string | null; booking?: BookingLink };
+  restaurant: { id: number; slug: string; name: string; city: string; area: string | null; address?: string | null; format: string; formatProvenance: "llm" | "owner" | "baseline_auto"; priceTier: string | null; booking?: BookingLink };
   sources: SourceRow[];
   verdict: { id: number; state: string; tier: string | null; confidence: string | null; explanation: string | null; createdAt: Date; blocks: Blocks; peerSnapshotId?: number | null } | null;
   distinctions: { id: number; guide: string; level: string; editionYear: number | null; url: string }[];
@@ -130,7 +130,7 @@ export type VerdictPage = {
 
 export async function loadVerdictPage(slug: string): Promise<VerdictPage | null> {
   const sql = db();
-  const [r] = await sql`select id, slug, name, city, area, format, format_provenance, price_tier from restaurant where slug = ${slug}`;
+  const [r] = await sql`select id, slug, name, address, city, area, format, format_provenance, price_tier from restaurant where slug = ${slug}`;
   if (!r) return null;
   const id = Number(r.id);
   const [listings, [v], distinctions, critics] = await Promise.all([
@@ -184,6 +184,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       name: r.name,
       city: r.city,
       area: r.area,
+      address: r.address,
       format: r.format,
       formatProvenance: r.format_provenance,
       priceTier: r.price_tier,

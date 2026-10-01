@@ -19,6 +19,7 @@ const restaurantSchema = z.strictObject({
   name: z.string(),
   city: z.string(),
   area: z.string().nullable(),
+  address: z.string().nullable().optional(),
   format: z.string(),
   formatProvenance: z.enum(["llm", "owner", "baseline_auto"]).optional(),
   priceTier: z.enum(["€", "€€", "€€€", "€€€€"]).nullable(),

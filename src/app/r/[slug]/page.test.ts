@@ -75,19 +75,22 @@ describe("Invitee view (issue #109)", () => {
   }
   const render = async () => renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
 
-  it("shows an Invitee the Verdict and read-only evidence, with no Review text from a personal-only Source", async () => {
+  it("shows an Invitee the Verdict in plain words, with no Review text, quotes or technical explanation", async () => {
     vi.mocked(pageRole).mockResolvedValueOnce("invitee");
     vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
     const html = await render();
     expect(html).toContain("Sample Restaurant");
-    expect(html).toContain("The food is good.");
-    expect(html).toContain(SCRUBBED_PUBLIC);
-    expect(html).toContain("Guia Repsol");
-    expect(html).toContain("Solete (2026)");
-    expect(html).toContain("Time Out");
-    expect(html).toContain("2026-03-01: New chef");
-    expect(html).toContain("Verdict history");
+    expect(html).toContain("Reviewers rate it well");
+    expect(html).toContain("Delicious food");
+    expect(html).not.toContain("Changes at this restaurant");
+    expect(html).not.toContain("2026-03-01: New chef");
+    expect(html).toContain("See how this verdict has changed");
+    expect(html).not.toContain("The food is good.");
+    expect(html).not.toContain("In their words");
+    expect(html).not.toContain(SCRUBBED_PUBLIC);
     expect(html).not.toContain("SCRUBBED personal-only");
+    expect(html).not.toContain(SCRUBBED_EVIDENCE);
+    expect(html).not.toContain("Technical explanation");
   });
 
   it("renders no Owner tool, Sources table, Owner question, job line or proposed marker for an Invitee", async () => {
@@ -95,7 +98,7 @@ describe("Invitee view (issue #109)", () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
     const html = await render();
     for (const owner of [
-      "<form", "<button", "<input", "<select", "Save Restaurant details", "Add Distinction", "Declare Change point", "Delete ", "Translate",
+      "<form", "<button", "<input", "<select", "Save Restaurant details", "Declare Change point", "Delete ", "Translate",
       "Owner questions", "Retry Google", "new Reviews being read", "(proposed)", "TheFork", "Add it by hand", "Personal only", "Public OK", "<th>Access</th>", "<h2>Sources</h2>",
     ]) expect(html, owner).not.toContain(owner);
     expect(html).not.toMatch(/Current.*job/);
@@ -104,7 +107,7 @@ describe("Invitee view (issue #109)", () => {
   it("renders the Owner's tools and Sources table when the caller is the Owner", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
     const html = await render();
-    for (const owner of ["Save Restaurant details", "Add Distinction", "Declare Change point", "Owner questions", "(proposed)", SCRUBBED_PERSONAL, SCRUBBED_EVIDENCE, "<h2>Sources</h2>"]) expect(html, owner).toContain(owner);
+    for (const owner of ["Save Restaurant details", "Declare Change point", "Owner questions", "(proposed)", "In their words", SCRUBBED_PERSONAL, SCRUBBED_PUBLIC, SCRUBBED_EVIDENCE, "<h2>Sources</h2>", "Technical explanation (Owner)", "The food is good."]) expect(html, owner).toContain(owner);
     expect(html).toMatch(/Current.*job/);
   });
 
@@ -133,30 +136,21 @@ describe("Monthly refresh (issue #72)", () => {
   });
 });
 
-describe("Distinctions (issue #61)", () => {
-  it("shows the guide, level, edition, link and Tier disclaimer outside the explanation", async () => {
+describe("Removed from the report (issue #112)", () => {
+  it("shows no Distinctions, critic pieces or stars-and-volume chart to the Owner or an Invitee", async () => {
     const page = bundle(0);
     page.distinctions = [{ id: 7, guide: "Guia Repsol", level: "Solete", editionYear: 2026, url: "https://www.guiarepsol.com/sample" }];
+    page.critics = [{ id: 9, publication: "Time Out", title: "Sample piece", url: "https://example.com/piece", publishedOn: null, language: null, printedRating: null }];
+    page.verdict!.blocks.rollup.sourceHistory = [{ source: "google", quarters: [{ quarter: "2026-Q1", stars: 4.5, ratings: 9, volume: 12 }] }];
+    page.series = [{ quarter: "2026-Q1", composite: 0.5, volume: 12, textVolume: 10 }];
     vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
-    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
-    expect(html).toContain("Guia Repsol");
-    expect(html).toContain("Solete (2026)");
-    expect(html).toContain('href="https://www.guiarepsol.com/sample"');
-    expect(html).toContain("Distinctions are credited to their guide and never move the Tier.");
-    expect(html).toContain("Add Distinction");
-    expect(html).toContain("Delete Guia Repsol Solete 2026");
-    expect(page.verdict!.explanation).toBe("The food is good.");
-  });
-
-  it("keeps Distinctions visible when verified red flags force Avoid", async () => {
-    const page = bundle(2, true);
-    page.distinctions = [{ id: 8, guide: "Michelin", level: "Selected", editionYear: 2026, url: "https://guide.michelin.com/sample" }];
-    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
-    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
-    expect(html).toContain("Recurring recent incidents force Avoid");
-    expect(html).toContain("Michelin");
-    expect(html).toContain("Selected (2026)");
-    expect(html).toContain("Distinctions are credited to their guide and never move the Tier.");
+    for (const role of ["owner", "invitee"] as const) {
+      vi.mocked(pageRole).mockResolvedValueOnce(role);
+      const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+      for (const gone of ["Guia Repsol", "Solete", "Distinction", "Time Out", "Sample piece", "Critic", "Stars and Review volume", "chart-stars", "Review volume over time"]) {
+        expect(html, `${role}: ${gone}`).not.toContain(gone);
+      }
+    }
   });
 });
 
@@ -174,7 +168,7 @@ function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20):
     verification: "confirmed", publishedAt, source: "google", evidence: "An unordered couvert was on the bill" });
   const r = rollup({ now, format: "tasca", reviews, flags });
   return {
-    restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, format: "tasca", priceTier: null },
+    restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, address: "Rua do Sample 1", format: "tasca", priceTier: "€€" },
     verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: null, blocks: { rollup: r, quotes: [] } },
     sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
@@ -199,7 +193,7 @@ function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBund
     peerSnapshot: { id: 1, month: "2026-09", publishedAt: now.toISOString(), groups },
   });
   return {
-    restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, format: "tasca", priceTier: null },
+    restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, address: "Rua do Sample 1", format: "tasca", priceTier: "€€" },
     verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: r.peerSnapshot?.id ?? null, blocks: { rollup: r, quotes: [] } },
     sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
@@ -209,7 +203,7 @@ function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBund
 }
 
 describe("Quote evidence (issue #43)", () => {
-  it("opens the input's Themes and original quotes inline with a Listing link and Source access", async () => {
+  it("shows the Owner original quotes with a Listing link and Source access, and no Invitee quotes", async () => {
     const page = bundle(0);
     page.verdict!.blocks.rollup.themes = [{ code: "food_delicious", aspect: "food", polarity: 1, count: 3, share: 0.15 }];
     page.verdict!.blocks.quotes = [{ reviewId: 7, aspect: "food", polarity: 1,
@@ -217,14 +211,16 @@ describe("Quote evidence (issue #43)", () => {
       source: "google", access: "personal_only", month: "2026-08" }];
     vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
-    expect(html).toContain("Show Food Themes and quotes");
-    expect(html).toContain("Food Themes and quotes");
+    expect(html).toContain("In their words");
     expect(html).toContain("A comida estava muito saborosa.");
     expect(html).toContain("Translate");
     expect(html).toContain("Personal only");
     expect(html).toContain('href="https://example.com/restaurant"');
     expect(html).not.toContain("reviewerName");
     expect(html).not.toContain("reviewPermalink");
+    vi.mocked(pageRole).mockResolvedValueOnce("invitee");
+    const invitee = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(invitee).not.toContain("A comida estava muito saborosa.");
   });
 });
 
@@ -282,8 +278,9 @@ describe("Over-time chart: composite layer (issue #41)", () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
     expect(html).toContain("chart-composite-dot-hollow");
-    expect(html).toContain("P72");
-    expect(html).toContain("few Reviews");
+    expect(html).toContain("better than most similar restaurants");
+    expect(html).toContain("few reviews");
+    expect(html).not.toMatch(/Pd/);
   });
 
   it("marks the quarter a Change point occurred in", async () => {
@@ -296,7 +293,7 @@ describe("Over-time chart: composite layer (issue #41)", () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
     expect(html).toContain("chart-changepoint");
-    expect(html).toContain("Change point");
+    expect(html).toContain("only reviews since then count");
   });
 
   it("omits the composite layer on Provisional Verdicts even when compositePercentile values are present", async () => {
@@ -306,7 +303,7 @@ describe("Over-time chart: composite layer (issue #41)", () => {
     ];
     vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
-    expect(html).not.toContain("Composite percentile over time");
+    expect(html).not.toContain("How its standing has moved");
     expect(html).not.toContain("chart-composite-dot");
   });
 });
@@ -341,10 +338,10 @@ describe("Restaurant Verdict red flags", () => {
   it("shows a quiet callout and its evidence for one incident while retaining the standings", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(bundle(1));
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
-    expect(html).toContain("Red flag · Health: 1 verified first-hand incident");
+    expect(html).toContain("1 recent review reports food poisoning");
     expect(html).toContain("Incident 1 in the kitchen");
     expect(html).toContain("blocks Life Changing");
-    expect(html).toContain("Where it stands");
+    expect(html).toContain("How we judged this");
     expect(html).toContain("Sources");
     expect(html).toContain("4.9");
   });
@@ -353,7 +350,7 @@ describe("Restaurant Verdict red flags", () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(bundle(1, false, 5));
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
     expect(html).toContain("Not enough evidence");
-    expect(html).toContain("Red flag · Health: 1 verified first-hand incident");
+    expect(html).toContain("1 recent review reports food poisoning");
     expect(html).toContain("Incident 1 in the kitchen");
   });
 
@@ -364,14 +361,13 @@ describe("Restaurant Verdict red flags", () => {
     expect(html).toContain("Recurring recent incidents force Avoid");
     expect(html).toContain("Incident 1 in the kitchen");
     expect(html).toContain("Incident 2 in the kitchen");
-    expect(html).toContain("Money: 1 verified first-hand incident");
+    expect(html).toContain("2 recent reviews report food poisoning");
+    expect(html).toContain("1 recent review reports overcharging");
     expect(html).toContain("An unordered couvert was on the bill");
     expect(html).toContain('aria-label="5 stars"');
     expect(html).toContain("Sources");
-    expect(html).not.toContain("Where it stands");
-    expect(html).not.toContain("Confidence");
-    expect(html).not.toContain("What people say");
-    expect(html).not.toContain("Composite");
+    expect(html).not.toContain("How it compares");
+    expect(html).not.toContain("What reviewers say");
     expect(html).toContain("4.9");
   });
 });
@@ -389,5 +385,133 @@ describe("Undo auto-accepted Listing (issue #51)", () => {
     expect(html).toContain("Undo");
     expect(html).toContain('aria-label="Undo automatically accepted google Listing"');
     expect(html).not.toContain('aria-label="Undo automatically accepted tripadvisor Listing"');
+  });
+});
+
+describe("Decision-first report (issue #112)", () => {
+  const render = async (role: "owner" | "invitee", page: RestaurantBundle) => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    vi.mocked(pageRole).mockResolvedValueOnce(role);
+    return renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+  };
+  const JARGON = /θ|\bP\d|\bSD\b|snapshot|Peer composites/i;
+  const withThemes = (page: RestaurantBundle) => {
+    const t = (code: "food_delicious" | "service_warm" | "food_fresh" | "food_generous_portions" | "service_slow" | "food_bland", polarity: 1 | -1, count: number) =>
+      ({ code, aspect: code.startsWith("service") ? "service" as const : "food" as const, polarity, count, share: count / 100 });
+    page.verdict!.blocks.rollup.themes = [
+      t("food_delicious", 1, 30), t("service_warm", 1, 20), t("food_fresh", 1, 10), t("food_generous_portions", 1, 8),
+      t("service_slow", -1, 12), t("food_bland", -1, 1),
+    ];
+    page.verdict!.blocks.rollup.confidence.caps = ["only one Crowd Source", "Sources disagree by 33 points (google: P72, tripadvisor: P39)", "invented reason, θ 0.4"];
+    return page;
+  };
+
+  it("leads with Tier, a plain reason, Format, Price tier, address and booking link for the Owner and an Invitee", async () => {
+    for (const role of ["owner", "invitee"] as const) {
+      const page = withThemes(bundleWithPeers(40, 40));
+      page.restaurant.booking = { label: "Book on TheFork", url: "https://www.thefork.pt/restaurante/sample-r1", kind: "thefork" };
+      const html = await render(role, page);
+      expect(html, role).toContain("Must Go");
+      expect(html, role).toContain("Better food than almost all tascas in Lisbon");
+      expect(html, role).toContain("Tasca");
+      expect(html, role).toContain("€€");
+      expect(html, role).toContain("Rua do Sample 1, Lisbon");
+      expect(html, role).toContain("Book on TheFork");
+      expect(html, role).toContain("See how this verdict has changed");
+    }
+  });
+
+  it("lists the top 3 strengths and warnings with how many reviewers raise them", async () => {
+    const html = await render("invitee", withThemes(bundleWithPeers(40, 40)));
+    expect(html).toContain("Delicious food");
+    expect(html).toContain("30 reviewers");
+    expect(html).toContain("Warm, friendly staff");
+    expect(html).toContain("Fresh ingredients");
+    expect(html).not.toContain("Generous portions");
+    expect(html).toContain("Slow service");
+    expect(html).toContain("12 reviewers");
+    expect(html).toContain("1 reviewer<");
+  });
+
+  it("states each Aspect standing in words", async () => {
+    const html = await render("invitee", bundleWithPeers(40, 40));
+    expect(html).toContain("<b>Food:</b> better than almost all tascas in Lisbon");
+    expect(html).toContain("<b>Service:</b> better than almost all tascas in Lisbon");
+  });
+
+  it("keeps the reasoning in a collapsed 'How we judged this' with Peer group, positions, chart, confidence and consistency", async () => {
+    const page = withThemes(bundleWithPeers(40, 40));
+    page.verdict!.blocks.rollup.series = [{ quarter: "2026-Q1", composite: 0.5, compositePercentile: 72, enoughReviews: true, volume: 10, textVolume: 10 }];
+    const html = await render("invitee", page);
+    const judged = html.slice(html.indexOf('<details class="judged"'));
+    expect(judged).toContain("How we judged this");
+    expect(html).not.toMatch(/<details class="judged"[^>]*open/);
+    expect(judged).toContain("Compared with 40 tascas in Lisbon");
+    expect(judged).toContain("Aspect positions");
+    expect(judged).toContain("How its standing has moved");
+    expect(judged).toContain("Confidence");
+    expect(judged).toContain("Consistency");
+    expect(judged).toContain("Only one review site was found");
+    expect(judged).toContain("Review sites disagree about this restaurant");
+  });
+
+  it("shows an Invitee no θ, percentile numbers, SD, Peer-snapshot language, raw confidence reasons, ceiling notes or explanation", async () => {
+    const page = withThemes(bundleWithPeers(40, 40));
+    page.verdict!.blocks.rollup.series = [{ quarter: "2026-Q1", composite: 0.5, compositePercentile: 72, enoughReviews: true, volume: 10, textVolume: 10 }];
+    const html = await render("invitee", page);
+    expect(html).not.toMatch(JARGON);
+    expect(html).not.toContain("invented reason");
+    expect(html).not.toContain("Ceiling:");
+    expect(html).not.toContain("The food is good.");
+  });
+
+  it("keeps the technical explanation, θ strips and snapshot line for the Owner inside 'How we judged this'", async () => {
+    const html = await render("owner", withThemes(bundleWithPeers(40, 40)));
+    const judged = html.slice(html.indexOf('<details class="judged"'));
+    expect(judged).toContain("Technical explanation (Owner)");
+    expect(judged).toContain("The food is good.");
+    expect(judged).toContain("Ceiling: needs at least 50 Peers");
+    expect(judged).toContain("Peer snapshot #1");
+  });
+
+  it("labels a Provisional Verdict 'Early verdict: fewer comparisons yet' with a plain reason", async () => {
+    for (const role of ["owner", "invitee"] as const) {
+      const html = await render(role, bundle(0));
+      expect(html, role).toContain("Early verdict: fewer comparisons yet");
+      expect(html, role).toContain("Reviewers rate it well");
+    }
+    expect(await render("invitee", bundle(0))).not.toMatch(JARGON);
+  });
+
+  it("explains a Change point in plain words", async () => {
+    const page = bundleWithPeers(40, 40);
+    page.verdict!.blocks.rollup.changePointAt = "2026-03-10T00:00:00.000Z";
+    page.verdict!.blocks.rollup.changePointDescription = "New chef";
+    for (const role of ["owner", "invitee"] as const) {
+      expect(await render(role, page), role).toContain("New chef since Mar 2026: only reviews since then count");
+    }
+  });
+
+  it("says what is missing for Not enough evidence, without jargon, for the Owner and an Invitee", async () => {
+    for (const role of ["owner", "invitee"] as const) {
+      const html = await render(role, bundle(0, false, 5));
+      expect(html, role).toContain("Not enough evidence");
+      expect(html, role).toContain("Needs at least 15 reviews with written text; has 5");
+      expect(html, role).toContain("Needs at least 8 reviews that talk about the food");
+    }
+    expect(await render("invitee", bundle(0, false, 5))).not.toMatch(JARGON);
+  });
+
+  it("words Red flags as what reviewers report, with evidence for the Owner only", async () => {
+    const invitee = await render("invitee", bundle(4));
+    expect(invitee).toContain("4 recent reviews report food poisoning");
+    expect(invitee).not.toContain("Incident 1 in the kitchen");
+    expect(invitee).not.toMatch(JARGON);
+    expect(await render("owner", bundle(4))).toContain("Incident 1 in the kitchen");
+  });
+
+  it("shows the Sources table and quotes to the Owner only", async () => {
+    expect(await render("owner", bundle(0))).toContain("<h2>Sources</h2>");
+    expect(await render("invitee", bundle(0))).not.toContain("<h2>Sources</h2>");
   });
 });

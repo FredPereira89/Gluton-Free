@@ -37,6 +37,19 @@ describe("Verdict history screen", () => {
     expect(loadVerdictHistory).toHaveBeenCalledWith("o-velho-eurico", { cursor: undefined, limit: 2 });
   });
 
+  it("shows an Invitee no Peer snapshot ids and words Provisional plainly (issue #112)", async () => {
+    vi.mocked(loadVerdictHistory).mockResolvedValueOnce({
+      restaurant: { slug: "o-velho-eurico", name: "O Velho Eurico" },
+      items: [{ id: 9, issuedAt: "2026-11-01T09:00:00.000Z", state: "verdict", tier: "good", confidence: "medium", provisional: true, peerSnapshotId: 3 }],
+      nextCursor: null,
+    });
+    vi.mocked(pageRole).mockResolvedValueOnce("invitee");
+    const html = renderToStaticMarkup(await VerdictHistoryPage({ params: Promise.resolve({ slug: "o-velho-eurico" }), searchParams: Promise.resolve({}) }));
+    expect(html).not.toMatch(/Peer snapshot|#3/);
+    expect(html).not.toContain("Provisional");
+    expect(html).toContain("Early verdict");
+  });
+
   it("marks the page for an Invitee so the shell hides Settings, and leaves the Owner's page unmarked (issue #109)", async () => {
     const history = { restaurant: { slug: "o-velho-eurico", name: "O Velho Eurico" }, items: [], nextCursor: null };
     const render = async () => renderToStaticMarkup(await VerdictHistoryPage({ params: Promise.resolve({ slug: "o-velho-eurico" }), searchParams: Promise.resolve({}) }));

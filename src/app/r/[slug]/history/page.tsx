@@ -44,8 +44,8 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
                   <th>Issued</th>
                   <th>Tier</th>
                   <th>Confidence</th>
-                  <th>Provisional</th>
-                  <th>Peer snapshot</th>
+                  <th>{role === "invitee" ? "Early verdict" : "Provisional"}</th>
+                  {role !== "invitee" && <th>Peer snapshot</th>}
                 </tr>
               </thead>
               <tbody>
@@ -60,8 +60,8 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
                       )}
                     </td>
                     <td>{v.confidence ? <ConfChip level={v.confidence} /> : "—"}</td>
-                    <td>{v.provisional ? <span className="chip prov">Provisional</span> : "—"}</td>
-                    <td>{v.peerSnapshotId === null ? "—" : `Peer snapshot #${v.peerSnapshotId}`}</td>
+                    <td>{v.provisional ? <span className="chip prov">{role === "invitee" ? "Early verdict" : "Provisional"}</span> : "—"}</td>
+                    {role !== "invitee" && <td>{v.peerSnapshotId === null ? "—" : `Peer snapshot #${v.peerSnapshotId}`}</td>}
                   </tr>
                 ))}
               </tbody>

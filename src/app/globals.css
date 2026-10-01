@@ -148,16 +148,9 @@ table.src th.num{text-align:right}
 .A .ev-list{display:grid;gap:8px}
 .A .ev-list a{font-weight:600}
 
-/* Full Review history: independent star and volume scales for each Source. */
-.source-history{display:grid;gap:12px;min-width:0}
-.history-source{display:grid;gap:8px;min-width:0;margin-top:8px}
-.history-source h3{font-size:15px}
 .history-scroll{overflow-x:auto;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:6px}
 .history-scroll svg{display:block;max-width:none}
 .chart-grid{stroke:var(--line);stroke-width:1}
-.chart-stars{stroke:var(--accent);stroke-width:2.5}
-.chart-star-dot{fill:var(--accent);stroke:var(--surface);stroke-width:1.5}
-.chart-volume{fill:var(--t-good)}
 .chart-label{fill:var(--muted);font:600 11px var(--sans)}
 .chart-tick{fill:var(--muted);font:10px var(--mono)}
 .composite-history{margin-top:8px}
@@ -165,7 +158,6 @@ table.src th.num{text-align:right}
 .chart-composite-dot{fill:var(--accent);stroke:var(--surface);stroke-width:1.5}
 .chart-composite-dot-hollow{fill:var(--surface);stroke:var(--accent);stroke-width:2}
 .chart-changepoint{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:4 3}
-.history-source details summary{cursor:pointer;color:var(--accent);font-weight:600}
 
 /* ---------- app shell ---------- */
 body{margin:0;padding:16px 16px 64px}
@@ -328,3 +320,17 @@ body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
   .dir-table td[data-label]::before{content:attr(data-label);display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
   .dir-table tbody td:last-child{grid-column:1/-1;border-radius:0}
 }
+
+/* ---------- decision-first report (#112) ---------- */
+.A .notice{font-size:13.5px;color:var(--warn);background:var(--warn-bg);border-radius:6px;padding:7px 11px}
+.A .missing,.A .plain-list{margin:0;padding-left:18px;display:grid;gap:4px}
+.A .plain-list.neg li::marker{color:var(--t-avoid)}
+.A .judged{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:14px 18px}
+.A .judged>summary{cursor:pointer;font-size:16px;font-weight:700}
+.A .judged-body{display:grid;gap:16px;margin-top:14px}
+.A .judged-body h3{font-size:14px;margin-bottom:4px}
+.A .position{display:grid;grid-template-columns:90px 1fr auto;gap:10px;align-items:center;padding:4px 0}
+.A .position .track{position:relative;height:6px;border-radius:3px;background:var(--band)}
+.A .position .track i{position:absolute;top:-3px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--accent)}
+.A .position-axis{display:flex;justify-content:space-between;padding:0 4px}
+.A .technical{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
