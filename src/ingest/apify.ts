@@ -1,5 +1,5 @@
-// Apify: TheFork search (mscraper/thefork-restaurant-scraper, by coordinates), whole-city catalogue (memo23), profile
-// (parsebird/thefork-scraper) and Reviews (clearpath/thefork-restaurant-reviews), all pay per event.
+// Apify: TheFork search by coordinates and city crawl with the newest Reviews (mscraper/thefork-restaurant-scraper; its
+// city list stops near 280 restaurants), whole-city catalogue (memo23), profile (parsebird/thefork-scraper) and Reviews (clearpath/thefork-restaurant-reviews), all pay per event.
 // Items may carry reviewer names; callers must whitelist them through normalise.ts in memory
 // and never log or persist them. Every run is capped with maxTotalChargeUsd and reports its cost.
 import { PipelineError } from "@/lib/pipeline-error";
@@ -9,7 +9,7 @@ const BASE = "https://api.apify.com/v2";
 const DEFAULT_PROFILE_ACTOR = "parsebird/thefork-scraper";
 /** Returns the whole Review history, one row per Review; parsebird's page only exposes about 20. */
 const REVIEWS_ACTOR = "clearpath/thefork-restaurant-reviews";
-/** Searches by latitude/longitude and returns the restaurants around that point. parsebird's actor lists a whole city by popularity. */
+/** Searches by latitude/longitude and returns the restaurants around that point. Its city list stops near 280 restaurants. */
 const SEARCH_ACTOR = "mscraper/thefork-restaurant-scraper";
 const WAIT_FOR_FINISH_S = 60;
 const MAX_WAIT_ATTEMPTS = 5;
@@ -152,7 +152,39 @@ export async function searchTheFork(point: { lat: number; lng: number }): Promis
   return { items: found, costUsd };
 }
 
-/** Lists a whole TheFork city or search page at about $0.002 per restaurant, with no Reviews. */
+/** A TheFork restaurant with its newest 20 Reviews (included in the $0.01 per restaurant): what matching needs, plus `profile`, the same restaurant in the shape normaliseTheFork reads. */
+export type TheForkCityRestaurant = TheForkSearchItem & { profile: unknown };
+
+type CityRow = {
+  name?: string | null; url?: string | null; address?: { street?: string | null; locality?: string | null } | null;
+  geolocation?: { latitude?: number | null; longitude?: number | null } | null;
+  averagePrice?: number | null; rating?: number | null; reviewCount?: number | null;
+  // Reviews carry no reviewer fields; only the whitelisted ones are read anyway.
+  reviews?: { id?: string | null; ratingValue?: number | null; mealDate?: string | null; review?: { reviewBody?: string | null } | null }[] | null;
+};
+
+/** The search actor's restaurants with Reviews; rows without a TheFork page id or name are dropped and a restaurant seen twice keeps its first row. */
+export function theForkCityRestaurants(rows: unknown[]): TheForkCityRestaurant[] {
+  const found = new Map<string, TheForkCityRestaurant>();
+  for (const row of rows as CityRow[]) {
+    const id = row.url ? restaurantIdFromUrl(row.url) : null;
+    if (!id || !row.name || found.has(id)) continue;
+    found.set(id, {
+      id, name: row.name, url: row.url, latitude: row.geolocation?.latitude ?? null, longitude: row.geolocation?.longitude ?? null,
+      thefork_review_count: row.reviewCount ?? null,
+      profile: {
+        id, name: row.name, street: row.address?.street ?? null, locality: row.address?.locality ?? null,
+        thefork_rating: row.rating ?? null, thefork_review_count: row.reviewCount ?? null, avg_price: row.averagePrice ?? null,
+        reviews: (row.reviews ?? []).map((review) => ({
+          id: review.id, rating_value: review.ratingValue, meal_date: review.mealDate, review_body: review.review?.reviewBody ?? null,
+        })),
+      },
+    });
+  }
+  return [...found.values()];
+}
+
+/** Lists a whole TheFork city or search page at about $0.002 per restaurant, with no Reviews. Needs a paid Apify plan: the free one caps a run at 100 rows. */
 const CATALOGUE_ACTOR = "memo23/thefork-restaurant-scraper";
 /** One city page lists up to about 2,100 restaurants. */
 export const APIFY_CATALOGUE_MAX_ITEMS = 2100;
@@ -185,6 +217,16 @@ export async function sweepTheForkCatalogue(
     maxItemsPerSearch: options.maxItems ?? APIFY_CATALOGUE_MAX_ITEMS, scrapeDetails: false,
   }, options.maxUsd);
   return { items: theForkCatalogueItems(items), costUsd };
+}
+
+/** The nearest few restaurants to a point with their newest Reviews; the one wanted is picked by its TheFork id (about $0.01 per result). */
+export async function fetchTheForkNearbyWithReviews(
+  point: { lat: number; lng: number }, placeRef: string, maxResults = 3,
+): Promise<{ restaurant: TheForkCityRestaurant | null; costUsd: number }> {
+  const { items, costUsd } = await runActor(SEARCH_ACTOR, {
+    latitude: point.lat, longitude: point.lng, maxResults, maxPages: 1, includeReviews: true, includeExtendedInfo: false,
+  }, Math.max(0.1, 0.02 * maxResults));
+  return { restaurant: theForkCityRestaurants(items).find((restaurant) => restaurant.id === placeRef) ?? null, costUsd };
 }
 
 /** One row per Review from the Reviews actor. Reviewer fields are never read here. */

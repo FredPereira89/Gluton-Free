@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchTheForkListing, parseTheForkUrl, searchTheFork } from "./apify";
+import { fetchTheForkListing, parseTheForkUrl, searchTheFork, theForkCityRestaurants } from "./apify";
+import { normaliseTheFork } from "./normalise";
 
 type Call = { method: string; path: string; search: URLSearchParams; body: unknown };
 
@@ -227,4 +228,24 @@ describe("a run that does not finish in time", () => {
     await expect(searchTheFork({ lat: 1, lng: 2 })).rejects.toMatchObject({ costUsd: 0.048 });
     expect(order.filter((entry) => entry.endsWith("/abort"))).toHaveLength(1);
   }, 30_000);
+});
+
+describe("theForkCityRestaurants", () => {
+  const row = {
+    ...nearbyItem, address: { street: "Rua Inventada - 1", locality: "Lisboa" }, averagePrice: 25,
+    reviews: [{ id: "uuid-1", ratingValue: 10, mealDate: "2026-09-23T18:30:00.000Z", review: { reviewBody: "Very good." }, restaurantReply: null }],
+  };
+
+  it("reads each restaurant as a page for matching and a profile for normaliseTheFork", () => {
+    const [restaurant] = theForkCityRestaurants([{ ...row, url: row.url }]);
+    expect(restaurant).toMatchObject({ id: "90101", name: "Fictional Copper Spoon", latitude: 38.714, thefork_review_count: 12 });
+    expect(normaliseTheFork(restaurant!.profile)).toMatchObject({
+      facts: { placeRef: "90101", address: "Rua Inventada - 1, Lisboa", rating: 4.6, priceLevel: "25" },
+      reviews: [{ sourceReviewId: "uuid-1", stars: 5, text: "Very good." }],
+    });
+  });
+
+  it("drops rows without a TheFork page and repeats of the same page", () => {
+    expect(theForkCityRestaurants([{ name: "No page", url: "https://example.com/x" }, row, row])).toHaveLength(1);
+  });
 });
