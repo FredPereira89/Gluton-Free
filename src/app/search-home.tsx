@@ -65,7 +65,7 @@ function ResultContent({ result }: { result: Result }) {
   </>;
 }
 
-export default function SearchHome() {
+export default function SearchHome({ canAddRestaurant }: { canAddRestaurant: boolean }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResponse>(emptyResults);
@@ -78,7 +78,8 @@ export default function SearchHome() {
   const [previewError, setPreviewError] = useState(false);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState(false);
-  const location = useRef<{ lat: number; lng: number } | null | undefined>(undefined);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState(false);
   const previewRequest = useRef<string | null>(null);
 
   async function openPreview(placeId: string) {
@@ -120,6 +121,32 @@ export default function SearchHome() {
     }
   }
 
+  async function addRestaurant() {
+    const q = query.trim();
+    if (!q || adding) return;
+    setAdding(true);
+    setAddError(false);
+    setError(false);
+    setSpendCapResetAt(null);
+    setResults(emptyResults);
+    try {
+      const response = await fetch("/api/v1/search/add", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q }),
+      });
+      if (response.status === 429) {
+        const problem = await response.json().catch(() => null) as { resetAt?: string } | null;
+        setSpendCapResetAt(problem?.resetAt ?? new Date().toISOString());
+        return;
+      }
+      if (!response.ok) throw new Error("Add search failed");
+      setResults(await response.json() as SearchResponse);
+    } catch {
+      setAddError(true);
+    } finally {
+      setAdding(false);
+    }
+  }
+
   useEffect(() => {
     const q = query.trim();
     setPreviewFor(null);
@@ -137,26 +164,9 @@ export default function SearchHome() {
     setError(false);
     setSpendCapResetAt(null);
     const timer = setTimeout(async () => {
-      if (location.current === undefined) {
-        location.current = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
-          if (!navigator.geolocation) return resolve(null);
-          navigator.geolocation.getCurrentPosition(
-            (position) => resolve({ lat: Number(position.coords.latitude.toFixed(7)), lng: Number(position.coords.longitude.toFixed(7)) }),
-            () => resolve(null),
-            { timeout: 3000, maximumAge: 60_000 },
-          );
-        });
-      }
-      if (!active) return;
-      const params = new URLSearchParams({ q });
-      if (location.current) params.set("near", `${location.current.lat},${location.current.lng}`);
       try {
+        const params = new URLSearchParams({ q });
         const response = await fetch(`/api/v1/search?${params}`, { signal: controller.signal });
-        if (response.status === 429) {
-          const problem = await response.json().catch(() => null) as { resetAt?: string } | null;
-          if (active) setSpendCapResetAt(problem?.resetAt ?? new Date().toISOString());
-          return;
-        }
         if (!response.ok) throw new Error("Search failed");
         const data = await response.json() as SearchResponse;
         if (active) setResults(data);
@@ -182,16 +192,21 @@ export default function SearchHome() {
 
   return <section className="index search-home">
     <h1>Find a Restaurant</h1>
-    <p className="muted">Search by name, paste a Google Maps, Tripadvisor or TheFork link, or enter a Google place ID.</p>
+    <p className="muted">Search by name, paste a Google Maps, Tripadvisor or TheFork link, or enter a Google place ID or CID.</p>
     <label htmlFor="restaurant-search" className="eyebrow">Restaurant name or link</label>
     <input id="restaurant-search" type="search" autoComplete="off" value={query}
-      onChange={(event) => setQuery(event.target.value)} placeholder="Restaurant name, link or Google place ID" />
+      onChange={(event) => setQuery(event.target.value)} placeholder="Name, link, Google place ID or CID" />
     <div role="status" aria-live="polite" className="small muted">
       {loading ? "Searching…"
         : spendCapResetAt ? `Today's search budget is spent. It resets at ${formatResetTime(spendCapResetAt)}.`
+        : adding ? "Searching Google Maps…"
+        : addError ? "Could not search for that Restaurant. Try again."
         : error ? "Search is unavailable. Try again."
         : results.message ?? (query.trim() && !results.recognised && !results.known.length && !results.candidates.length ? "No Restaurants found." : "")}
     </div>
+    {canAddRestaurant && !!query.trim() && <button type="button" className="btn" disabled={adding || loading} onClick={() => void addRestaurant()}>
+      {adding ? "Searching Google Maps…" : "Add a Restaurant"}
+    </button>}
     {results.recognised && <div className="search-group">
       <h2>Recognised Restaurant</h2>
       {"slug" in results.recognised ? <Link className="search-result" href={`/r/${encodeURIComponent(results.recognised.slug)}`}>
@@ -200,14 +215,14 @@ export default function SearchHome() {
       </Link> : candidateRow(results.recognised)}
     </div>}
     {!!results.known.length && <div className="search-group">
-      <h2>Already looked up</h2>
+      <h2>Restaurants in Gluton-Free</h2>
       {results.known.map((result) => <Link className="search-result" href={`/r/${encodeURIComponent(result.slug)}`} key={result.slug}>
         <ResultContent result={result} />
         <span className="search-action">Open Verdict →</span>
       </Link>)}
     </div>}
     {!!results.candidates.length && <div className="search-group">
-      <h2>New Restaurants</h2>
+      <h2>Google Maps results</h2>
       {results.candidates.map(candidateRow)}
     </div>}
     <Link href="/restaurants" className="small">Browse looked-up Restaurants</Link>

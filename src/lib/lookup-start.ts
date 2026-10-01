@@ -1,7 +1,7 @@
 import { tasks } from "@trigger.dev/sdk";
 import { googleBusinessByReference } from "@/ingest/dataforseo";
 import { estimateLookup, googleMapsUrl } from "@/app/api/v1/lookups/preview/preview";
-import { LISBON } from "@/app/api/v1/search/route";
+import { LISBON } from "@/app/api/v1/search/shared";
 import type { z } from "zod";
 import { startLookupBodySchema } from "./api-contract";
 import { db } from "./db";

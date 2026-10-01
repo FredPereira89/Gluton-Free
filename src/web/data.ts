@@ -10,23 +10,98 @@ import type { SearchResponse } from "@/lib/api-contract";
 import { formatQuestionPayloadSchema, formatQuestionPrompt, questionCandidates, questionPrompt } from "@/lib/owner-question";
 import type { ListingSource } from "@/lib/listing-source";
 import { CHANGE_POINT_LABEL, type ChangePointKind } from "@/domain/aspects";
+import { normaliseName } from "@/app/api/v1/search/input";
 
-export async function searchKnownRestaurants(q: string, placeIds: string[]): Promise<(SearchResponse["known"][number] & { placeId: string | null })[]> {
-  const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
+export type StoredListingReference = {
+  sourceCode: "google" | "tripadvisor" | "thefork";
+  sourceUrl: string;
+  placeRef?: string;
+  linkedName?: string;
+};
+
+function listingIdentity(value: string, sourceCode: StoredListingReference["sourceCode"]): string | null {
+  try {
+    const url = new URL(value);
+    if (sourceCode === "google") {
+      const placeId = url.searchParams.get("query_place_id") ?? url.searchParams.get("place_id")
+        ?? url.searchParams.get("q")?.match(/^place_id:([A-Za-z0-9_-]+)$/)?.[1];
+      const cid = url.searchParams.get("cid");
+      if (placeId) return `place_id:${placeId}`;
+      if (cid) return `cid:${cid}`;
+    }
+    const path = decodeURIComponent(url.pathname).replace(/\/+$/, "").toLocaleLowerCase();
+    return path && path !== "/" ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+function matchesListingUrl(stored: string, pasted: string, sourceCode: StoredListingReference["sourceCode"]): boolean {
+  const storedIdentity = listingIdentity(stored, sourceCode);
+  const pastedIdentity = listingIdentity(pasted, sourceCode);
+  return storedIdentity !== null && pastedIdentity !== null && storedIdentity === pastedIdentity;
+}
+
+export async function searchKnownRestaurants(
+  q: string,
+  placeIds: string[],
+  reference?: StoredListingReference,
+): Promise<(SearchResponse["known"][number] & { placeId: string | null })[]> {
   const rows = await db()`
-    select r.slug, r.name, r.address, r.status, r.price_tier, l.place_ref,
-           l.source_rating, l.source_review_count, l.categories
+    select r.id, r.slug, r.name, r.address, r.status, r.price_tier,
+           l.source_code, l.place_ref, l.url, l.source_rating, l.source_review_count, l.categories
     from restaurant r
-    left join listing l on l.restaurant_id = r.id and l.source_code = 'google'
-    where ((${q.length > 0} and r.name ilike ${pattern} escape '\\') or l.place_ref = any(${placeIds}::text[]))
-      and r.status <> 'permanently_closed'
-    order by (l.place_ref = any(${placeIds}::text[])) desc, r.name, r.id limit 50`;
-  return rows.map((row) => ({
-    slug: row.slug, name: row.name, address: row.address, distanceMeters: null,
-    stars: row.source_rating === null ? null : Number(row.source_rating),
-    reviewCount: row.source_review_count, category: row.categories?.[0] ?? null,
-    priceTier: row.price_tier, status: row.status === "temporarily_closed" ? "temporarily_closed" : "open",
-    placeId: row.place_ref,
+    left join listing l on l.restaurant_id = r.id
+    where r.status <> 'permanently_closed'
+    order by r.name, r.id`;
+  type Listing = { sourceCode: string; placeRef: string; url: string };
+  type Restaurant = {
+    id: number; slug: string; name: string; address: string | null; status: string; priceTier: string | null;
+    placeId: string | null; stars: number | null; reviewCount: number | null; category: string | null; listings: Listing[];
+  };
+  const restaurants = new Map<number, Restaurant>();
+  for (const row of rows) {
+    const id = Number(row.id);
+    let restaurant = restaurants.get(id);
+    if (!restaurant) {
+      restaurant = {
+        id, slug: row.slug, name: row.name, address: row.address, status: row.status, priceTier: row.price_tier,
+        placeId: null, stars: null, reviewCount: null, category: null, listings: [],
+      };
+      restaurants.set(id, restaurant);
+    }
+    if (row.source_code) {
+      restaurant.listings.push({ sourceCode: row.source_code, placeRef: row.place_ref!, url: row.url! });
+      if (row.source_code === "google") {
+        restaurant.placeId = row.place_ref;
+        restaurant.stars = row.source_rating === null ? null : Number(row.source_rating);
+        restaurant.reviewCount = row.source_review_count;
+        restaurant.category = row.categories?.[0] ?? null;
+      }
+    }
+  }
+
+  const normalizedQuery = normaliseName(q);
+  const normalizedLinkedName = normaliseName(reference?.linkedName ?? "");
+  const ids = new Set(placeIds);
+  const found = [...restaurants.values()].filter((restaurant) => {
+    if (normalizedQuery && normaliseName(restaurant.name).includes(normalizedQuery)) return true;
+    if (restaurant.listings.some((listing) => listing.sourceCode === "google" && ids.has(listing.placeRef))) return true;
+    if (!reference) return false;
+    return restaurant.listings.some((listing) => {
+      if (listing.sourceCode !== reference.sourceCode) return false;
+      if (matchesListingUrl(listing.url, reference.sourceUrl, reference.sourceCode)) return true;
+      if (reference.placeRef && listing.placeRef.toLocaleLowerCase() === reference.placeRef.toLocaleLowerCase()) return true;
+      return !!normalizedLinkedName && reference.sourceCode !== "tripadvisor"
+        && normaliseName(restaurant.name) === normalizedLinkedName;
+    });
+  }).slice(0, 50);
+
+  return found.map((restaurant) => ({
+    slug: restaurant.slug, name: restaurant.name, address: restaurant.address, distanceMeters: null,
+    stars: restaurant.stars, reviewCount: restaurant.reviewCount, category: restaurant.category,
+    priceTier: restaurant.priceTier, status: restaurant.status === "temporarily_closed" ? "temporarily_closed" : "open",
+    placeId: restaurant.placeId,
   }));
 }
 
