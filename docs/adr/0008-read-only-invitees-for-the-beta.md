@@ -17,7 +17,7 @@ Avoid Verdicts and Red flags are shown to Invitees, worded as what reviewers rep
 ## Consequences
 
 - The route registry gains a second auth level. The owner-only test turns into "every route declares its level"; owner-only stays the default.
-- Search splits in two. Invitees get a DB-only search. The owner keeps the hybrid search: DB results plus live DataForSEO candidates for a new Lookup.
+- The search bar reads only the database, **for everyone, the Owner included**. The old search made a live DataForSEO Google Maps call on every pause in typing, which was slow and cost money. The Owner finds a Restaurant that isn't in the database through a separate, explicit "Add a Restaurant" action. That action is the only path that calls the vendor search, once per submit, and it leads to the existing preview and Lookup.
 - Showing derived Evidence from personal-only Sources to Invitees is still a residual risk to revisit before any open launch.
 
 ## Considered Options

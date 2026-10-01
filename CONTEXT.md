@@ -33,7 +33,7 @@ One Restaurant's page on one Source. A Restaurant has at most one Listing per So
 _Avoid_: Place, profile, entry
 
 **Lookup**:
-The first time Gluton-Free gathers a Restaurant's Listings and Reviews and judges it, started by the owner from search. A lookup never waits for the owner: any uncertain Listing match or disputed Format is asked afterwards, and the answer re-judges the Verdict. After the lookup, the Restaurant is kept current only by the monthly refresh.
+The first time Gluton-Free gathers a Restaurant's Listings and Reviews and judges it, started by the Owner by adding a Restaurant that search did not find. A lookup never waits for the owner: any uncertain Listing match or disputed Format is asked afterwards, and the answer re-judges the Verdict. After the lookup, the Restaurant is kept current only by the monthly refresh.
 _Avoid_: Add, import, scan
 
 **Owner question**:
