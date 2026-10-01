@@ -4225,6 +4225,51 @@
                             }
                           ]
                         },
+                        "reportFacts": {
+                          "type": "object",
+                          "properties": {
+                            "standoutDishes": {
+                              "maxItems": 3,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 3,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "count"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "dietaryFits": {
+                              "maxItems": 3,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "vegetarian",
+                                  "vegan",
+                                  "gluten_free"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "standoutDishes",
+                            "dietaryFits"
+                          ],
+                          "additionalProperties": false
+                        },
                         "sources": {
                           "type": "array",
                           "items": {
@@ -4810,6 +4855,7 @@
                       "required": [
                         "restaurant",
                         "verdict",
+                        "reportFacts",
                         "sources",
                         "distinctions",
                         "critics",
@@ -6072,6 +6118,51 @@
                             }
                           ]
                         },
+                        "reportFacts": {
+                          "type": "object",
+                          "properties": {
+                            "standoutDishes": {
+                              "maxItems": 3,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 3,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "count"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "dietaryFits": {
+                              "maxItems": 3,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "vegetarian",
+                                  "vegan",
+                                  "gluten_free"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "standoutDishes",
+                            "dietaryFits"
+                          ],
+                          "additionalProperties": false
+                        },
                         "distinctions": {
                           "type": "array",
                           "items": {
@@ -6249,6 +6340,7 @@
                       "required": [
                         "restaurant",
                         "verdict",
+                        "reportFacts",
                         "distinctions",
                         "critics",
                         "series",

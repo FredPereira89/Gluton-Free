@@ -364,6 +364,11 @@ body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
 .A .theme-chip b{margin-left:4px}
 .A .theme-chip.pos{border-color:var(--t-good);color:var(--t-good);background:var(--t-good-bg)}
 .A .theme-chip.neg{border-color:var(--t-avoid);color:var(--t-avoid);background:var(--t-avoid-bg)}
+.A .report-facts{display:flex;flex-wrap:wrap;gap:10px}
+.A .report-facts>div{min-width:min(100%,220px);padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--sunk)}
+.A .report-facts h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.A .report-facts ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.A .report-facts li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;padding:3px 8px;border-radius:6px;background:var(--surface);font-size:14px}
 .A .scale{display:grid;grid-template-columns:minmax(84px,110px) 150px 1fr;gap:12px;margin:8px 0 4px}
 .A .scale-ends{display:flex;justify-content:space-between;font-size:11.5px}
 .A .score.off{opacity:.5}

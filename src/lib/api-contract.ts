@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CHANGE_POINT_KINDS, TIERS } from "@/domain/aspects";
 import { FORMAT_FAMILIES } from "@/domain/format-labels";
 import { FORMATS } from "@/domain/restaurant-facts";
+import { DIETS } from "@/domain/dish-dietary";
 import { BlocksSchema, RollupSchema, ShownQuoteSchema } from "@/verdict/blocks";
 import {
   createInviteLinkBodySchema, inviteLinkListResponseSchema, inviteLinkSchema, inviteeListResponseSchema, inviteeSchema,
@@ -106,9 +107,16 @@ const bundleVerdictSchema = z.strictObject({
   blocks: BlocksSchema,
 });
 
+export const reportFactsSchema = z.strictObject({
+  standoutDishes: z.array(z.strictObject({ name: z.string().trim().min(1), count: z.number().int().min(3) })).max(3),
+  dietaryFits: z.array(z.enum(DIETS)).max(DIETS.length),
+});
+export type ReportFacts = z.infer<typeof reportFactsSchema>;
+
 export const restaurantBundleSchema = z.strictObject({
   restaurant: restaurantSchema,
   verdict: bundleVerdictSchema.nullable(),
+  reportFacts: reportFactsSchema,
   sources: z.array(bundleSourceSchema),
   distinctions: z.array(z.strictObject({ id: z.number().int().positive().safe(), guide: z.string(), level: z.string(), editionYear: z.number().int().nullable(), url: z.url() })),
   critics: z.array(z.strictObject({

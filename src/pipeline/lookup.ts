@@ -2,6 +2,8 @@
 // issue a Verdict. Waiting is injected so the same code runs locally (setTimeout) and in
 // Trigger.dev (checkpointed wait.for, which costs no compute while it waits).
 import { batchEnded, collectBatch, extractSync, submitBatch, type ExtractInput, type Extracted } from "@/analysis/extract";
+import { extractDishDietarySync } from "@/analysis/dish-dietary";
+import { pendingDishDietary, saveDishDietary } from "@/analysis/dish-dietary-store";
 import { readRestaurantFacts } from "@/analysis/restaurant-facts";
 import { emptyUsage, EXTRACT_MODEL, JUDGE_MODEL } from "@/analysis/llm";
 import { pendingExtraction, saveAnalyses } from "@/analysis/store";
@@ -372,6 +374,22 @@ export async function extractRestaurant(
   return { pending: all.length, attempted: pending.length, unanalysed: left };
 }
 
+/** Runs the separate display-facts pass for queued, newly stored Reviews that the frozen extractor has analysed. */
+export async function analyseDishDietary(
+  restaurantId: number,
+  jobId: number,
+  window?: { since: Date; maxPerSource: number },
+) {
+  const pending = await pendingDishDietary(restaurantId, window);
+  if (!pending.length) return { pending: 0, analysed: 0 };
+  await setStep(jobId, "summarising dishes and dietary options", { dishDietary: { pending: pending.length } });
+  const usage = emptyUsage("dish-dietary", EXTRACT_MODEL, false);
+  const results = await extractDishDietarySync(pending, usage);
+  await saveDishDietary(results);
+  if (usage.requests) await addLlmUsage(jobId, usage);
+  return { pending: pending.length, analysed: results.size };
+}
+
 /** Verifies pending Red flags and issues a Verdict. */
 export async function judgeRestaurant(restaurantId: number, jobId: number, cause: RejudgeCause = "automatic") {
   const sql = db();
@@ -456,6 +474,7 @@ export async function runLookup(
     const ingest = from === "ingest" ? await ingestRestaurant(restaurantId, jobId, sleep, opts.sample) : null;
     stage = "extract";
     const extraction = from !== "judge" ? await extractRestaurant(restaurantId, jobId, sleep, opts.extractLimit) : null;
+    const dishDietary = await analyseDishDietary(restaurantId, jobId);
     const questionIds = await raiseSourceRetryQuestions(db(), restaurantId);
     for (const questionId of questionIds) await sendPush("owner_question", restaurantId, questionId);
     stage = "judge";
@@ -463,7 +482,7 @@ export async function runLookup(
     await finishJob(jobId);
     // TheFork matching finishes first and cannot accept while this Lookup runs: accept its confident candidate now.
     await autoAcceptTheFork(restaurantId).catch(() => undefined);
-    return { jobId, ingest, extraction, ...judged };
+    return { jobId, ingest, extraction, dishDietary, ...judged };
   } catch (e) {
     const error = toPipelineError(e);
     await finishJob(jobId, error, stage);
@@ -518,6 +537,7 @@ export async function runSourceRetry(
     stage = "extract";
     await setStep(jobId, "extracting new Reviews");
     const extraction = await extractRestaurant(restaurantId, jobId, sleep);
+    const dishDietary = await analyseDishDietary(restaurantId, jobId);
     stage = "judge";
     const judged = await judgeRestaurant(restaurantId, jobId, "owner_answer");
     await db()`update owner_question set status = 'answered', settled_at = now()
@@ -525,7 +545,7 @@ export async function runSourceRetry(
     await finishJob(jobId);
     // TheFork matching finishes first and cannot accept while this Lookup runs: accept its confident candidate now.
     await autoAcceptTheFork(restaurantId).catch(() => undefined);
-    return { jobId, ingest, extraction, ...judged };
+    return { jobId, ingest, extraction, dishDietary, ...judged };
   } catch (error) {
     await finishJob(jobId, toPipelineError(error), stage);
     throw error;
@@ -543,9 +563,10 @@ export async function runRejudge(
   try {
     await setStep(jobId, "extracting new Reviews");
     const extraction = await extractRestaurant(restaurantId, jobId, sleep, undefined, opts.extractWindow);
+    const dishDietary = await analyseDishDietary(restaurantId, jobId, opts.extractWindow);
     const judged = await judgeRestaurant(restaurantId, jobId, opts.cause ?? "automatic");
     await finishJob(jobId);
-    return { jobId, extraction, ...judged };
+    return { jobId, extraction, dishDietary, ...judged };
   } catch (e) {
     await finishJob(jobId, toPipelineError(e));
     throw e;
