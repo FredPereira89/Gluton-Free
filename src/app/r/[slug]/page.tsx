@@ -30,6 +30,7 @@ import { OwnerQuestions, SourceRetryBanners } from "@/web/owner-questions";
 import { ListingUndo } from "@/web/listing-undo";
 import { RestaurantFactsEditor } from "@/web/restaurant-facts";
 import { ChangePoints } from "@/web/change-points";
+import { VerdictFeedback } from "@/web/verdict-feedback";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -236,6 +237,8 @@ export default async function VerdictPageRoute({ params }: Props) {
         {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} owner={!!owner} />)}
         {historyLink}
       </section>
+
+      {role === "invitee" && r.state === "verdict" && <VerdictFeedback restaurantSlug={R.slug} verdictId={v.id} />}
 
       <details className="judged">
         <summary>How we judged this</summary>

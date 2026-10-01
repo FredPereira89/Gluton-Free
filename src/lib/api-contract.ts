@@ -196,6 +196,25 @@ export const verdictResponseSchema = z.strictObject({
   sources: z.array(sourceSchema),
 });
 
+export const verdictFeedbackJudgementSchema = z.enum(["too_high", "about_right", "too_low"]);
+export type VerdictFeedbackJudgement = z.infer<typeof verdictFeedbackJudgementSchema>;
+export const verdictFeedbackSchema = z.strictObject({
+  verdictId: z.number().int().positive().safe(),
+  judgement: verdictFeedbackJudgementSchema,
+  eatenHere: z.boolean().nullable(),
+  note: z.string().nullable(),
+  submittedAt: z.iso.datetime(),
+});
+export type VerdictFeedback = z.infer<typeof verdictFeedbackSchema>;
+export const verdictFeedbackResponseSchema = z.strictObject({ feedback: verdictFeedbackSchema.nullable() });
+export const verdictFeedbackSubmissionSchema = z.strictObject({
+  verdictId: z.number().int().positive().safe(),
+  judgement: verdictFeedbackJudgementSchema,
+  eatenHere: z.boolean().nullable(),
+  note: z.string().trim().max(1000).nullable(),
+});
+export type VerdictFeedbackSubmission = z.infer<typeof verdictFeedbackSubmissionSchema>;
+
 export const paginationQuerySchema = z.strictObject({
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(20),
@@ -472,6 +491,16 @@ export const routes = {
     auth: "invitee",
     request: { params: z.strictObject({ slug: z.string().min(1) }) },
     responses: { 200: z.union([restaurantBundleSchema, inviteeBundleSchema]), 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  verdictFeedback: {
+    method: "GET", path: "/api/v1/restaurants/{slug}/verdict-feedback", auth: "invitee",
+    request: { params: z.strictObject({ slug: z.string().min(1) }) },
+    responses: { 200: verdictFeedbackResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  saveVerdictFeedback: {
+    method: "PUT", path: "/api/v1/restaurants/{slug}/verdict-feedback", auth: "invitee",
+    request: { params: z.strictObject({ slug: z.string().min(1) }), body: verdictFeedbackSubmissionSchema },
+    responses: { 200: verdictFeedbackResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 409: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   updateRestaurantFacts: {
     method: "PATCH",
