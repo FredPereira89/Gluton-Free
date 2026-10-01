@@ -1,8 +1,8 @@
 type SearchInput =
   | { kind: "name"; value: string }
-  | { kind: "place_id"; value: string }
-  | { kind: "cid"; value: string }
-  | { kind: "link_name"; value: string }
+  | { kind: "place_id"; value: string; sourceUrl?: string }
+  | { kind: "cid"; value: string; sourceUrl?: string }
+  | { kind: "link_name"; value: string; sourceCode: "google" | "tripadvisor" | "thefork"; sourceUrl: string; placeRef?: string }
   | { kind: "invalid" };
 
 const googleHost = /^(?:www\.|maps\.)?google\.(?:com|pt|co\.uk|es|fr|de|it)$/;
@@ -18,34 +18,42 @@ function normaliseSlug(value: string): string {
 function fromUrl(url: URL): SearchInput {
   if (url.protocol !== "https:" && url.protocol !== "http:") return { kind: "invalid" };
   const host = url.hostname.toLowerCase();
+  if (host === "maps.app.goo.gl") {
+    return { kind: "link_name", value: "", sourceCode: "google", sourceUrl: url.toString(), placeRef: url.pathname.replace(/^\/+|\/+$/g, "") || undefined };
+  }
   if (googleHost.test(host)) {
     if (url.pathname !== "/" && !url.pathname.startsWith("/maps")) return { kind: "invalid" };
     const cid = url.searchParams.get("cid");
-    if (cid && /^\d+$/.test(cid)) return { kind: "cid", value: cid };
+    if (cid && /^\d+$/.test(cid)) return { kind: "cid", value: cid, sourceUrl: url.toString() };
     const id = url.searchParams.get("query_place_id") ?? url.searchParams.get("place_id")
       ?? url.searchParams.get("q")?.match(/^place_id:([A-Za-z0-9_-]+)$/)?.[1]
       ?? url.pathname.match(/!1s(ChIJ[A-Za-z0-9_-]+|GhIJ[A-Za-z0-9_-]+)/)?.[1];
-    if (id && placeId.test(id)) return { kind: "place_id", value: id };
+    if (id && placeId.test(id)) return { kind: "place_id", value: id, sourceUrl: url.toString() };
     const name = url.searchParams.get("query") ?? url.searchParams.get("q")
       ?? url.pathname.match(/^\/maps\/place\/([^/]+)/)?.[1];
     const value = name ? normaliseSlug(name) : "";
-    return value ? { kind: "link_name", value } : { kind: "invalid" };
+    return value ? { kind: "link_name", value, sourceCode: "google", sourceUrl: url.toString(), placeRef: url.pathname.replace(/^\/+|\/+$/g, "") || undefined } : { kind: "invalid" };
   }
   if (tripadvisorHost.test(host)) {
-    const slug = url.pathname.match(/\/Restaurant_Review-[^/]*-Reviews-(.+)-[^/.-]+\.html$/i)?.[1];
+    const path = url.pathname.match(/\/(Restaurant_Review-[^/]+\.html)$/i)?.[1];
+    const slug = path?.match(/^Restaurant_Review-[^/]*-Reviews-(.+)-[^/.-]+\.html$/i)?.[1];
     const value = slug ? normaliseSlug(slug) : "";
-    return value ? { kind: "link_name", value } : { kind: "invalid" };
+    return path ? { kind: "link_name", value, sourceCode: "tripadvisor", sourceUrl: url.toString(), placeRef: path } : { kind: "invalid" };
   }
   if (theForkHost.test(host)) {
     const path = url.pathname.match(/^\/(?:restaurant|restaurante)\/([^/]+)(?:\/(?:r)?\d+)?(?:\/.*)?$/i);
     const slug = path?.[1]?.replace(/-r\d+$/i, "");
     const value = slug ? normaliseSlug(slug) : "";
-    return value ? { kind: "link_name", value } : { kind: "invalid" };
+    const id = url.pathname.match(/(?:-r|\/)\d+(?:\/|$)/i)?.[0].match(/\d+/)?.[0]
+      ?? path?.[1]?.match(/-r(\d+)$/i)?.[1];
+    return value ? { kind: "link_name", value, sourceCode: "thefork", sourceUrl: url.toString(), placeRef: id } : { kind: "invalid" };
   }
   return { kind: "invalid" };
 }
 
-export async function searchInput(raw: string): Promise<SearchInput> {
+export async function searchInput(raw: string, options: { resolveShortLinks?: boolean } = {}): Promise<SearchInput> {
+  const cid = raw.match(/^cid:(\d+)$/i);
+  if (cid) return { kind: "cid", value: cid[1]! };
   if (/^(?:ChIJ|GhIJ)[A-Za-z0-9_-]{5,}$/.test(raw)) return { kind: "place_id", value: raw };
   if (!/^(?:https?:\/\/|www\.)/i.test(raw) && !/^[^\s/]+\.[a-z]{2,}(?:\/|$)/i.test(raw)) {
     return /^[a-z][a-z0-9+.-]*:/i.test(raw) ? { kind: "invalid" } : { kind: "name", value: raw };
@@ -57,6 +65,7 @@ export async function searchInput(raw: string): Promise<SearchInput> {
     return { kind: "invalid" };
   }
   if (url.hostname.toLowerCase() !== "maps.app.goo.gl") return fromUrl(url);
+  if (!options.resolveShortLinks) return fromUrl(url);
   for (let hops = 0; hops < 5; hops++) {
     if (url.protocol !== "https:" || (url.hostname.toLowerCase() !== "maps.app.goo.gl" && !googleHost.test(url.hostname.toLowerCase()))) return { kind: "invalid" };
     let response: Response;

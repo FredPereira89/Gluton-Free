@@ -183,8 +183,8 @@ export const restaurantListResponseSchema = paginatedSchema(restaurantListItemSc
 export type RestaurantListResponse = z.infer<typeof restaurantListResponseSchema>;
 export const searchQuerySchema = z.strictObject({
   q: z.string().trim().max(2048),
-  near: z.strictObject({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).optional(),
 });
+export const searchAddBodySchema = z.strictObject({ q: z.string().trim().min(1).max(2048) });
 const searchRestaurantSchema = z.strictObject({
   name: z.string(), address: z.string().nullable(), distanceMeters: z.number().int().nonnegative().nullable(),
   stars: z.number().nullable(), reviewCount: z.number().int().nonnegative().nullable(), category: z.string().nullable(),
@@ -330,8 +330,13 @@ export const routes = {
   search: {
     method: "GET",
     path: "/api/v1/search",
-    auth: "owner",
-    request: { query: z.strictObject({ q: z.string().max(2048), near: z.string().optional() }) },
+    auth: "invitee",
+    request: { query: searchQuerySchema },
+    responses: { 200: searchResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  searchAdd: {
+    method: "POST", path: "/api/v1/search/add", auth: "owner",
+    request: { body: searchAddBodySchema },
     responses: { 200: searchResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 429: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   verdict: {

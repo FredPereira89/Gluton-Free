@@ -2,7 +2,7 @@ import { apiJsonResponse, previewLookupBodySchema, routes } from "@/lib/api-cont
 import { googleBusinessByReference, postTripadvisorSearch, type GoogleBusinessReference } from "@/ingest/dataforseo";
 import { ApiError, parseApiRequest, requireOwnerApi, withApiErrors } from "@/lib/problem";
 import { recordSearchCost, spendCapStatus } from "@/lib/spend-cap";
-import { LISBON } from "../../search/route";
+import { LISBON } from "../../search/shared";
 import { searchInput } from "../../search/input";
 import { estimateLookup, pollTripadvisorSearch, predictNotEnoughEvidence, proposeGoogleListing, proposeTripadvisorListings } from "./preview";
 
