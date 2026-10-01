@@ -171,6 +171,7 @@ function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20):
     restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, address: "Rua do Sample 1", format: "tasca", priceTier: "€€" },
     verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: null, blocks: { rollup: r, quotes: [] } },
+    reportFacts: { standoutDishes: [], dietaryFits: [] },
     sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
       rating: 4.9, reviewCount: 20, textCount: 20, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
     distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [], unavailableSources: [],
@@ -196,6 +197,7 @@ function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBund
     restaurant: { id: 1, slug: "sample", name: "Sample Restaurant", city: "Lisbon", area: null, address: "Rua do Sample 1", format: "tasca", priceTier: "€€" },
     verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: r.peerSnapshot?.id ?? null, blocks: { rollup: r, quotes: [] } },
+    reportFacts: { standoutDishes: [], dietaryFits: [] },
     sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
       rating: 4.9, reviewCount, textCount: reviewCount, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
     distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [], unavailableSources: [],
@@ -419,6 +421,26 @@ describe("Decision-first report (issue #112)", () => {
       expect(html, role).toContain("Book on TheFork");
       expect(html, role).toContain("See how this verdict has changed");
     }
+  });
+
+  it("shows rule-backed standout dishes with counts and dietary fit to the Owner and Invitee, and hides empty facts", async () => {
+    const page = bundleWithPeers(40, 40);
+    page.reportFacts = {
+      standoutDishes: [{ name: "Bacalhau à Brás", count: 5 }, { name: "Pastel de nata", count: 3 }],
+      dietaryFits: ["vegan", "gluten_free"],
+    };
+    for (const role of ["owner", "invitee"] as const) {
+      const html = await render(role, page);
+      expect(html, role).toContain("Standout dishes");
+      expect(html, role).toContain("Bacalhau à Brás");
+      expect(html, role).toContain("5 reviews");
+      expect(html, role).toContain("Dietary fit");
+      expect(html, role).toContain("Vegan options");
+      expect(html, role).toContain("Gluten-free options");
+    }
+    const empty = await render("invitee", { ...bundle(0), reportFacts: { standoutDishes: [], dietaryFits: [] } });
+    expect(empty).not.toContain("Standout dishes");
+    expect(empty).not.toContain("Dietary fit");
   });
 
   it("lists the top 3 strengths and warnings with how many reviewers raise them", async () => {

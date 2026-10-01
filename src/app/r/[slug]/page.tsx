@@ -16,7 +16,7 @@ import { type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
 import { trendOf } from "@/verdict/trend";
 import { ConfChip, dateLabel, Explanation, monthLabel, TierBadge, TrendChip } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
-import type { InviteeBundle, RestaurantBundle } from "@/lib/api-contract";
+import type { InviteeBundle, ReportFacts as ReportFactsData, RestaurantBundle } from "@/lib/api-contract";
 import { projectInviteeBundle } from "@/lib/invitee-projection";
 import { pageRole } from "@/lib/page-role";
 import { InviteeView } from "@/web/invitee-view";
@@ -112,6 +112,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           {head}
           {activity}
           <div className="chips">{baseChips}</div>
+          <ReportFacts facts={page.reportFacts} />
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
         {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
@@ -165,6 +166,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             <span className="nee">Not enough evidence</span>
           </div>
           <div className="chips">{baseChips}</div>
+          <ReportFacts facts={page.reportFacts} />
           {notices}
           {nee.reasonLine && !changePointNotice(r) && <p className="explain">{nee.reasonLine}</p>}
           <div>
@@ -230,6 +232,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <ConfChip level={r.confidence.level} />
           <TrendChip trend={r.provisional ? null : trendOf(r.series, r.confidence.level, new Date())} />
         </div>
+        <ReportFacts facts={page.reportFacts} />
         {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} owner={!!owner} />)}
         {historyLink}
       </section>
@@ -298,6 +301,37 @@ export default async function VerdictPageRoute({ params }: Props) {
 
       {ownerSections}
     </div>
+  );
+}
+
+const DIET_LABEL: Record<ReportFactsData["dietaryFits"][number], string> = {
+  vegetarian: "Vegetarian options",
+  vegan: "Vegan options",
+  gluten_free: "Gluten-free options",
+};
+
+function ReportFacts({ facts }: { facts: ReportFactsData }) {
+  if (!facts.standoutDishes.length && !facts.dietaryFits.length) return null;
+  return (
+    <section className="report-facts" aria-label="Standout dishes and dietary fit">
+      {facts.standoutDishes.length > 0 && (
+        <div>
+          <h2>Standout dishes</h2>
+          <ul>{facts.standoutDishes.map((dish) => (
+            <li key={dish.name}>
+              <span>{dish.name}</span>
+              <span className="small muted">{dish.count} {dish.count === 1 ? "review" : "reviews"}</span>
+            </li>
+          ))}</ul>
+        </div>
+      )}
+      {facts.dietaryFits.length > 0 && (
+        <div>
+          <h2>Dietary fit</h2>
+          <ul>{facts.dietaryFits.map((diet) => <li key={diet}>{DIET_LABEL[diet]}</li>)}</ul>
+        </div>
+      )}
+    </section>
   );
 }
 

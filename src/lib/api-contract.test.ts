@@ -24,6 +24,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const fixture: VerdictPage = {
   restaurant: { id: 1, slug: "o-velho-eurico", name: "O Velho Eurico", city: "Lisbon", area: "Mouraria", format: "tasca", formatProvenance: "owner", priceTier: null },
+  reportFacts: { standoutDishes: [], dietaryFits: [] },
   sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", url: "https://maps.google.com/", rating: 4.5, reviewCount: 5, textCount: 2, newestAt: null, fetchStatus: "ok" }],
   verdict: {
     id: 1, state: "not_enough_evidence", tier: null, confidence: "low", explanation: "More Reviews needed.",
@@ -36,6 +37,7 @@ const fixture: VerdictPage = {
 
 const bundleFixture: RestaurantBundle = {
   restaurant: fixture.restaurant as RestaurantBundle["restaurant"],
+  reportFacts: { standoutDishes: [{ name: "Bacalhau à Brás", count: 3 }], dietaryFits: ["vegan"] },
   verdict: {
     id: 1, state: "not_enough_evidence", tier: null, confidence: "low", explanation: "More Reviews needed.",
     issuedAt: "2026-09-24T12:00:00.000Z", provisional: true, blocks: fixture.verdict!.blocks,
@@ -222,6 +224,7 @@ describe("handler responses", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-cache");
     const body = routes.restaurantBundle.responses[200].parse(await response.json()) as RestaurantBundle;
     expect(body.restaurant.name).toBe("O Velho Eurico");
+    expect(body.reportFacts).toEqual(bundleFixture.reportFacts);
     expect(body.sources[0]).toMatchObject({ reviewCount: 5, textCount: 2, rating: 4.5 });
     expect(body.verdict?.blocks.rollup.state).toBe("not_enough_evidence");
     expect(() => routes.restaurantBundle.responses[200].parse({ ...body, reviewerName: "someone" })).toThrow();
@@ -252,6 +255,7 @@ describe("handler responses", () => {
     for (const key of ["sources", "ownerQuestions", "activeJob", "unavailableSources"]) expect(body, key).not.toHaveProperty(key);
     expect(body.restaurant).not.toHaveProperty("formatProvenance");
     expect(body.restaurant.name).toBe("O Velho Eurico");
+    expect(body.reportFacts).toEqual(bundleFixture.reportFacts);
     expect(vi.mocked(requireCaller).mock.calls.at(-1)![1]).toBe("invitee");
   });
 

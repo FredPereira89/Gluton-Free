@@ -24,6 +24,7 @@ const incident = (reviewId: number, evidence: string, sourceCode: string) => ({
 function ownerBundle(): RestaurantBundle {
   return {
     restaurant: { id: 1, slug: "o-velho-eurico", name: "O Velho Eurico", city: "Lisbon", area: "Mouraria", format: "tasca", formatProvenance: "llm", priceTier: "€€" },
+    reportFacts: { standoutDishes: [{ name: "Bacalhau à Brás", count: 3 }], dietaryFits: ["vegetarian"] },
     verdict: {
       id: 7, state: "verdict", tier: "good", confidence: "medium", explanation: "Reads well.", issuedAt: "2026-09-24T12:00:00.000Z", provisional: true,
       blocks: {
@@ -94,6 +95,7 @@ describe("projectInviteeBundle", () => {
     expect(projected.critics).toEqual(bundle.critics);
     expect(projected.series).toEqual(bundle.series);
     expect(projected.changePoints).toEqual(bundle.changePoints);
+    expect(projected.reportFacts).toEqual(bundle.reportFacts);
   });
 
   it("projects a Restaurant with no Verdict yet", () => {

@@ -6,7 +6,7 @@ import fixture from "./fixtures/lookup.json";
 import { fakePushSends, fakeSendPush } from "./push-fake";
 import {
   APIFY_FAKE_FAILED_COST_USD, APIFY_FAKE_REVIEWS_COST_USD, APIFY_FAKE_REVIEW_ROWS_COST_USD, APIFY_FAKE_SEARCH_COST_USD, apifyFakeState,
-  fakeAnthropic, fakeChangeMarker, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState,
+  fakeAnthropic, fakeChangeMarker, fakeDishDietaryState, fakeRestaurantFacts, fakeVendorCalls, fakeVendorFetch, sourceFetchFailureState, vendorFailureState,
 } from "./vendor-fakes";
 
 vi.mock("@/lib/push-send", () => ({ sendPush: (...args: Parameters<typeof fakeSendPush>) => fakeSendPush(...args) }));
@@ -176,26 +176,41 @@ describe("Lookup pipeline", () => {
       where l.restaurant_id = ${restaurantId}
       order by r.source_review_id`;
     const analyses = await database`select a.review_id, a.change from review_analysis a join review r on r.id = a.review_id join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurantId}`;
+    const dishDietaryRows = await database`select review_id, pass_version, standout_dishes, dietary_praise from review_dish_dietary f join review r on r.id = f.review_id join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurantId}`;
     const [verdict] = await database`select state, tier, provisional, job_id from verdict where restaurant_id = ${restaurantId}`;
     const [job] = await database`select status, vendor_cost_usd, llm_usage from job where id = ${result.jobId}`;
+    const { DISH_DIETARY_VERSION } = await import("@/analysis/dish-dietary");
 
     expect(reviews).toHaveLength(16);
     expect(reviews.every((review) => String(review.source_review_id).startsWith("invented-") && typeof review.text === "string")).toBe(true);
     expect(analyses).toHaveLength(16);
     expect(analyses.every((analysis) => analysis.change === "new_owner")).toBe(true);
+    expect(dishDietaryRows).toHaveLength(16);
+    expect(dishDietaryRows.every((row) => row.pass_version === DISH_DIETARY_VERSION)).toBe(true);
+    expect(dishDietaryRows.every((row) => row.standout_dishes)).toBe(true);
+    expect(dishDietaryRows.every((row) => row.dietary_praise.length === 1 && row.dietary_praise[0] === "vegetarian")).toBe(true);
     expect(verdict).toMatchObject({ state: "verdict", provisional: true, job_id: String(result.jobId) });
     expect(verdict!.tier).not.toBeNull();
     expect(job!.status).toBe("succeeded");
     expect(Number(job!.vendor_cost_usd)).toBe(0.04);
     expect((job!.llm_usage as { purpose: string; cost_usd: number }[]).some((entry) => entry.purpose === "extract" && entry.cost_usd > 0)).toBe(true);
+    expect((job!.llm_usage as { purpose: string; cost_usd: number }[]).some((entry) => entry.purpose === "dish-dietary" && entry.cost_usd > 0)).toBe(true);
 
-    const [first] = await database`select explanation, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
-    const parse = vi.spyOn(fakeAnthropic.messages, "parse");
+    // Display-only facts must not affect the immutable Verdict inputs or its Tier.
+    const [initialTier] = await database`select tier, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    for (const row of dishDietaryRows) {
+      await database`update review_dish_dietary set standout_dishes = '["A different standout"]'::jsonb, dietary_praise = '{vegan}' where review_id = ${Number(row.review_id)}`;
+    }
     const { issueVerdict } = await import("@/verdict/issue");
     const { emptyUsage, JUDGE_MODEL } = await import("@/analysis/llm");
     await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
+    const [afterDisplayChange] = await database`select tier, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
+    expect(afterDisplayChange).toEqual(initialTier);
+
+    const parse = vi.spyOn(fakeAnthropic.messages, "parse");
+    await issueVerdict(restaurantId, null, emptyUsage("explain", JUDGE_MODEL, false), "automatic");
     const [second] = await database`select explanation, inputs_hash from verdict where restaurant_id = ${restaurantId} order by id desc limit 1`;
-    expect(second).toMatchObject(first!);
+    expect(second!.inputs_hash).toBe(initialTier!.inputs_hash);
     expect(parse).not.toHaveBeenCalled();
 
     const [review] = await database`select r.id from review r join listing l on l.id = r.listing_id where l.restaurant_id = ${restaurantId} order by r.id limit 1`;
@@ -1668,6 +1683,9 @@ describe("Monthly refresh (issue #72)", () => {
           values (${review!.id}, ${EXTRACTOR_VERSION}, null, 1, 'none')`;
       }
     }
+    await database`delete from review_dish_dietary where review_id in (
+      select r.id from review r where r.listing_id = ${listing!.id}
+    )`;
 
     const [lookupJob] = await database`
       insert into job (kind, restaurant_id, status) values ('lookup', ${restaurantId}, 'succeeded') returning id`;
@@ -1720,11 +1738,13 @@ describe("Monthly refresh (issue #72)", () => {
     expect(posted).toHaveLength(1);
     expect(posted[0]).toMatchObject({ depth: 10, priority: 1, sort_by: "newest" });
     const newRows = await database`
-      select r.source_review_id, a.review_id as analysed
+      select r.source_review_id, a.review_id as analysed, d.pass_version as dish_dietary_version
       from review r left join review_analysis a on a.review_id = r.id
+      left join review_dish_dietary d on d.review_id = r.id
       where r.listing_id = ${listing!.id} and r.source_review_id like 'invented-refresh-new-%'`;
     expect(newRows).toHaveLength(8);
     expect(newRows.every((row) => row.analysed !== null)).toBe(true);
+    expect(newRows.every((row) => row.dish_dietary_version !== null)).toBe(true);
     const [beforeCursor] = await database`
       select id from review where listing_id = ${listing!.id} and source_review_id = 'invented-refresh-before-cursor'`;
     expect(beforeCursor).toBeUndefined();
@@ -1741,6 +1761,7 @@ describe("Monthly refresh (issue #72)", () => {
     expect(after!.state).toBe("verdict");
     expect(Number(after!.vendor_cost_usd)).toBeGreaterThan(0);
     expect(after!.llm_usage).toContainEqual(expect.objectContaining({ purpose: "extract", batch: true, requests: 1 }));
+    expect(after!.llm_usage).toContainEqual(expect.objectContaining({ purpose: "dish-dietary", requests: 1 }));
     expect(after!.progress).toMatchObject({ newReviews: 8 });
   }, 30_000);
 });

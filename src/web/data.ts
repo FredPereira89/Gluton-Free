@@ -2,14 +2,17 @@
 import { db } from "@/lib/db";
 import {
   MAX_BIGINT_ID, restaurantBundleSchema,
-  type IdPagination, type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
+  type IdPagination, type ReportFacts, type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
 } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
-import { quarterlySourceHistory } from "@/verdict/rollup";
+import { PARAMS, quarterlySourceHistory, reviewWindowCutoff } from "@/verdict/rollup";
 import { trendOf } from "@/verdict/trend";
 import type { DirectoryQuery, DirectoryResponse, SearchResponse } from "@/lib/api-contract";
 import { buildDirectory } from "@/lib/directory";
 import { bookingLink, type BookingLink } from "@/domain/booking-link";
+import { dietaryFits, standoutDishes, type DietaryReview, type StandoutDishReview } from "@/domain/dish-dietary";
+import { DISH_DIETARY_VERSION } from "@/analysis/dish-dietary";
+import { EXTRACTOR_VERSION } from "@/analysis/extract";
 import { formatQuestionPayloadSchema, formatQuestionPrompt, questionCandidates, questionPrompt } from "@/lib/owner-question";
 import type { ListingSource } from "@/lib/listing-source";
 import { CHANGE_POINT_LABEL, type ChangePointKind } from "@/domain/aspects";
@@ -124,6 +127,7 @@ export type SourceRow = {
 export type VerdictPage = {
   restaurant: { id: number; slug: string; name: string; city: string; area: string | null; address?: string | null; format: string; formatProvenance: "llm" | "owner" | "baseline_auto"; priceTier: string | null; booking?: BookingLink };
   sources: SourceRow[];
+  reportFacts: ReportFacts;
   verdict: { id: number; state: string; tier: string | null; confidence: string | null; explanation: string | null; createdAt: Date; blocks: Blocks; peerSnapshotId?: number | null } | null;
   distinctions: { id: number; guide: string; level: string; editionYear: number | null; url: string }[];
   critics: { id: number; publication: string; title: string; url: string; publishedOn: string | null; language: string | null; printedRating: string | null }[];
@@ -137,7 +141,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
   const [listings, [v], distinctions, critics] = await Promise.all([
     sql`
       select s.code, s.name, s.kind, s.access, l.url, l.place_ref, l.source_rating, l.source_review_count,
-             l.source_text_count, l.newest_review_at, l.fetch_status
+             l.source_text_count, l.newest_review_at, l.fetch_status, l.categories
       from listing l join source s on s.code = l.source_code
       where l.restaurant_id = ${id} order by s.name`,
     sql`
@@ -149,6 +153,44 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
       from critic_piece where restaurant_id = ${id} order by published_on desc nulls last, id`,
   ]);
   const blocks = v ? BlocksSchema.parse(v.blocks) : null;
+  const asOf = v?.created_at instanceof Date ? v.created_at : v?.created_at ? new Date(String(v.created_at)) : new Date();
+  let changePointAt = blocks?.rollup.changePointAt ? new Date(blocks.rollup.changePointAt) : null;
+  if (!v) {
+    const [changePoint] = await sql`
+      select date from change_point where restaurant_id = ${id} and deleted_at is null and date <= ${asOf}
+      order by date desc, id desc limit 1`;
+    changePointAt = changePoint?.date ? new Date(changePoint.date as string) : null;
+  }
+  const windowSince = reviewWindowCutoff(asOf, changePointAt);
+  const factRows = await sql`
+    with windowed as (
+      select r.id, l.source_code,
+        row_number() over (partition by l.source_code order by r.published_at desc, r.id desc) as source_rank
+      from review r
+      join listing l on l.id = r.listing_id
+      join source s on s.code = l.source_code and s.kind = 'crowd'
+      where l.restaurant_id = ${id} and r.text is not null
+        and r.published_at >= ${windowSince} and r.published_at <= ${asOf}
+        and r.fetched_at <= ${asOf}
+    )
+    select w.id, f.standout_dishes, f.dietary_praise, f.dietary_complaints
+    from windowed w
+    join review_analysis a on a.review_id = w.id and a.extractor_version = ${EXTRACTOR_VERSION}
+    join review_dish_dietary f on f.review_id = w.id and f.pass_version = ${DISH_DIETARY_VERSION}
+    where w.source_rank <= ${PARAMS.reviewWindowCap}`;
+  const dishReviews: StandoutDishReview[] = factRows.map((row) => ({
+    reviewId: Number(row.id), dishes: row.standout_dishes as string[],
+  }));
+  const dietReviews: DietaryReview[] = factRows.map((row) => ({
+    reviewId: Number(row.id),
+    praise: row.dietary_praise as DietaryReview["praise"],
+    complaints: row.dietary_complaints as DietaryReview["complaints"],
+  }));
+  const categories = listings.flatMap((listing) => listing.categories as string[] | null ?? []);
+  const reportFacts: ReportFacts = {
+    standoutDishes: standoutDishes(dishReviews),
+    dietaryFits: dietaryFits(dietReviews, categories),
+  };
   if (blocks) {
     const accessBySource = new Map(listings.map((listing) => [listing.code as string, listing.access as "public_ok" | "personal_only"]));
     for (const quote of blocks.quotes) quote.access = accessBySource.get(quote.source) ?? quote.access;
@@ -195,6 +237,7 @@ export async function loadVerdictPage(slug: string): Promise<VerdictPage | null>
         theForkUrl: listings.find((l) => l.code === "thefork")?.url ?? null,
       }),
     },
+    reportFacts,
     sources: listings.map((l) => ({
       code: l.code,
       name: l.name,
@@ -253,6 +296,7 @@ export async function loadRestaurantBundle(slug: string): Promise<RestaurantBund
   const matchProvenanceBySource = new Map(listingProvenance.map((listing) => [listing.source_code as string, listing.match_provenance as string]));
   return restaurantBundleSchema.parse({
     restaurant: page.restaurant,
+    reportFacts: page.reportFacts,
     verdict: page.verdict && {
       id: page.verdict.id,
       state: page.verdict.state,

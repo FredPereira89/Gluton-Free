@@ -6,7 +6,7 @@ import { PipelineError, toPipelineError } from "@/lib/pipeline-error";
 import { sendPush } from "@/lib/push-send";
 import { PARAMS, reviewWindowCutoff } from "@/verdict/rollup";
 import { runPeerSnapshotPublish } from "./snapshot-publish";
-import { extractRestaurant, ingestRefreshRestaurant, judgeRestaurant, type Sleep } from "./lookup";
+import { analyseDishDietary, extractRestaurant, ingestRefreshRestaurant, judgeRestaurant, type Sleep } from "./lookup";
 
 async function newestChangePointAt(restaurantId: number): Promise<Date | null> {
   const [row] = await db()`
@@ -42,10 +42,11 @@ export async function runRestaurantRefresh(
 
     stage = "extract";
     const extraction = await extractRestaurant(restaurantId, jobId, sleep, undefined, window, true);
+    const dishDietary = await analyseDishDietary(restaurantId, jobId, window);
     stage = "judge";
     const judged = await judgeRestaurant(restaurantId, jobId, "automatic");
     if (!opts.deferFinish) await finishJob(jobId);
-    return { jobId, fetched, extraction, ...judged };
+    return { jobId, fetched, extraction, dishDietary, ...judged };
   } catch (error) {
     await finishJob(jobId, toPipelineError(error), stage);
     throw error;

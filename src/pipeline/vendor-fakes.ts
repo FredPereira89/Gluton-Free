@@ -5,6 +5,12 @@ const sources = { google: fixture.googleReviews, tripadvisor: fixture.tripadviso
 export const fakeRestaurantFacts = { googleCategoryDisagrees: false };
 export const fakeChangeMarker = { value: "none" };
 export const fakeVendorCalls = { reviewPosts: 0 };
+export const fakeDishDietaryState = {
+  calls: 0,
+  dishes: ["Roasted vegetables"],
+  praise: ["vegetarian"],
+  complaints: [] as string[],
+};
 type FakeBatchRequest = { custom_id: string; params: { messages: { content: string }[] } };
 const fakeBatches = new Map<string, FakeBatchRequest[]>();
 let fakeBatchSequence = 0;
@@ -142,7 +148,20 @@ export function fakeVendorFetch(input: RequestInfo | URL, init?: RequestInit): P
 
 export const fakeAnthropic = {
   messages: {
-    create: async (params: { messages: { content: string }[] }) => {
+    create: async (params: { system?: string; messages: { content: string }[] }) => {
+      if (params.system?.includes("display-only food facts")) {
+        fakeDishDietaryState.calls++;
+        const input = JSON.parse(params.messages[0]!.content) as { reviews: { i: number }[] };
+        return {
+          usage,
+          content: [{ type: "text", text: JSON.stringify({ reviews: input.reviews.map(({ i }) => ({
+            i,
+            dishes: fakeDishDietaryState.dishes,
+            praise: fakeDishDietaryState.praise,
+            complaints: fakeDishDietaryState.complaints,
+          })) }) }],
+        };
+      }
       if (params.messages[0]!.content.includes("<review>")) return {
         usage,
         content: [{ type: "text", text: JSON.stringify({ format: "tasca", reviewPriceTier: "€", googleCategoryDisagrees: fakeRestaurantFacts.googleCategoryDisagrees }) }],
