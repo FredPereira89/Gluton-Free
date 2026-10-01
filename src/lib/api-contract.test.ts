@@ -13,6 +13,7 @@ import { loadRestaurantBundle, loadVerdictPage, type VerdictPage } from "@/web/d
 import { acceptedJobResponse, acceptedJobSchema, type AuthLevel, paginatedSchema, parsePagination, routes, type RestaurantBundle } from "./api-contract";
 import { AuthError, requireCaller } from "./auth";
 import { problemSchema } from "./problem";
+import { requiredAuthLevel } from "./route-auth";
 
 vi.mock("@/web/data", () => ({ loadVerdictPage: vi.fn(), loadRestaurantBundle: vi.fn() }));
 vi.mock("./auth", async (importOriginal) => ({
@@ -50,7 +51,13 @@ describe("API registry and OpenAPI", () => {
   it("declares an auth level for every route; owner is the default unless a ticket opens a route to Invitees", () => {
     for (const route of Object.values(routes)) expect(["none", "owner", "invitee"], route.path).toContain(route.auth);
     expect(Object.values(routes).filter((route) => route.auth === "none").map((route) => route.path)).toEqual(["/api/v1/health"]);
-    expect(Object.values(routes).filter((route) => (route.auth as AuthLevel) === "invitee").map((route) => route.path)).toEqual(["/api/v1/restaurants", "/api/v1/directory", "/api/v1/search", "/api/v1/restaurants/{slug}", "/api/v1/restaurants/{slug}/verdicts"]);
+    expect(Object.values(routes).filter((route) => (route.auth as AuthLevel) === "invitee").map((route) => route.path)).toEqual([
+      "/api/v1/restaurants", "/api/v1/directory", "/api/v1/search", "/api/v1/restaurants/{slug}",
+      "/api/v1/restaurants/{slug}/verdict-feedback", "/api/v1/restaurants/{slug}/verdict-feedback", "/api/v1/restaurants/{slug}/verdicts",
+    ]);
+    expect(requiredAuthLevel("GET", "/feedback")).toBe("owner");
+    expect(requiredAuthLevel("GET", "/api/v1/restaurants/o-velho-eurico/verdict-feedback")).toBe("invitee");
+    expect(requiredAuthLevel("PUT", "/api/v1/restaurants/o-velho-eurico/verdict-feedback")).toBe("invitee");
   });
 
   it("registers every /api/v1 handler method", () => {
@@ -84,6 +91,9 @@ describe("API registry and OpenAPI", () => {
     const document = await response.json();
     expect(document).toEqual(JSON.parse(readFileSync(new URL("../../openapi.json", import.meta.url), "utf8")));
     expect(document.openapi).toBe("3.1.0");
+    const feedbackOperations = document.paths["/api/v1/restaurants/{slug}/verdict-feedback"];
+    expect(feedbackOperations.get.security).toEqual([{ inviteeBearer: [] }, { inviteeSession: [] }]);
+    expect(feedbackOperations.put.security).toEqual([{ inviteeBearer: [] }, { inviteeSession: [] }]);
   });
 
   it("excludes forbidden response field names throughout openapi.json", () => {

@@ -50,8 +50,10 @@ export function createOpenApiDocument() {
       required: true,
       content: { "application/json": { schema: jsonSchema(request.body) } },
     };
-    if (route.auth !== "none") {
+    if (route.auth === "owner") {
       operation.security = [{ ownerBearer: [] }, { ownerSession: [] }];
+    } else if (route.auth === "invitee") {
+      operation.security = [{ inviteeBearer: [] }, { inviteeSession: [] }];
     }
     (paths[route.path] ??= {})[route.method.toLowerCase()] = operation;
   }
@@ -64,6 +66,8 @@ export function createOpenApiDocument() {
       securitySchemes: {
         ownerBearer: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
         ownerSession: { type: "apiKey", in: "header", name: "Cookie", description: "Owner's project-specific Supabase web session cookies" },
+        inviteeBearer: { type: "http", scheme: "bearer", bearerFormat: "JWT", description: "An active Invitee's Supabase Auth access token" },
+        inviteeSession: { type: "apiKey", in: "header", name: "Cookie", description: "An active Invitee's Supabase Auth web session cookies" },
       },
       schemas: {
         Problem: jsonSchema(problemSchema),
