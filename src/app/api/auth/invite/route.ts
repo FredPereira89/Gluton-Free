@@ -5,7 +5,8 @@ import { inviteLinkIsOpen } from "@/lib/invite";
 
 // Public: a person holding an Invite link asks for a magic link. A dead link (revoked, exhausted,
 // unknown) sends nothing, so no account is created. The Invitee is only recorded, and the use
-// counted, when the emailed link is confirmed (see ../confirm).
+// counted, when the emailed link is confirmed (see ../confirm). The token rides in the new account's
+// metadata, not in a redirect URL, so the email link needs nothing but the one-time token.
 export async function POST(request: Request) {
   if (isCrossSite(request)) return new Response("Cross-site request refused", { status: 403 });
   const form = await request.formData();
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const supabase = createAuthRouteClient(request, (set) => cookies.push(...set));
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true, emailRedirectTo: `${new URL(request.url).origin}/auth/confirm?invite=${token}` },
+    options: { shouldCreateUser: true, data: { invite: token } },
   });
   if (error) {
     console.error(`invite magic link failed: ${error.message}`);

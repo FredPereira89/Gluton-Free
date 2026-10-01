@@ -47,13 +47,13 @@ const location = (response: Response) => new URL(response.headers.get("location"
 const where = (response: Response) => { const url = location(response); return `${url.pathname}${url.search}`; };
 
 describe("POST /api/auth/invite (redeeming an Invite link)", () => {
-  it("sends a magic link that returns through the callback with the link's token", async () => {
+  it("sends a magic link and remembers the link's token in the new account's metadata", async () => {
     const response = await redeem(form("/api/auth/invite", { token: TOKEN, email: "ana@example.test" }));
     expect(response.status).toBe(303);
     expect(where(response)).toBe(`/invite/${TOKEN}?sent=1`);
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       email: "ana@example.test",
-      options: { shouldCreateUser: true, emailRedirectTo: `https://app.example/auth/confirm?invite=${TOKEN}` },
+      options: { shouldCreateUser: true, data: { invite: TOKEN } },
     });
     expect((response as import("next/server").NextResponse).cookies.get("sb-pkce")?.value).toBe("verifier");
   });
@@ -100,11 +100,11 @@ describe("public auth POSTs refuse another site", () => {
 
 describe("POST /api/auth/magic-link (an Invitee signing in again)", () => {
   it("sends a link to a recorded Invitee without ever creating an account", async () => {
-    const response = await magicLink(form("/api/auth/magic-link", { email: "ana@example.test", next: "/settings" }));
+    const response = await magicLink(form("/api/auth/magic-link", { email: "ana@example.test" }));
     expect(where(response)).toBe("/sign-in?sent=1");
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       email: "ana@example.test",
-      options: { shouldCreateUser: false, emailRedirectTo: "https://app.example/auth/confirm?next=%2Fsettings" },
+      options: { shouldCreateUser: false },
     });
   });
 
@@ -201,6 +201,12 @@ describe("POST /api/auth/confirm (the Continue button on the emailed link)", () 
     expect(joinWithInvite).toHaveBeenCalledWith({ userId: USER_ID, email: "ana@example.test", token: TOKEN });
     expect(where(response)).toBe("/welcome");
     expect((response as import("next/server").NextResponse).cookies.get("sb-pkce")?.value).toBe("verifier");
+  });
+
+  it("joins through the link remembered in the account when the email link carries none (any device)", async () => {
+    auth.verifyOtp.mockResolvedValue({ data: { user: { id: USER_ID, email: "ana@example.test", user_metadata: { invite: TOKEN } } }, error: null });
+    expect(where(await press({ token_hash: "hash" }))).toBe("/welcome");
+    expect(joinWithInvite).toHaveBeenCalledWith({ userId: USER_ID, email: "ana@example.test", token: TOKEN });
   });
 
   it("also accepts the code of Supabase's default link", async () => {

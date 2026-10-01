@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const tokenHash = String(form.get("token_hash") ?? "");
   const code = String(form.get("code") ?? "");
-  const invite = String(form.get("invite") ?? "") || null;
+  const formInvite = String(form.get("invite") ?? "") || null;
   const next = safeNext(String(form.get("next") ?? "/"));
   const cookies: CookieToSet[] = [];
   const go = (path: string) => redirectWithCookies(request, path, cookies);
@@ -25,5 +25,8 @@ export async function POST(request: Request) {
     console.error(`auth confirm failed: ${error?.message ?? "no user"}`);
     return go("/sign-in?error=link_expired");
   }
+  // The Invite link rides in the metadata set when the account was created for it (works on any device).
+  const meta = user.user_metadata?.invite;
+  const invite = formInvite ?? (typeof meta === "string" ? meta : null);
   return go(await admitSignedIn(supabase, user, invite, next));
 }
