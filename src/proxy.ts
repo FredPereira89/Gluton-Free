@@ -33,5 +33,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|sign-in|invite/|auth/confirm|api/auth/sign-in|api/auth/invite|api/auth/magic-link|api/auth/callback|api/auth/confirm|api/v1/health|openapi.json).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sign-in|welcome|invite/|auth/confirm|api/auth/sign-in|api/auth/invite|api/auth/magic-link|api/auth/callback|api/auth/confirm|api/v1/health|openapi.json).*)"],
 };
