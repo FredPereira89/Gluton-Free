@@ -193,7 +193,15 @@ Do not mention Distinctions, critics, or star averages from Sources.
     const res = await anthropic().messages.parse(attempt === 0 ? request : {
       ...request,
       messages: [...request.messages, { role: "user" as const, content: "The previous explanation missed a required computed fact. Regenerate it with the exact bold Tier (or Not enough evidence and its missed bar), the deciding input or floor, the comparison level from the facts, every Red flag group with its exact count and newest month, Confidence, and whether it is provisional. Use only the facts above." }],
+    }).catch((error: unknown) => {
+      // Truncated structured output is unusable; the computed template states the same facts.
+      if (error instanceof Error && error.message.startsWith("Failed to parse structured output")) return null;
+      throw error;
     });
+    if (!res) {
+      explanation = templateExplanation(args.formatName, r);
+      break;
+    }
     addUsage(usage, res.usage);
     out = res.parsed_output;
     if (!out) throw new Error(`explanation: no parsed output (stop_reason ${res.stop_reason})`);
