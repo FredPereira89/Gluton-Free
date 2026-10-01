@@ -1,10 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import VerdictHistoryPage from "./page";
+import { pageRole } from "@/lib/page-role";
 import { loadVerdictHistory } from "@/web/data";
 
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/web/data", () => ({ loadVerdictHistory: vi.fn() }));
+vi.mock("@/lib/page-role", () => ({ pageRole: vi.fn().mockResolvedValue("owner") }));
 
 describe("Verdict history screen", () => {
   it("lists each Verdict with its date, Tier, Confidence, provisional flag and Peer snapshot", async () => {
@@ -33,5 +35,14 @@ describe("Verdict history screen", () => {
     expect(html).toContain("Provisional");
     expect(html).toContain('href="/r/o-velho-eurico/history?cursor=4&amp;limit=2"');
     expect(loadVerdictHistory).toHaveBeenCalledWith("o-velho-eurico", { cursor: undefined, limit: 2 });
+  });
+
+  it("marks the page for an Invitee so the shell hides Settings, and leaves the Owner's page unmarked (issue #109)", async () => {
+    const history = { restaurant: { slug: "o-velho-eurico", name: "O Velho Eurico" }, items: [], nextCursor: null };
+    const render = async () => renderToStaticMarkup(await VerdictHistoryPage({ params: Promise.resolve({ slug: "o-velho-eurico" }), searchParams: Promise.resolve({}) }));
+    vi.mocked(loadVerdictHistory).mockResolvedValue(history);
+    vi.mocked(pageRole).mockResolvedValueOnce("invitee");
+    expect(await render()).toContain("invitee-view");
+    expect(await render()).not.toContain("invitee-view");
   });
 });

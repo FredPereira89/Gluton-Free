@@ -1,10 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import RestaurantListPage from "./page";
+import { pageRole } from "@/lib/page-role";
 import { listRestaurants } from "@/web/data";
 
 vi.mock("next/server", () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/web/data", () => ({ listRestaurants: vi.fn() }));
+vi.mock("@/lib/page-role", () => ({ pageRole: vi.fn().mockResolvedValue("owner") }));
 
 describe("Restaurant list screen", () => {
   it("links to each Restaurant and lets the owner reach the next page", async () => {
@@ -37,5 +39,12 @@ describe("Restaurant list screen", () => {
 
     const html = renderToStaticMarkup(await RestaurantListPage({ searchParams: Promise.resolve({}) }));
     expect(html).toMatch(/class="tier [^"]*dashed/);
+  });
+
+  it("marks the page for an Invitee so the shell hides Settings, and leaves the Owner's page unmarked (issue #109)", async () => {
+    vi.mocked(listRestaurants).mockResolvedValue({ items: [], nextCursor: null });
+    vi.mocked(pageRole).mockResolvedValueOnce("invitee");
+    expect(renderToStaticMarkup(await RestaurantListPage({ searchParams: Promise.resolve({}) }))).toContain("invitee-view");
+    expect(renderToStaticMarkup(await RestaurantListPage({ searchParams: Promise.resolve({}) }))).not.toContain("invitee-view");
   });
 });

@@ -27,6 +27,15 @@ describe("Restaurant details (issue #53)", () => {
 });
 
 describe("Invitee view (issue #109)", () => {
+  it("marks every report state for an Invitee so the shell hides Settings, and not for the Owner", async () => {
+    for (const variant of [{ ...bundle(1), verdict: null }, bundle(1)]) {
+      vi.mocked(loadRestaurantBundle).mockResolvedValue(variant);
+      vi.mocked(pageRole).mockResolvedValueOnce("invitee");
+      expect(renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }))).toContain("invitee-view");
+      expect(renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }))).not.toContain("invitee-view");
+    }
+  });
+
   const SCRUBBED_PERSONAL = "SCRUBBED personal-only quote";
   const SCRUBBED_PUBLIC = "SCRUBBED shareable quote";
   const SCRUBBED_EVIDENCE = "SCRUBBED personal-only incident evidence";

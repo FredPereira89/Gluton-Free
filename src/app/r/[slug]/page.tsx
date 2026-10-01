@@ -12,6 +12,7 @@ import { loadRestaurantBundle } from "@/web/data";
 import type { InviteeBundle, RestaurantBundle } from "@/lib/api-contract";
 import { projectInviteeBundle } from "@/lib/invitee-projection";
 import { pageRole } from "@/lib/page-role";
+import { InviteeView } from "@/web/invitee-view";
 import { Quote } from "@/web/quote";
 import { CompositeHistoryChart, SourceHistoryChart } from "@/web/source-history";
 import { LookupProgress } from "@/web/lookup-progress";
@@ -60,6 +61,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   const page: RestaurantBundle | InviteeBundle = owner ?? projectInviteeBundle(loaded);
   const { restaurant: R } = page;
   const v: ReportVerdict | null = page.verdict;
+  const marker = owner ? null : <InviteeView />;
   const formatName = FORMAT_NAME[R.format] ?? R.format;
   const crowd = owner?.sources.filter((s) => s.kind === "crowd") ?? [];
   const sourceByCode = new Map<string, SourceLink>(owner
@@ -105,7 +107,7 @@ export default async function VerdictPageRoute({ params }: Props) {
 
   if (!v) {
     return (
-      <div className="A">
+      <div className="A">{marker}
         <section className="hero">
           {head}
           {activity}
@@ -148,7 +150,7 @@ export default async function VerdictPageRoute({ params }: Props) {
       },
     ];
     return (
-      <div className="A">
+      <div className="A">{marker}
         <section className="hero">
           {head}
           {activity}
@@ -190,7 +192,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   const forcedFlags = r.redFlags.filter((g) => g.forcesAvoid);
   if (forcedFlags.length) {
     return (
-      <div className="A">
+      <div className="A">{marker}
         <section className="hero">
           {head}
           {activity}
@@ -231,7 +233,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   };
 
   return (
-    <div className="A">
+    <div className="A">{marker}
       <section className="hero">
         {head}
         {activity}

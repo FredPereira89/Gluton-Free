@@ -175,6 +175,8 @@ body{margin:0;padding:16px 16px 64px}
 /* Public pages (sign-in, invite, welcome) are for people who cannot open the Owner pages the bar links to. */
 body:has(.signin) .topbar{display:none}
 body:has(.public-page) .topbar{display:none}
+/* Invitees read the report pages but cannot open Settings. */
+body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
 .wrap:has(.landing-page){max-width:960px}
 .public-page a{font-weight:600}
 .landing-page{display:grid;gap:clamp(26px,5vw,52px);padding:8px 0 28px}

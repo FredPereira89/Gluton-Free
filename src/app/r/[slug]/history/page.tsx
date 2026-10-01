@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ConfChip, dateLabel, TierBadge } from "@/web/atoms";
 import { loadVerdictHistory } from "@/web/data";
+import { pageRole } from "@/lib/page-role";
+import { InviteeView } from "@/web/invitee-view";
 import { pageIdPagination, type PageSearchParams } from "@/web/pagination";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<PageSearchParams> };
@@ -15,13 +17,14 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
   await connection();
   const { slug } = await params;
   const pagination = pageIdPagination(await searchParams);
-  const history = await loadVerdictHistory(slug, pagination);
+  const [role, history] = await Promise.all([pageRole(), loadVerdictHistory(slug, pagination)]);
   if (!history) notFound();
   const restaurantHref = `/r/${encodeURIComponent(history.restaurant.slug)}`;
   const next = new URLSearchParams({ cursor: history.nextCursor ?? "", limit: String(pagination.limit) });
 
   return (
     <div className="A history">
+      {role === "invitee" && <InviteeView />}
       <section className="hero">
         <div className="name">
           <h1>Verdict history</h1>

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { pageRole } from "@/lib/page-role";
+import { InviteeView } from "@/web/invitee-view";
 import { TierBadge } from "@/web/atoms";
 import { listRestaurants } from "@/web/data";
 import { pageIdPagination, type PageSearchParams } from "@/web/pagination";
@@ -9,11 +11,12 @@ type Props = { searchParams: Promise<PageSearchParams> };
 export default async function RestaurantListPage({ searchParams }: Props) {
   await connection();
   const pagination = pageIdPagination(await searchParams);
-  const page = await listRestaurants(pagination);
+  const [role, page] = await Promise.all([pageRole(), listRestaurants(pagination)]);
   const next = new URLSearchParams({ cursor: page.nextCursor ?? "", limit: String(pagination.limit) });
 
   return (
     <section className="index">
+      {role === "invitee" && <InviteeView />}
       <h1>Restaurants</h1>
       {page.items.map((restaurant) => (
         <Link className="row" href={`/r/${encodeURIComponent(restaurant.slug)}`} key={restaurant.slug}>
