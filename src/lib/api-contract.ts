@@ -336,7 +336,7 @@ export const routes = {
     path: "/api/v1/search",
     auth: "invitee",
     request: { query: searchQuerySchema },
-    responses: { 200: searchResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 429: problemSchema, 500: problemSchema, 503: problemSchema },
+    responses: { 200: searchResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   searchAdd: {
     method: "POST", path: "/api/v1/search/add", auth: "owner",
