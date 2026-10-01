@@ -460,7 +460,16 @@ function BundleExtras({ page }: { page: RestaurantBundle }) {
       {page.unavailableSources.map((unavailable) => (
         <TheForkUnavailable key={unavailable.source} slug={page.restaurant.slug} detail={unavailable.detail} />
       ))}
-      {!page.sources.some((s) => s.code === "thefork") && <TheForkLink slug={page.restaurant.slug} busy={page.activeJob !== null} />}
+      {!page.sources.some((s) => s.code === "thefork") && (
+        <div>
+          <h2>TheFork page</h2>
+          <p className="small muted">No TheFork Listing found for this Restaurant.</p>
+          <details>
+            <summary className="small">Wrong or missing? Add it by hand</summary>
+            <TheForkLink slug={page.restaurant.slug} busy={page.activeJob !== null} />
+          </details>
+        </div>
+      )}
     </section>
   );
 }

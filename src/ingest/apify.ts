@@ -1,4 +1,4 @@
-// Apify: TheFork search (mscraper/thefork-restaurant-scraper, by coordinates), profile
+// Apify: TheFork search (mscraper/thefork-restaurant-scraper, by coordinates), whole-city catalogue (memo23), profile
 // (parsebird/thefork-scraper) and Reviews (clearpath/thefork-restaurant-reviews), all pay per event.
 // Items may carry reviewer names; callers must whitelist them through normalise.ts in memory
 // and never log or persist them. Every run is capped with maxTotalChargeUsd and reports its cost.
@@ -150,6 +150,41 @@ export async function searchTheFork(point: { lat: number; lng: number }): Promis
     });
   }
   return { items: found, costUsd };
+}
+
+/** Lists a whole TheFork city or search page at about $0.002 per restaurant, with no Reviews. */
+const CATALOGUE_ACTOR = "memo23/thefork-restaurant-scraper";
+/** One city page lists up to about 2,100 restaurants. */
+export const APIFY_CATALOGUE_MAX_ITEMS = 2100;
+
+type CatalogueRow = {
+  rowType?: string; restaurantId?: string | number | null; name?: string | null; restaurantUrl?: string | null;
+  latitude?: number | null; longitude?: number | null; reviewsCount?: number | null;
+};
+
+/** The catalogue actor's restaurant rows in the shape matching uses; other row types and rows without a TheFork page are dropped. */
+export function theForkCatalogueItems(rows: unknown[]): TheForkSearchItem[] {
+  const found = new Map<string, TheForkSearchItem>();
+  for (const row of rows as CatalogueRow[]) {
+    const id = row.restaurantUrl ? restaurantIdFromUrl(row.restaurantUrl) : null;
+    if ((row.rowType && row.rowType !== "restaurant") || !id || !row.name) continue;
+    found.set(id, {
+      id, name: row.name, url: row.restaurantUrl, latitude: row.latitude ?? null, longitude: row.longitude ?? null,
+      thefork_review_count: row.reviewsCount ?? null,
+    });
+  }
+  return [...found.values()];
+}
+
+/** Every restaurant on the given TheFork city, cuisine or neighbourhood pages, in one run under a spend cap. */
+export async function sweepTheForkCatalogue(
+  pageUrls: string[], options: { maxItems?: number; maxUsd: number },
+): Promise<{ items: TheForkSearchItem[]; costUsd: number }> {
+  const { items, costUsd } = await runActor(CATALOGUE_ACTOR, {
+    startUrls: pageUrls.map((url) => ({ url })), maxItems: options.maxItems ?? APIFY_CATALOGUE_MAX_ITEMS,
+    maxItemsPerSearch: options.maxItems ?? APIFY_CATALOGUE_MAX_ITEMS, scrapeDetails: false,
+  }, options.maxUsd);
+  return { items: theForkCatalogueItems(items), costUsd };
 }
 
 /** One row per Review from the Reviews actor. Reviewer fields are never read here. */

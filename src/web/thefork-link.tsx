@@ -28,8 +28,7 @@ export function TheForkLink({ slug, busy }: { slug: string; busy: boolean }) {
   }
 
   return <form onSubmit={(event) => { event.preventDefault(); void add(); }}>
-    <h2>TheFork page</h2>
-    <p className="small muted">No TheFork Listing yet. Paste this Restaurant's TheFork page to fetch its Reviews.</p>
+    <p className="small muted">Paste this Restaurant's TheFork page to fetch its Reviews.</p>
     <label>
       <span className="small">TheFork URL</span>{" "}
       <input type="url" value={url} required placeholder="https://www.thefork.com/restaurant/name-r123456"
