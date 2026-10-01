@@ -6,6 +6,7 @@ import {
 } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
 import { quarterlySourceHistory } from "@/verdict/rollup";
+import { trendOf } from "@/verdict/trend";
 import type { DirectoryQuery, DirectoryResponse, SearchResponse } from "@/lib/api-contract";
 import { buildDirectory } from "@/lib/directory";
 import { bookingLink, type BookingLink } from "@/domain/booking-link";
@@ -388,11 +389,13 @@ export async function loadVerdictHistory(
 // Every open Restaurant with a Verdict, from its latest Verdict, searched, filtered, sorted and
 // paged in `buildDirectory`. About a few hundred rows, so the whole list is read once per request.
 export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryResponse> {
+  const now = new Date();
   const rows = await db()`
     select r.slug, r.name, r.address, r.area, r.lat, r.lng, r.format, r.price_tier,
            v.state, v.tier, v.confidence, v.provisional,
            (select (s->>'percentile')::float8 from jsonb_array_elements(v.blocks->'rollup'->'standings') s where s->>'input' = 'food') as food_percentile,
            (select (s->>'percentile')::float8 from jsonb_array_elements(v.blocks->'rollup'->'standings') s where s->>'input' = 'value') as value_percentile,
+           v.blocks->'rollup'->'series' as series,
            (select place_ref from listing where restaurant_id = r.id and source_code = 'google') as google_place_id,
            (select url from listing where restaurant_id = r.id and source_code = 'thefork') as thefork_url
     from restaurant r
@@ -414,6 +417,7 @@ export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryRes
       provisional: r.provisional,
       foodPercentile: r.food_percentile,
       valuePercentile: r.value_percentile,
+      trend: r.state === "verdict" && !r.provisional && Array.isArray(r.series) ? trendOf(r.series, r.confidence, now) : null,
       googlePlaceId: r.google_place_id,
       theForkUrl: r.thefork_url,
     })),

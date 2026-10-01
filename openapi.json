@@ -317,6 +317,21 @@
                           "neighbourhood": {
                             "type": "string"
                           },
+                          "trend": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "improving",
+                                  "steady",
+                                  "slipping"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "booking": {
                             "type": "object",
                             "properties": {
@@ -354,6 +369,7 @@
                           "formatFamily",
                           "priceTier",
                           "neighbourhood",
+                          "trend",
                           "booking"
                         ],
                         "additionalProperties": false

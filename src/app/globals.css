@@ -59,6 +59,7 @@ button{font:inherit;color:inherit}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--sunk);color:var(--ink);white-space:nowrap}
 .chip.conf-High{background:var(--t-good-bg);color:var(--t-good)} .chip.conf-Medium{background:var(--warn-bg);color:var(--warn)} .chip.conf-Low{background:var(--t-avoid-bg);color:var(--t-avoid)}
 .chip .dots{display:inline-flex;gap:2px}.chip .dots i{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.25}.chip .dots i.on{opacity:1}
+.chip.trend-improving{background:var(--t-good-bg);color:var(--t-good)} .chip.trend-steady{background:var(--t-ok-bg);color:var(--t-ok)} .chip.trend-slipping{background:var(--t-avoid-bg);color:var(--t-avoid)}
 .chip.prov{background:var(--warn-bg);color:var(--warn)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 

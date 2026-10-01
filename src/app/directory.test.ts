@@ -8,7 +8,7 @@ vi.mock("./directory-controls", () => ({ default: () => createElement("div", nul
 
 const item = (overrides: Partial<DirectoryItem> = {}): DirectoryItem => ({
   slug: "cantina", name: "Cantina Zé", state: "verdict", tier: "must_go", provisional: false, confidence: "high",
-  format: "Casa de fado", formatFamily: "traditional_portuguese", priceTier: "€€", neighbourhood: "Alfama",
+  format: "Casa de fado", formatFamily: "traditional_portuguese", priceTier: "€€", neighbourhood: "Alfama", trend: null,
   booking: { label: "Open in Google Maps", url: "https://www.google.com/maps/search/?api=1&query=Cantina", kind: "google_maps" },
   ...overrides,
 });
@@ -32,6 +32,16 @@ describe("directory", () => {
     expect(html).toContain('href="https://www.google.com/maps/search/?api=1&amp;query=Cantina"');
     expect(html).toContain("Open in Google Maps");
     expect(html).toContain('rel="noopener noreferrer"');
+  });
+
+  it("shows the Trend chip in the row where there is a Trend, and nothing where there is none", () => {
+    for (const [trend, label] of [["improving", "Improving"], ["steady", "Steady"], ["slipping", "Slipping"]] as const) {
+      const html = render(result({ items: [item({ trend })] }));
+      expect(html).toContain(`trend-${trend}`);
+      expect(html).toContain(label);
+    }
+    const html = render(result({ items: [item({ trend: null })] }));
+    for (const label of ["Improving", "Steady", "Slipping"]) expect(html).not.toContain(label);
   });
 
   it("labels a Not enough evidence Restaurant instead of showing a Tier", () => {

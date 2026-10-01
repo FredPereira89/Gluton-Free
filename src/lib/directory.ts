@@ -22,6 +22,7 @@ export type DirectoryRow = {
   provisional: boolean;
   foodPercentile: number | null;
   valuePercentile: number | null;
+  trend: DirectoryItem["trend"];
   googlePlaceId: string | null;
   theForkUrl: string | null;
 };
@@ -40,6 +41,7 @@ function toItem(row: DirectoryRow): DirectoryItem {
     formatFamily: row.format ? formatFamily(row.format) : null,
     priceTier: row.priceTier,
     neighbourhood: neighbourhoodOf(row),
+    trend: row.trend,
     booking: bookingLink(row),
   };
 }
