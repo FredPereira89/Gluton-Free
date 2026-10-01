@@ -27,6 +27,15 @@ export function standingPhrase(percentile: number): string {
   return "weaker than almost all";
 }
 
+/** The same five buckets as standingPhrase, as 1 (weakest) to 5 (best), for a meter that shows no number. */
+export function standingLevel(percentile: number): 1 | 2 | 3 | 4 | 5 {
+  if (percentile >= 90) return 5;
+  if (percentile >= 65) return 4;
+  if (percentile >= 35) return 3;
+  if (percentile >= 10) return 2;
+  return 1;
+}
+
 export function peerGroupName(group: Group, ctx: ReportContext): string {
   if (group.level === "format") return `${formatPlural(group.key)} in ${ctx.city}`;
   if (group.level === "family") return `${familyPlural(group.key)} in ${ctx.city}`;
@@ -102,10 +111,14 @@ export function heroReason(r: Rollup, ctx: ReportContext): string {
 }
 
 /** Aspect standings in words: "Food: better than most traditional restaurants in Lisbon". */
-export function aspectStandings(r: Rollup, ctx: ReportContext): { input: Input; label: string; text: string }[] {
+export function aspectStandings(r: Rollup, ctx: ReportContext): { input: Input; label: string; text: string; phrase: string; level: 1 | 2 | 3 | 4 | 5; group: string }[] {
   const standings = countedStandings(r);
   return ASPECT_ORDER.flatMap((input) => standings.filter((s) => s.input === input))
-    .map((s) => ({ input: s.input, label: INPUT_LABEL[s.input], text: `${standingPhrase(s.percentile)} ${peerGroupName(s, ctx)}` }));
+    .map((s) => {
+      const phrase = standingPhrase(s.percentile);
+      const group = peerGroupName(s, ctx);
+      return { input: s.input, label: INPUT_LABEL[s.input], text: `${phrase} ${group}`, phrase, level: standingLevel(s.percentile), group };
+    });
 }
 
 type ThemeLine = { label: string; reviewers: number; text: string };

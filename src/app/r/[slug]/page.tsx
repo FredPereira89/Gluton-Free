@@ -193,6 +193,8 @@ export default async function VerdictPageRoute({ params }: Props) {
   const { strengths, warnings } = strengthsAndWarnings(r);
   const counted = new Set(r.inputs.filter((i) => i.counted).map((i) => i.input));
   const lead = leadStanding(r);
+  const maxReviewers = Math.max(1, ...strengths.map((t) => t.reviewers), ...warnings.map((t) => t.reviewers));
+  const leadGroup = lead ? peerGroupName(lead, ctx) : null;
   const reasons = confidenceReasons(r.confidence.caps).filter((c) => !(r.provisional && c === provisionalNotice()));
   const consistency = consistencyLine(r.consistencySpread);
   const formatName = R.format;
@@ -223,12 +225,12 @@ export default async function VerdictPageRoute({ params }: Props) {
           <div className="cols">
             <div>
               <div className="eyebrow">Strengths</div>
-              {strengths.length ? <ul className="plain-list">{strengths.map((t) => <li key={t.label}>{t.label} <span className="muted">· {t.text}</span></li>)}</ul>
+              {strengths.length ? <ThemeBars items={strengths} max={maxReviewers} />
                 : <p className="small muted">No recurring praise yet.</p>}
             </div>
             <div>
               <div className="eyebrow">Warnings</div>
-              {warnings.length ? <ul className="plain-list neg">{warnings.map((t) => <li key={t.label}>{t.label} <span className="muted">· {t.text}</span></li>)}</ul>
+              {warnings.length ? <ThemeBars items={warnings} max={maxReviewers} negative />
                 : <p className="small muted">No recurring criticism.</p>}
             </div>
           </div>
@@ -238,8 +240,15 @@ export default async function VerdictPageRoute({ params }: Props) {
       {standingLines.length > 0 && (
         <section className="sec">
           <h2>How it compares</h2>
-          <ul className="plain-list">
-            {standingLines.map((l) => <li key={l.input}><b>{l.label}:</b> {l.text}</li>)}
+          {leadGroup && <p className="small muted">Against {leadGroup}</p>}
+          <ul className="scorecard">
+            {standingLines.map((l) => (
+              <li key={l.input} className={`score lv-${l.level}`}>
+                <span className="score-label">{l.label}</span>
+                <span className="meter" role="img" aria-label={`${l.label}: ${l.text}`}>{[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= l.level ? "on" : ""} />)}</span>
+                <span className="score-text">{l.phrase}{l.group !== leadGroup && <span className="muted"> {l.group}</span>}</span>
+              </li>
+            ))}
           </ul>
         </section>
       )}
@@ -277,9 +286,10 @@ export default async function VerdictPageRoute({ params }: Props) {
           </div>
           {consistency && <div><h3>Consistency</h3><p className="small">{consistency}</p></div>}
           {r.disagreement && <p className="small muted">{disagreementLine(r.disagreement, names)}</p>}
-          {owner && <TechnicalExplanation v={v} formatName={formatName} />}
         </div>
       </details>
+
+      {owner && <TechnicalExplanation v={v} formatName={formatName} />}
 
       {ownerSections}
     </div>
@@ -290,8 +300,9 @@ export default async function VerdictPageRoute({ params }: Props) {
 function TechnicalExplanation({ v, formatName }: { v: ReportVerdict; formatName: string }) {
   const r = v.blocks.rollup;
   return (
-    <div className="technical">
-      <h3>Technical explanation (Owner)</h3>
+    <details className="judged technical">
+      <summary>Technical explanation (Owner)</summary>
+      <div className="judged-body">
       {v.explanation && <p className="explain"><Explanation text={v.explanation} /></p>}
       <p className="small muted">
         Composite <span className="mono">{signed(r.composite)}</span>
@@ -324,7 +335,24 @@ function TechnicalExplanation({ v, formatName }: { v: ReportVerdict; formatName:
         The same Tier came out in {Math.round(r.confidence.bootstrapShare * 100)}% of {PARAMS.bootstrap} resamples of the Reviews.
       </p>}
       <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
-    </div>
+      </div>
+    </details>
+  );
+}
+
+type ThemeBarItem = { label: string; reviewers: number; text: string };
+
+function ThemeBars({ items, max, negative }: { items: ThemeBarItem[]; max: number; negative?: boolean }) {
+  return (
+    <ul className={`bars${negative ? " neg" : ""}`}>
+      {items.map((t) => (
+        <li key={t.label}>
+          <span className="bar-label">{t.label}</span>
+          <span className="bar" aria-hidden="true"><i style={{ width: `${Math.max(6, Math.round((t.reviewers / max) * 100))}%` }} /></span>
+          <span className="bar-n small muted">{t.text}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

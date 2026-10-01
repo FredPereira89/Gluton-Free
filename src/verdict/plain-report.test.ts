@@ -3,7 +3,7 @@ import type { z } from "zod";
 import type { RollupSchema } from "./blocks";
 import {
   aspectStandings, changePointNotice, confidenceReasons, consistencyLine, heroReason, missingEvidence,
-  peerGroupName, provisionalNotice, redFlagLine, standingPhrase, strengthsAndWarnings,
+  peerGroupName, provisionalNotice, redFlagLine, standingLevel, standingPhrase, strengthsAndWarnings,
 } from "./plain-report";
 
 type Rollup = z.infer<typeof RollupSchema>;
@@ -28,6 +28,10 @@ const base = (over: Partial<Rollup> = {}): Rollup => ({
 describe("standingPhrase", () => {
   it.each([[95, "better than almost all"], [80, "better than most"], [50, "about typical for"], [20, "weaker than most"], [5, "weaker than almost all"]])(
     "P%i reads %s", (p, words) => expect(standingPhrase(p)).toBe(words));
+});
+
+describe("standingLevel", () => {
+  it.each([[95, 5], [80, 4], [50, 3], [20, 2], [5, 1]])("P%i is level %i", (p, level) => expect(standingLevel(p)).toBe(level));
 });
 
 describe("peerGroupName", () => {
@@ -74,7 +78,7 @@ describe("heroReason", () => {
 describe("aspectStandings", () => {
   it("states each counted Aspect in words, in input order, skipping Overall stars", () => {
     const lines = aspectStandings(base(), ctx);
-    expect(lines[0]).toEqual({ input: "food", label: "Food", text: "better than most traditional restaurants in Lisbon" });
+    expect(lines[0]).toEqual({ input: "food", label: "Food", text: "better than most traditional restaurants in Lisbon", phrase: "better than most", level: 4, group: "traditional restaurants in Lisbon" });
     expect(lines.map((l) => l.label)).toEqual(["Food", "Service", "Value", "Ambience", "Wait time"]);
     expect(lines.find((l) => l.label === "Value")!.text).toBe("weaker than most traditional restaurants in Lisbon");
   });

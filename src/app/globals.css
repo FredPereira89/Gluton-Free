@@ -334,3 +334,23 @@ body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
 .A .position .track i{position:absolute;top:-3px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--accent)}
 .A .position-axis{display:flex;justify-content:space-between;padding:0 4px}
 .A .technical{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+
+/* Decision-first report visuals (#112) */
+.A .hero .explain{font-size:20px;font-weight:600;line-height:1.35}
+.A .scorecard{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.A .score{display:grid;grid-template-columns:minmax(84px,110px) 120px 1fr;gap:12px;align-items:center}
+.A .score-label{font-weight:700}
+.A .meter{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.A .meter i{height:10px;border-radius:3px;background:var(--band)}
+.A .lv-5 .meter i.on,.A .lv-4 .meter i.on{background:var(--t-good)}
+.A .lv-3 .meter i.on{background:var(--t-ok)}
+.A .lv-2 .meter i.on{background:var(--warn)}
+.A .lv-1 .meter i.on{background:var(--t-avoid)}
+.A .score-text{font-size:14.5px}
+@media (max-width:520px){.A .score{grid-template-columns:90px 1fr}.A .score-text{grid-column:1 / -1}}
+.A .bars{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.A .bars li{display:grid;gap:4px}
+.A .bar{display:block;height:8px;border-radius:4px;background:var(--band);overflow:hidden}
+.A .bar i{display:block;height:100%;border-radius:4px;background:var(--t-good)}
+.A .bars.neg .bar i{background:var(--t-avoid)}
+.A .bar-label{font-weight:600}

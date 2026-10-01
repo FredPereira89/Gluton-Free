@@ -435,8 +435,11 @@ describe("Decision-first report (issue #112)", () => {
 
   it("states each Aspect standing in words", async () => {
     const html = await render("invitee", bundleWithPeers(40, 40));
-    expect(html).toContain("<b>Food:</b> better than almost all tascas in Lisbon");
-    expect(html).toContain("<b>Service:</b> better than almost all tascas in Lisbon");
+    expect(html).toContain("Against tascas in Lisbon");
+    expect(html).toContain('aria-label="Food: better than almost all tascas in Lisbon"');
+    expect(html).toContain('aria-label="Service: better than almost all tascas in Lisbon"');
+    expect(html).toContain('<span class="score-text">better than almost all</span>');
+    expect(html).toMatch(/class="score lv-5"/);
   });
 
   it("keeps the reasoning in a collapsed 'How we judged this' with Peer group, positions, chart, confidence and consistency", async () => {
