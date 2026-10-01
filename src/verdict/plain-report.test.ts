@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import type { RollupSchema } from "./blocks";
 import {
-  aspectStandings, changePointNotice, confidenceReasons, consistencyLine, heroReason, heroSummary, missingEvidence,
+  aspectPositions, aspectStandings, changePointNotice, confidenceReasons, consistencyLine, heroReason, heroSummary, missingEvidence,
   peerGroupName, provisionalNotice, redFlagLine, standingLevel, standingPhrase, strengthsAndWarnings,
 } from "./plain-report";
 
@@ -90,6 +90,18 @@ describe("aspectStandings", () => {
   it("is empty without Peer standings", () => {
     expect(aspectStandings(base({ standings: undefined }), ctx)).toEqual([]);
   });
+});
+
+describe("aspectPositions", () => {
+  it("lists every input including Overall stars, and flags the ones not counted", () => {
+    const r = base();
+    r.inputs = r.inputs.map((i) => (i.input === "ambience" ? { ...i, counted: false } : i));
+    const rows = aspectPositions(r, ctx);
+    expect(rows.map((x) => x.label)).toEqual(["Food", "Service", "Overall stars", "Value", "Ambience", "Wait time"]);
+    expect(rows.find((x) => x.input === "ambience")).toMatchObject({ counted: false, phrase: "about typical for", level: 3 });
+    expect(rows.find((x) => x.input === "food")).toMatchObject({ counted: true, phrase: "better than most", level: 4 });
+  });
+  it("is empty without Peer standings", () => expect(aspectPositions(base({ standings: undefined }), ctx)).toEqual([]));
 });
 
 describe("heroSummary", () => {

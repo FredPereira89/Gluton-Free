@@ -209,11 +209,9 @@ describe("handler responses", () => {
     const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
     expect(markup).toContain("How we judged this");
     expect(markup).toContain("Compared with 30 tascas in Lisbon");
-    expect(markup).toMatch(/better than \d+% of tascas/);
+    expect(markup).toContain('class="scorecard"');
     expect(markup).toContain("not counted");
-    expect(markup).toContain("P50");
-    expect(markup).toContain("ranked against Peer snapshot #7 (Sept 2026)");
-    expect(markup).toMatch(/composite at P\d+ among Peer composites/);
+    expect(markup).not.toMatch(/\bP\d+\b|Peer snapshot|Peer composites/);
   });
 
   it("serves a strict Restaurant bundle with private conditional caching", async () => {

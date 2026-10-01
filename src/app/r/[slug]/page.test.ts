@@ -107,7 +107,7 @@ describe("Invitee view (issue #109)", () => {
   it("renders the Owner's tools and Sources table when the caller is the Owner", async () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
     const html = await render();
-    for (const owner of ["Save Restaurant details", "Declare Change point", "Owner questions", "(proposed)", "In their words", SCRUBBED_PERSONAL, SCRUBBED_PUBLIC, SCRUBBED_EVIDENCE, "<h2>Sources</h2>", "Technical explanation (Owner)", "The food is good."]) expect(html, owner).toContain(owner);
+    for (const owner of ["Save Restaurant details", "Declare Change point", "Owner questions", "(proposed)", "In their words", SCRUBBED_PERSONAL, SCRUBBED_PUBLIC, SCRUBBED_EVIDENCE, "<h2>Sources</h2>"]) expect(html, owner).toContain(owner);
     expect(html).toMatch(/Current.*job/);
   });
 
@@ -131,7 +131,7 @@ describe("Monthly refresh (issue #72)", () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
     expect(html).toContain("8 new Reviews being read");
-    expect(html).toContain("The food is good.");
+    expect(html).toContain("Reviewers rate it well");
     expect(html).toContain('role="status"');
   });
 });
@@ -483,13 +483,22 @@ describe("Decision-first report (issue #112)", () => {
     expect(html).not.toContain("The food is good.");
   });
 
-  it("keeps the technical explanation, θ strips and snapshot line for the Owner inside 'How we judged this'", async () => {
+  it("gives the Owner the same plain report, plus why the Tier landed, with no technical explanation", async () => {
     const html = await render("owner", withThemes(bundleWithPeers(40, 40)));
     const judged = html.slice(html.indexOf('<details class="judged"'));
-    expect(judged).toContain("Technical explanation (Owner)");
-    expect(judged).toContain("The food is good.");
+    expect(judged).toContain("Why this Tier (Owner)");
     expect(judged).toContain("Ceiling: needs at least 50 Peers");
-    expect(judged).toContain("Peer snapshot #1");
+    expect(html).not.toContain("Technical explanation");
+    expect(html).not.toContain("The food is good.");
+    expect(html).not.toMatch(/θ|Peer snapshot #|Peer composites/);
+  });
+  it("shows every input in the position chart, including Overall stars and the one not counted", async () => {
+    const page = bundleWithPeers(40, 40);
+    page.verdict!.blocks.rollup.inputs = page.verdict!.blocks.rollup.inputs.map((i) => (i.input === "ambience" ? { ...i, counted: false } : i));
+    const html = await render("invitee", page);
+    expect(html).toContain('aria-label="Overall stars:');
+    expect(html).toMatch(/class="score lv-[1-5] off"/);
+    expect(html).toContain("not counted");
   });
 
   it("labels a Provisional Verdict 'Early verdict: fewer comparisons yet' with a plain reason", async () => {

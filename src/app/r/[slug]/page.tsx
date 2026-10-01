@@ -1,7 +1,6 @@
 // The Verdict page: decision-first. A diner reads the hero (Tier, one plain reason, Price tier, Format,
 // address, booking link), then strengths and warnings, then standings in words. The reasoning sits in
-// a collapsed "How we judged this"; the Owner keeps the technical explanation there, and the quotes,
-// Sources table and tools below it. Invitees see no θ, percentile numbers, SD or Peer-snapshot language.
+// a collapsed "How we judged this"; the Owner also gets the quotes, Sources table and tools below it. Invitees see no θ, percentile numbers, SD or Peer-snapshot language.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,12 +8,12 @@ import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, TIER_LABEL, type Tier } from "@/domain/aspects";
 import { formatLabel } from "@/domain/format-labels";
 import {
-  aspectStandings, changePointNotice, heroSummary, leadStanding, confidenceReasons, consistencyLine, heroReason, missingEvidence,
-  peerGroupName, provisionalNotice, redFlagLine, standingPhrase, strengthsAndWarnings,
+  aspectPositions, changePointNotice, heroSummary, leadStanding, confidenceReasons, consistencyLine, heroReason, missingEvidence,
+  peerGroupName, provisionalNotice, redFlagLine, strengthsAndWarnings,
 } from "@/verdict/plain-report";
 import { formatPercentile } from "@/verdict/peer";
-import { PARAMS, type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
-import { ConfChip, dateLabel, Explanation, monthLabel, PeerStripAxis, PeerStripRow, signed, StripAxis, StripRow, TierBadge } from "@/web/atoms";
+import { type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
+import { ConfChip, dateLabel, Explanation, monthLabel, TierBadge } from "@/web/atoms";
 import { loadRestaurantBundle } from "@/web/data";
 import type { InviteeBundle, RestaurantBundle } from "@/lib/api-contract";
 import { projectInviteeBundle } from "@/lib/invitee-projection";
@@ -189,16 +188,14 @@ export default async function VerdictPageRoute({ params }: Props) {
   }
 
   const forced = r.redFlags.some((g) => g.forcesAvoid);
-  const standingLines = forced ? [] : aspectStandings(r, ctx);
+  const positions = forced ? [] : aspectPositions(r, ctx);
   const summary = forced ? null : heroSummary(r, ctx);
   const { strengths, warnings } = strengthsAndWarnings(r);
-  const counted = new Set(r.inputs.filter((i) => i.counted).map((i) => i.input));
   const lead = leadStanding(r);
   const maxReviewers = Math.max(1, ...strengths.map((t) => t.reviewers), ...warnings.map((t) => t.reviewers));
   const leadGroup = lead ? peerGroupName(lead, ctx) : null;
   const reasons = confidenceReasons(r.confidence.caps).filter((c) => !(r.provisional && c === provisionalNotice()));
   const consistency = consistencyLine(r.consistencySpread);
-  const formatName = R.format;
   const showChart = !r.provisional && r.series.some((q) => q.compositePercentile != null);
   const names = Object.fromEntries(Array.from(sourceByCode, ([code, s]) => [code, s.name]));
 
@@ -247,17 +244,17 @@ export default async function VerdictPageRoute({ params }: Props) {
                   : "Not yet compared with other restaurants: judged against general cut-offs."}
             </p>
           </div>
-          {standingLines.length > 0 && (
+          {positions.length > 0 && (
             <div>
               <h3>Aspect positions</h3>
               {leadGroup && <p className="small muted">Against {leadGroup}</p>}
               <div className="scale muted" aria-hidden="true"><span /><span className="scale-ends"><span>Weaker</span><span>Better</span></span></div>
               <ul className="scorecard">
-                {standingLines.map((l) => (
-                  <li key={l.input} className={`score lv-${l.level}`}>
+                {positions.map((l) => (
+                  <li key={l.input} className={`score lv-${l.level}${l.counted ? "" : " off"}`}>
                     <span className="score-label">{l.label}</span>
-                    <span className="meter" role="img" aria-label={`${l.label}: ${l.text}`}>{[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= l.level ? "on" : ""} />)}</span>
-                    <span className="score-text">{l.phrase}{l.group !== leadGroup && <span className="muted"> {l.group}</span>}</span>
+                    <span className="meter" role="img" aria-label={`${l.label}: ${l.phrase} ${l.group}${l.counted ? "" : " (not counted)"}`}>{[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= l.level ? "on" : ""} />)}</span>
+                    <span className="score-text">{l.counted ? l.phrase : "not counted"}{l.group !== leadGroup && <span className="muted"> {l.group}</span>}</span>
                   </li>
                 ))}
               </ul>
@@ -286,56 +283,19 @@ export default async function VerdictPageRoute({ params }: Props) {
           </div>
           {consistency && <div><h3>Consistency</h3><p className="small">{consistency}</p></div>}
           {r.disagreement && <p className="small muted">{disagreementLine(r.disagreement, names)}</p>}
+          {owner && (r.tierHeld || r.floorCap || r.ceilingNote) && (
+            <div className="owner-notes">
+              <h3>Why this Tier (Owner)</h3>
+              {r.tierHeld && <p className="small muted">Tier held until the composite or a floor clearly crosses its boundary.</p>}
+              {r.floorCap && <p className="small muted">Capped by a floor: {r.floorCap}.</p>}
+              {r.ceilingNote && <p className="small muted">Ceiling: {r.ceilingNote}.</p>}
+            </div>
+          )}
         </div>
       </details>
 
       {ownerSections}
-      {owner && <TechnicalExplanation v={v} formatName={formatName} />}
     </div>
-  );
-}
-
-// The Owner's technical reading: the explanation, θ and percentile strips, caps and the snapshot line.
-function TechnicalExplanation({ v, formatName }: { v: ReportVerdict; formatName: string }) {
-  const r = v.blocks.rollup;
-  return (
-    <details className="judged technical">
-      <summary>Technical explanation (Owner)</summary>
-      <div className="judged-body">
-      {v.explanation && <p className="explain"><Explanation text={v.explanation} /></p>}
-      <p className="small muted">
-        Composite <span className="mono">{signed(r.composite)}</span>
-        {r.compositeStanding && <> · <span className="mono">{formatPercentile(r.compositeStanding.percentile)}</span> among Peer composites</>}
-      </p>
-      <div>
-        {r.inputs.map((s) => r.peerSnapshot
-          ? <PeerStripRow key={s.input} s={s} standing={r.standings?.find((p) => p.input === s.input)} floor={r.tierFloors?.find((f) => f.input === s.input)?.percentile} formatName={formatName} />
-          : <StripRow key={s.input} s={s} formatName={formatName} />)}
-        {r.peerSnapshot ? <PeerStripAxis /> : <StripAxis />}
-      </div>
-      {!r.peerSnapshot && <p className="small muted">
-        θ on the −2…+2 Review scale; the tick marks 0. Good from {signed(PARAMS.goodCut)}, Must Go from {signed(PARAMS.mustGoCut)}{" "}
-        with food ≥ {signed(PARAMS.mustGoFood)} and service ≥ {signed(PARAMS.mustGoService)}. Positions become percentiles once
-        other {formatName}s are gathered.
-      </p>}
-      {r.tierHeld && <p className="small muted">Tier held until the composite or a floor clearly crosses its boundary.</p>}
-      {r.floorCap && <p className="small muted">Capped by a floor: {r.floorCap}.</p>}
-      {r.ceilingNote && <p className="small muted">Ceiling: {r.ceilingNote}.</p>}
-      {r.consistencySpread.sd !== null && (
-        <p className="small muted">
-          Consistency (spread of stance) over {r.consistencySpread.windowMonths} months: SD {r.consistencySpread.sd.toFixed(2)} across{" "}
-          {r.consistencySpread.n} Reviews (shown for information).
-        </p>
-      )}
-      <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
-        {r.confidence.caps.map((c) => <li key={c}>{c}</li>)}
-      </ul>
-      {r.provisional && <p className="small muted">
-        The same Tier came out in {Math.round(r.confidence.bootstrapShare * 100)}% of {PARAMS.bootstrap} resamples of the Reviews.
-      </p>}
-      <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
-      </div>
-    </details>
   );
 }
 

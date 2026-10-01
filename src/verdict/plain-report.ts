@@ -121,6 +121,15 @@ export function aspectStandings(r: Rollup, ctx: ReportContext): { input: Input; 
     });
 }
 
+const POSITION_ORDER: Input[] = ["food", "service", "overall", "value", "ambience", "wait"];
+
+/** Every input's position among Peers for the "How we judged this" chart, uncounted ones included and flagged. */
+export function aspectPositions(r: Rollup, ctx: ReportContext) {
+  const counted = new Set(r.inputs.filter((i) => i.counted).map((i) => i.input));
+  return POSITION_ORDER.flatMap((input) => (r.standings ?? []).filter((s) => s.input === input))
+    .map((s) => ({ input: s.input, label: INPUT_LABEL[s.input], phrase: standingPhrase(s.percentile), level: standingLevel(s.percentile), group: peerGroupName(s, ctx), counted: counted.has(s.input) }));
+}
+
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const joinList = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const PHRASE_ORDER = ["better than almost all", "better than most", "about typical for", "weaker than most", "weaker than almost all"];
