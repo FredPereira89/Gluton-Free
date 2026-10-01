@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import type { RollupSchema } from "./blocks";
 import {
-  aspectStandings, changePointNotice, confidenceReasons, consistencyLine, heroReason, missingEvidence,
+  aspectStandings, changePointNotice, confidenceReasons, consistencyLine, heroReason, heroSummary, missingEvidence,
   peerGroupName, provisionalNotice, redFlagLine, standingLevel, standingPhrase, strengthsAndWarnings,
 } from "./plain-report";
 
@@ -89,6 +89,21 @@ describe("aspectStandings", () => {
   });
   it("is empty without Peer standings", () => {
     expect(aspectStandings(base({ standings: undefined }), ctx)).toEqual([]);
+  });
+});
+
+describe("heroSummary", () => {
+  it("groups Aspects by how they compare and ends with how much reviewers agree", () => {
+    expect(heroSummary(base({ standings: [standing("food", 95), standing("service", 95), standing("wait", 50)] }), ctx))
+      .toBe("Food and service are better than almost all traditional restaurants in Lisbon; wait time is about typical. Reviewers mostly agree (50 reviews, last 24 months).");
+  });
+  it("names the Peer group again only where it differs", () => {
+    expect(heroSummary(base({ standings: [standing("food", 80), standing("service", 20, "city")] }), ctx))
+      .toBe("Food is better than most traditional restaurants in Lisbon; service is weaker than most restaurants in Lisbon. Reviewers mostly agree (50 reviews, last 24 months).");
+  });
+  it("is null without Peer standings and never leaks jargon", () => {
+    expect(heroSummary(base({ standings: undefined }), ctx)).toBeNull();
+    expect(heroSummary(base(), ctx)).not.toMatch(/θ|Pd|snapshot|SD/);
   });
 });
 

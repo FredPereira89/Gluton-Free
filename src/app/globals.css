@@ -338,19 +338,30 @@ body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
 /* Decision-first report visuals (#112) */
 .A .hero .explain{font-size:20px;font-weight:600;line-height:1.35}
 .A .scorecard{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-.A .score{display:grid;grid-template-columns:minmax(84px,110px) 120px 1fr;gap:12px;align-items:center}
+.A .score{display:grid;grid-template-columns:minmax(84px,110px) 150px 1fr;gap:12px;align-items:center}
 .A .score-label{font-weight:700}
 .A .meter{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
-.A .meter i{height:10px;border-radius:3px;background:var(--band)}
+.A .meter i{height:14px;border-radius:4px;background:var(--band)}
 .A .lv-5 .meter i.on,.A .lv-4 .meter i.on{background:var(--t-good)}
 .A .lv-3 .meter i.on{background:var(--t-ok)}
 .A .lv-2 .meter i.on{background:var(--warn)}
 .A .lv-1 .meter i.on{background:var(--t-avoid)}
 .A .score-text{font-size:14.5px}
-@media (max-width:520px){.A .score{grid-template-columns:90px 1fr}.A .score-text{grid-column:1 / -1}}
+@media (max-width:560px){.A .score{grid-template-columns:90px 1fr}.A .score-text{grid-column:1 / -1}.A .scale{grid-template-columns:90px 1fr}.A .scale>span:first-child{display:none}}
 .A .bars{list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .A .bars li{display:grid;gap:4px}
-.A .bar{display:block;height:8px;border-radius:4px;background:var(--band);overflow:hidden}
+.A .bar{display:block;height:10px;border-radius:4px;background:var(--band);overflow:hidden}
 .A .bar i{display:block;height:100%;border-radius:4px;background:var(--t-good)}
 .A .bars.neg .bar i{background:var(--t-avoid)}
 .A .bar-label{font-weight:600}
+
+.A .hero-summary{font-size:15.5px;line-height:1.55;color:var(--muted);max-width:62ch}
+.A .hero-themes{display:grid;gap:8px}
+.A .theme-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.A .theme-row .eyebrow{min-width:118px}
+.A .theme-chip{font-size:13.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--sunk)}
+.A .theme-chip b{margin-left:4px}
+.A .theme-chip.pos{border-color:var(--t-good);color:var(--t-good);background:var(--t-good-bg)}
+.A .theme-chip.neg{border-color:var(--t-avoid);color:var(--t-avoid);background:var(--t-avoid-bg)}
+.A .scale{display:grid;grid-template-columns:minmax(84px,110px) 150px 1fr;gap:12px;margin:8px 0 4px}
+.A .scale-ends{display:flex;justify-content:space-between;font-size:11.5px}

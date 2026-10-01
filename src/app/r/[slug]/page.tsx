@@ -9,7 +9,7 @@ import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, TIER_LABEL, type Tier } from "@/domain/aspects";
 import { formatLabel } from "@/domain/format-labels";
 import {
-  aspectStandings, changePointNotice, leadStanding, confidenceReasons, consistencyLine, heroReason, missingEvidence,
+  aspectStandings, changePointNotice, heroSummary, leadStanding, confidenceReasons, consistencyLine, heroReason, missingEvidence,
   peerGroupName, provisionalNotice, redFlagLine, standingPhrase, strengthsAndWarnings,
 } from "@/verdict/plain-report";
 import { formatPercentile } from "@/verdict/peer";
@@ -190,6 +190,7 @@ export default async function VerdictPageRoute({ params }: Props) {
 
   const forced = r.redFlags.some((g) => g.forcesAvoid);
   const standingLines = forced ? [] : aspectStandings(r, ctx);
+  const summary = forced ? null : heroSummary(r, ctx);
   const { strengths, warnings } = strengthsAndWarnings(r);
   const counted = new Set(r.inputs.filter((i) => i.counted).map((i) => i.input));
   const lead = leadStanding(r);
@@ -210,6 +211,21 @@ export default async function VerdictPageRoute({ params }: Props) {
           <TierBadge tier={(forced ? "avoid" : r.tier) as Tier} size="lg" dashed={r.provisional} />
         </div>
         {!forced && <p className="explain">{heroReason(r, ctx)}</p>}
+        {summary && <p className="hero-summary">{summary}</p>}
+        {!forced && (strengths.length > 0 || warnings.length > 0) && (
+          <div className="hero-themes">
+            <div className="theme-row">
+              <span className="eyebrow">Reviewers praise</span>
+              {strengths.length ? strengths.map((t) => <span key={t.label} className="theme-chip pos">{t.label} <b>{t.reviewers}</b></span>)
+                : <span className="small muted">No recurring praise yet</span>}
+            </div>
+            <div className="theme-row">
+              <span className="eyebrow">Reviewers warn</span>
+              {warnings.length ? warnings.map((t) => <span key={t.label} className="theme-chip neg">{t.label} <b>{t.reviewers}</b></span>)
+                : <span className="small muted">No recurring criticism</span>}
+            </div>
+          </div>
+        )}
         {notices}
         <div className="chips">
           {baseChips}
@@ -218,40 +234,6 @@ export default async function VerdictPageRoute({ params }: Props) {
         {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} owner={!!owner} />)}
         {historyLink}
       </section>
-
-      {!forced && (strengths.length > 0 || warnings.length > 0) && (
-        <section className="sec">
-          <h2>What reviewers say</h2>
-          <div className="cols">
-            <div>
-              <div className="eyebrow">Strengths</div>
-              {strengths.length ? <ThemeBars items={strengths} max={maxReviewers} />
-                : <p className="small muted">No recurring praise yet.</p>}
-            </div>
-            <div>
-              <div className="eyebrow">Warnings</div>
-              {warnings.length ? <ThemeBars items={warnings} max={maxReviewers} negative />
-                : <p className="small muted">No recurring criticism.</p>}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {standingLines.length > 0 && (
-        <section className="sec">
-          <h2>How it compares</h2>
-          {leadGroup && <p className="small muted">Against {leadGroup}</p>}
-          <ul className="scorecard">
-            {standingLines.map((l) => (
-              <li key={l.input} className={`score lv-${l.level}`}>
-                <span className="score-label">{l.label}</span>
-                <span className="meter" role="img" aria-label={`${l.label}: ${l.text}`}>{[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= l.level ? "on" : ""} />)}</span>
-                <span className="score-text">{l.phrase}{l.group !== leadGroup && <span className="muted"> {l.group}</span>}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <details className="judged">
         <summary>How we judged this</summary>
@@ -265,17 +247,35 @@ export default async function VerdictPageRoute({ params }: Props) {
                   : "Not yet compared with other restaurants: judged against general cut-offs."}
             </p>
           </div>
-          {!forced && r.standings && r.standings.length > 0 && (
+          {standingLines.length > 0 && (
             <div>
               <h3>Aspect positions</h3>
-              {r.standings.filter((s) => counted.has(s.input)).map((s) => (
-                <div className="position" key={s.input}>
-                  <span>{INPUT_LABEL[s.input]}</span>
-                  <span className="track" aria-hidden="true"><i style={{ left: `${Math.min(98, Math.max(2, s.percentile))}%` }} /></span>
-                  <span className="small muted">{standingPhrase(s.percentile)}</span>
+              {leadGroup && <p className="small muted">Against {leadGroup}</p>}
+              <div className="scale muted" aria-hidden="true"><span /><span className="scale-ends"><span>Weaker</span><span>Better</span></span></div>
+              <ul className="scorecard">
+                {standingLines.map((l) => (
+                  <li key={l.input} className={`score lv-${l.level}`}>
+                    <span className="score-label">{l.label}</span>
+                    <span className="meter" role="img" aria-label={`${l.label}: ${l.text}`}>{[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= l.level ? "on" : ""} />)}</span>
+                    <span className="score-text">{l.phrase}{l.group !== leadGroup && <span className="muted"> {l.group}</span>}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {!forced && (strengths.length > 0 || warnings.length > 0) && (
+            <div>
+              <h3>What reviewers raise</h3>
+              <div className="cols">
+                <div>
+                  <div className="eyebrow">Strengths</div>
+                  {strengths.length ? <ThemeBars items={strengths} max={maxReviewers} /> : <p className="small muted">No recurring praise yet.</p>}
                 </div>
-              ))}
-              <div className="position-axis small muted"><span>Lower</span><span>Higher</span></div>
+                <div>
+                  <div className="eyebrow">Warnings</div>
+                  {warnings.length ? <ThemeBars items={warnings} max={maxReviewers} negative /> : <p className="small muted">No recurring criticism.</p>}
+                </div>
+              </div>
             </div>
           )}
           {showChart && <StandingHistoryChart series={r.series} changePointAt={r.changePointAt} />}
@@ -289,9 +289,8 @@ export default async function VerdictPageRoute({ params }: Props) {
         </div>
       </details>
 
-      {owner && <TechnicalExplanation v={v} formatName={formatName} />}
-
       {ownerSections}
+      {owner && <TechnicalExplanation v={v} formatName={formatName} />}
     </div>
   );
 }

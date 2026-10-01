@@ -121,6 +121,33 @@ export function aspectStandings(r: Rollup, ctx: ReportContext): { input: Input; 
     });
 }
 
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+const joinList = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+const PHRASE_ORDER = ["better than almost all", "better than most", "about typical for", "weaker than most", "weaker than almost all"];
+
+/**
+ * The hero's plain read of how the Restaurant stands, Aspects grouped by how they compare, plus how much
+ * reviewers agree: "Food and service are better than almost all tascas in Lisbon; wait time is about typical."
+ * Null when there is nothing to compare, so the hero shows only its headline.
+ */
+export function heroSummary(r: Rollup, ctx: ReportContext): string | null {
+  const lines = aspectStandings(r, ctx);
+  if (lines.length === 0) return null;
+  const firstGroup = lines[0]!.group;
+  const clauses = PHRASE_ORDER.flatMap((phrase, i) => {
+    const members = lines.filter((l) => l.phrase === phrase);
+    if (members.length === 0) return [];
+    const group = members.every((m) => m.group === members[0]!.group) ? members[0]!.group : null;
+    const withGroup = i === PHRASE_ORDER.findIndex((p) => lines.some((l) => l.phrase === p)) || (group !== null && group !== firstGroup);
+    const names = joinList(members.map((m) => lower(m.label)));
+    const tail = withGroup && group ? `${phrase} ${group}` : phrase.replace(/ for$/, "");
+    return [`${names} ${members.length > 1 ? "are" : "is"} ${tail}`];
+  });
+  const standing = cap(clauses.join("; "));
+  const agree = consistencyLine(r.consistencySpread);
+  return agree ? `${standing}. ${agree}.` : `${standing}.`;
+}
+
 type ThemeLine = { label: string; reviewers: number; text: string };
 
 /** Top 3 praised and top 3 criticised Themes, with how many reviewers raise each. */

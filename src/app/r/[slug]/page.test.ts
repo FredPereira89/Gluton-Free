@@ -433,6 +433,21 @@ describe("Decision-first report (issue #112)", () => {
     expect(html).toContain("1 reviewer<");
   });
 
+  it("puts a plain summary and theme chips in the hero, and the bar graphs inside 'How we judged this'", async () => {
+    const html = await render("invitee", withThemes(bundleWithPeers(40, 40)));
+    const hero = html.slice(html.indexOf('<section class="hero">'), html.indexOf("</section>"));
+    expect(hero).toContain("hero-summary");
+    expect(hero).toContain("better than almost all tascas in Lisbon");
+    expect(hero).toContain("Reviewers praise");
+    expect(hero).toContain('theme-chip pos">Delicious food <b>30</b>');
+    expect(hero).toContain("Reviewers warn");
+    expect(hero).not.toContain('class="scorecard"');
+    expect(hero).not.toContain('class="bars');
+    const judged = html.slice(html.indexOf('<details class="judged"'));
+    expect(judged).toContain('class="scorecard"');
+    expect(judged).toContain('class="bars');
+  });
+
   it("states each Aspect standing in words", async () => {
     const html = await render("invitee", bundleWithPeers(40, 40));
     expect(html).toContain("Against tascas in Lisbon");
