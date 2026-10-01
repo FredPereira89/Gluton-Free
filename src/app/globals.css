@@ -172,6 +172,8 @@ body{margin:0;padding:16px 16px 64px}
 .wrap{max-width:720px;margin:0 auto}
 .topbar{max-width:720px;margin:0 auto 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
 .topbar a{color:var(--ink);font-weight:700;text-decoration:none;letter-spacing:-.01em}
+/* Public pages (sign-in, invite, welcome) are for people who cannot open the Owner pages the bar links to. */
+body:has(.signin) .topbar{display:none}
 .index{display:grid;gap:10px}
 .index a.row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border-radius:10px;box-shadow:var(--shadow);padding:14px 16px;text-decoration:none;color:var(--ink)}
 .index a.row b{font-size:17px}
