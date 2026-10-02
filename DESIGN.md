@@ -33,16 +33,38 @@ colors:
 typography:
   display:
     fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(34px, 7vw, 52px)"
+    fontSize: "clamp(36px, 7vw, 64px)"
     fontWeight: 800
-    lineHeight: 1.15
-    letterSpacing: "-0.01em"
+    lineHeight: 1.02
+    letterSpacing: "-0.055em"
   headline:
     fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "clamp(26px, 5vw, 34px)"
     fontWeight: 800
     lineHeight: 1.15
     letterSpacing: "-0.015em"
+  hero-tier:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(23px, 6.2vw, 38px)"
+    fontWeight: 700
+    lineHeight: 1.15
+  page-title:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "28px"
+    fontWeight: 800
+    lineHeight: 1.15
+    letterSpacing: "-0.03em"
+  section-title:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "22px"
+    fontWeight: 800
+    lineHeight: 1.15
+    letterSpacing: "-0.02em"
+  subhead:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "19px"
+    fontWeight: 750
+    lineHeight: 1.15
   title:
     fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "18px"
@@ -53,17 +75,35 @@ typography:
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.5
+  lede:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "17px"
+    fontWeight: 400
+    lineHeight: 1.5
+  action:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "15px"
+    fontWeight: 600
+    lineHeight: 1.5
   label:
     fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "14px"
     fontWeight: 600
     lineHeight: 1.5
+  caption:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: 1.35
   data:
     fontFamily: "IBM Plex Mono, ui-monospace, Consolas, monospace"
     fontSize: "13.5px"
     fontWeight: 500
     fontFeature: "tabular-nums"
 rounded:
+  rail: "4px"
+  tip: "5px"
+  logo: "9px"
   sm: "10px"
   card: "20px"
   lobe: "32px"
@@ -121,6 +161,36 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.card}"
     padding: "14px 16px"
+  button-danger:
+    backgroundColor: "{colors.flag-fill}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
+    height: "44px"
+    padding: "8px 20px"
+  button-secondary:
+    backgroundColor: "{colors.sunk}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
+    height: "44px"
+    padding: "8px 20px"
+  ledge-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.card}"
+    padding: "16px"
+  filter-sheet:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.lobe}"
+    padding: "0 16px 16px"
+  skeleton-block:
+    backgroundColor: "{colors.band}"
+    rounded: "{rounded.card}"
+  state-page:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.lobe}"
+    padding: "24px"
   diet-badge:
     backgroundColor: "{colors.accent-soft}"
     textColor: "{colors.accent}"
@@ -130,7 +200,7 @@ components:
 
 # Design System: Gluton-Free
 
-Recorded from the shipped foundation build of issue #121. Only the foundation is on this system (see Scope at the end).
+Recorded from the shipped build of issue #121 (`src/app/globals.css`). Every beta surface is on this system (see Scope at the end).
 
 ## Overview
 
@@ -152,7 +222,7 @@ The build is warm and plain-spoken rather than clinical or dashboard-dense. Reco
 Warm cream ground, near-black green-grey ink, one fresh green action colour, and a five-step Tier family of pastel fills with darker outlines.
 
 ### Primary
-- **Meadow Green** (#8ED462): the Book capsule and primary `.btn` fill; text selection. Always outlined in ink with ink text.
+- **Meadow Green** (#8ED462): the Book capsule and primary `.btn` fill; text selection. Always outlined in ink with ink text. Book hover mixes 14% white (#fff) into it; that white is a hover step, not a palette colour.
 - **Forest Link** (#2E6B1D): links, focus-adjacent accents, checkbox accent, history line, diet icon colour. Lightens to #A6E07C in dark.
 
 ### Secondary
@@ -167,6 +237,14 @@ Warm cream ground, near-black green-grey ink, one fresh green action colour, and
 
 ### Tier family
 Each Tier has an outline colour and a fill (values in frontmatter): Avoid coral-red, OK warm grey-sand, Good light green, Must-go green, Life-changing yellow. Dark theme inverts fills to deep tones with light outlines.
+
+### Named steps
+Intentional steps built into the system, recorded so they read as design and not drift:
+- **Dark theme ramp:** every light token has a dark twin on the same role (ground #1C1F19, surface #262A22, sunk #20231C, ink #F2EFE2, muted #B4B6A8, faint #8E9082, line #3A3E33, band #31352A, accent #A6E07C, accent-soft #2A3A20; Tier outlines lighten to #FF9A8A / #BDB89F / #9CD97B / #B9F08A / #FFD84D on deep fills #4A2520 / #34362B / #2C4220 / #365A24 / #5C4A10; flag #FF9A8A on #3A1F1B; warn #F2C94C on #3A3010). Dark applies by `prefers-color-scheme` or `data-theme="dark"`.
+- **Scrim:** the filter sheet backdrop is dark ground at 55% (rgba(28,31,25,.55)) in both themes.
+- **Shadow ink:** the ledge is ink at 10% in light and black at 35% in dark.
+- **Logo tile:** #F5F1E4 behind the 32px logo in both themes.
+- **Status tints:** Confidence High and Trend Improving use the Good fill; Medium and provisional use the warn fill; Low and Slipping use the Avoid fill; Steady uses the OK fill.
 
 ### Named Rules
 **The Never-Hue-Alone Rule.** Tier is carried by fill plus pip count (1 to 5 filled round pips) plus the label. Confidence is carried by dot count (1 to 3) plus its word. Trend is carried by arrow glyph plus word. Colour never stands alone.
@@ -183,14 +261,25 @@ Each Tier has an outline colour and a fill (values in frontmatter): Avoid coral-
 **Character:** One grotesk used heavy (800) for names and Tiers, regular for reading; mono only for numbers that must align.
 
 ### Hierarchy
-- **Display** (800, clamp(34px, 7vw, 52px), 1.15): the `xl` Tier badge.
-- **Headline** (800, clamp(26px, 5vw, 34px), 1.15): restaurant name on the Report hero. Hero Tier badge is 800-weight text clamp(23px, 6.2vw, 38px).
-- **Title** (700, 18px to 22px): section headings; directory heading 22px; card name 19px (phone) or 17px (table).
-- **Body** (400, 16px, 1.5): running text; explanation line 17px, hero explain clamp(18px, 4.6vw, 21px) at 600, max 62ch.
-- **Label** (600, 14px): chips, row labels (700, muted), field labels.
+- **Display** (800, clamp(36px, 7vw, 64px), 1.02, -0.055em): landing hero heading only.
+- **Headline** (800, clamp(26px, 5vw, 34px), 1.15): restaurant name on the Report hero; account and privacy page titles run clamp 28 to 38 and 30 to 42 at the same weight.
+- **Hero Tier** (700, clamp(23px, 6.2vw, 38px)): the large Tier badge on the Report hero. The `lg` badge elsewhere is 26px.
+- **Page title** (800, 28px, -0.03em): sign-in, settings, baseline checks, feedback inbox.
+- **Section title** (800, 22px, -0.02em): directory heading, baseline groups, inbox section heads; landing example heading 23px.
+- **Subhead** (750 to 800, 19px): settings and account section heads; phone card name 19px.
+- **Title** (700, 17px to 18px): report section headings; table row name and search result 17px.
+- **Lede** (400, 17px, 1.5): explanation line, search input; hero explain clamp(18px, 4.6vw, 21px) at 600, max 62ch.
+- **Body** (400, 16px, 1.5): running text, inputs.
+- **Action** (600 to 700, 15px): small Book, spot-check links.
+- **Label** (600, 14px): chips, row labels (700, muted), field labels, table headers.
+- **Caption** (400, 12px to 13px): footnotes, tooltips, footers.
 - **Data** (mono 500, 12 to 13.5px, tabular): percentiles, axis ticks.
 
+Odd values (12.5px, 13.5px, 14.5px, 21px, 30px, 36px) are one-off refinements around these steps; do not add more.
+
 ### Named Rules
+**The Step-Not-Size Rule.** New text takes a named step above. A new literal size needs a reason and a place in this list.
+
 **The Verdict Vocabulary Rule.** Copy never calls a Verdict a "score", "rating" or "grade". Say Verdict, Tier, Confidence.
 
 ## Layout
@@ -199,26 +288,26 @@ Single centred column, `.wrap` max 720px; the Directory widens to 1120px and the
 
 Report first viewport at 390px: name and area, large Tier badge with pips, Confidence chip beside it, one explanation line, then the full-width Book capsule (48px). Legend, facts and history sit below. At 560px and up the Book capsule shrinks to fit its content.
 
-Directory: a table at wide widths (9 columns, still dense; known deferral). Below 1000px each row becomes a phone card: name, Tier and Confidence, Trend, dietary badges, facts line (Format, Price, Area), then a full-width Book capsule. The whole card is tappable through the name link's stretched overlay; the Book link sits above it. Filters become a bottom sheet below 720px.
+Directory: a table at wide widths (9 columns, still dense; known deferral). Below 1000px each row becomes a phone card: name, Tier and Confidence, Trend, dietary badges, facts line (Format, Price, Area), then a full-width Book capsule. The whole card is tappable through the name link's stretched overlay; the Book link sits above it. Below 720px the filters leave the page and open as a modal bottom sheet (see Components). While the list refetches (`aria-busy` on the controls) the results dim to 50% opacity. The wide loading skeleton uses the same 1120px column as the Directory.
 
 ## Elevation & Depth
 
 Flat by default. Depth is tonal: Fresh Cream cards on Warm Cream ground, Sunk Cream wells inside cards.
 
 ### Shadow Vocabulary
-- **Flat offset** (`box-shadow: 0 2px 0 rgba(44,46,42,.1)`; dark `0 2px 0 rgba(0,0,0,.35)`): hero, cards, rows, filter panel. A ledge, not a blur.
+- **Flat offset** (`box-shadow: 0 2px 0 rgba(44,46,42,.1)`; dark `0 2px 0 rgba(0,0,0,.35)`): hero, cards, rows, inline filter panel, state pages. A ledge, not a blur. The open filter sheet and the feedback panel drop it for a 2px ink border.
 
 ### Named Rules
 **The One Ledge Rule.** The only shadow token is the 2px flat offset. Cards do not gain extra elevation on hover; the Tier badge swells instead.
 
 ## Shapes
 
-Lobe language: large rounded boxes with one tight corner. Hero uses a 32px radius all round. Large Tier badges and phone cards use 32px on three corners and a tight 10px to 12px on the bottom-left, like a map lobe with a tail. Cards and flags 20px; small wells 10px; every control, chip, pip and badge is a full capsule or circle (999px / 50%). Borders: 2px ink on hero and Book; 2px Tier colour on badges; 2px dotted line for dividers. Pips are 9px (default), 14px (hero) and 18px (xl); Confidence dots 8px.
+Lobe language: large rounded boxes with one tight corner. Hero uses a 32px radius all round. Large Tier badges, phone cards, the landing hero, state pages and skeleton rows use 32px on three corners and a tight 10px on the bottom-left, like a map lobe with a tail. Cards and flags 20px; small wells and inputs 10px; every control, chip, pip and badge is a full capsule or circle (999px / 50%). Small radii for tiny parts: 4px chart rails and meter segments (2px and 3px on thinner rails), 5px tooltips and warnings, 9px logo tile. Borders: 2px ink on hero and Book; 2px Tier colour on badges; 2px dotted line for dividers. Pips are 9px (default), 14px (large; 12px at 480px and under); Confidence dots 8px.
 
 ## Components
 
 ### Tier badge
-Capsule with 2px outline in the Tier colour, fill in the Tier fill, ink text weight 700, five round pips (filled up to the Tier, hollow after) then the label. Sizes: default, `lg` (26px, lobe shape), `xl` (clamp 34 to 52px, lobe shape). Dashed variant for provisional. Hover or focus on a directory row swells it `scale(1.04)` over 160ms; disabled under prefers-reduced-motion.
+Capsule with 2px outline in the Tier colour, fill in the Tier fill, ink text weight 700, five round pips (filled up to the Tier, hollow after) then the label. Sizes: default, `lg` (26px, lobe shape; clamp 23 to 38px in the Report hero). Dashed variant for provisional. Hover or focus on a directory row swells it `scale(1.04)` over 160ms; disabled under prefers-reduced-motion.
 
 ### Confidence chip
 Capsule on a tinted fill (High light green, Medium pale yellow, Low pale coral), three round dots filled to level, then "High/Medium/Low Confidence". Compact form shortens the visible word on rows; the full phrase stays for screen readers.
@@ -230,7 +319,7 @@ Capsule with a drawn arrow (up, flat, down) and the word Improving, Steady or Sl
 28px round Soft Sprout badge holding a drawn 16px stroke icon (leaf sprig, leaf, crossed wheat) plus the name. Icon-only on wide table rows (name read aloud and in tooltip); on phone cards the name shows inside a Soft Sprout capsule.
 
 ### Icons
-Drawn SVG icons (the `Icon` renderer and the external-link arrow live in `src/web/icons.tsx`; Trend arrow and Dietary paths sit beside their atoms in `src/web/atoms.tsx`): 24px viewBox, 2.25 stroke, round caps and joins, `currentColor`, decorative with `aria-hidden`. External link arrow sits beside link text, never alone.
+Drawn SVG icons (the `Icon` renderer, `ArrowIcon`, `ExternalIcon` and `Stars` live in `src/web/icons.tsx`; Trend arrow and Dietary paths sit beside their atoms in `src/web/atoms.tsx`): 24px viewBox, 2.25 stroke, round caps and joins, `currentColor`, decorative with `aria-hidden`. `ArrowIcon` (14px right arrow) points forward inside the app and follows the action words ("Preview", "Open Verdict"). `ExternalIcon` (14px diagonal arrow) marks links that leave the app. Both sit beside link text, never alone. `Stars` draw a Review's count as filled against outlined stars (outlined ones at 55% opacity) with an aria-label; they describe a Review, never the Verdict.
 
 ### Buttons
 - **Shape:** full capsule (999px), 2px ink border.
@@ -238,9 +327,25 @@ Drawn SVG icons (the `Icon` renderer and the external-link arrow live in `src/we
 - **Small:** 44px, padding 0 16px, 15px text. In table rows it sits on Fresh Cream and fills green on hover.
 - **Hover / Focus:** hover mixes 14% white into green; focus is a 3px ink outline offset 3px.
 - **Secondary:** Sunk Cream fill, 2px line border.
+- **Danger (`btn-danger`):** Flag Fill (#FFE3DD), ink text, 2px flag-red border, same capsule and 44px height. For destructive account actions; its words carry the meaning alongside the colour.
+- **Disabled:** Sunk Cream fill, muted text, line border, full opacity, not-allowed cursor; legible rather than faded.
 
 ### Cards / Containers
+**Ledge card** is the default container: Fresh Cream surface, flat offset shadow, 20px radius, no border, 16px padding (24px for the feedback block). Used by account and settings sections, owner questions, baseline checks, feedback groups, search results, index rows, the history chart and the sign-in form. Borders are reserved for the hero (ink), the Report judged panel and sample report (line), and the feedback panel (ink). Wells inside a ledge card step down to Sunk Cream at 10px.
+
 Hero: Fresh Cream, 2px ink border, 32px radius, flat offset, 24px padding. Restaurant card (phone): Fresh Cream, lobe radius, 16px padding. Flag: coral-tinted fill, 2px red border, 20px radius, framed all round. Evidence wells: Sunk Cream, 20px. Quotes: tinted green or coral, 20px.
+
+### Filter sheet (Directory, below 720px)
+A modal bottom sheet. A capsule Filters button opens it; the panel is fixed to the bottom edge, Fresh Cream, 32px radius on the top corners, 2px ink border (none at the bottom), no shadow, max height 82vh and scrolling, bottom padding includes the safe-area inset. A sticky header row holds the title and close control. A full-viewport backdrop (dark ground at 55%) sits one layer beneath the sheet. Area options lose their inner scroll cap inside the sheet. At 721px and up the same groups render as an inline ledge panel (auto-fit columns) and the backdrop and sheet header are hidden.
+
+### Busy list
+While the Directory refetches, `aria-busy="true"` on the controls dims the results scroller to 50% opacity (150ms). Content stays in place; no spinner and no layout shift.
+
+### Page skeletons
+Loading routes render a `skeleton-page` of blocks filled with Band (#E2DCC6) pulsing to 55% opacity over 1.4s. Blocks copy what they stand in for: title (32px, 10px radius), bar (44px capsule), card (160px, 20px radius), row (70px, 132px under 720px, lobe corners with the tight tail), and a Report hero variant (min-height min(520px, 70vh), text lines, 56px Tier capsule, Book capsule pinned to the bottom). The wide variant uses the 1120px Directory column. Reduced motion removes the pulse.
+
+### State pages (error and not found)
+One lobe card (Fresh Cream, 32px with a tight bottom-left, flat ledge, 24px padding, max 520px, 48px top margin) holding a 56px accent-soft round badge, a 26 to 34px 800-weight heading, copy and a wrapping row of capsule actions.
 
 ### Inputs / Fields
 44px minimum height, 2px line border, Fresh Cream fill, 10px radius, 16px text. Sort select is a capsule. Focus: 3px ink outline offset 2px.
@@ -268,8 +373,7 @@ Plain text top bar, 13px, ink links weight 700, no chrome.
 
 ## Scope and known gaps
 
-Built on this system: tokens, Tier badge, Confidence dots, Trend chip, Dietary icons, restaurant card and row, Report hero, Directory, Tier legend.
+Every beta surface follows this system: landing, privacy, directory, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. New surfaces inherit it; the earlier 6px to 16px radii and 1px borders are gone from the stylesheet.
 
-Pending (not yet on the system): landing, sign-in, invite, settings and inbox, search-home, history, feedback, privacy, quote stars, owner-questions glyph. These still carry earlier radii (6px to 16px), 1px borders and plain cards.
+Known gaps: the wavy divider and blob hero silhouette from the direction were not built (a dotted `.sec` divider ships); the 9-column desktop directory table is still dense. Eyebrows and kickers no longer exist in the source and are not part of the system.
 
-Deferrals from the finish review: the wavy divider and blob hero silhouette from the direction were not built (a dotted `.sec` divider ships); the 9-column desktop directory table is still dense; `.eyebrow` (uppercase 11.5px caption) is still used by landing, privacy and search-home.

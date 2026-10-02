@@ -1,38 +1,258 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T12:00:00Z",
+  "generatedAt": "2026-10-02T18:00:00Z",
   "title": "Design System: Gluton-Free",
   "extensions": {
     "colorMeta": {
-      "ground": { "role": "neutral", "displayName": "Warm Cream", "canonical": "#F5F1E4", "tonalRamp": ["#2C2E2A", "#575A50", "#8E9082", "#D6D0B9", "#E2DCC6", "#ECE7D6", "#F5F1E4", "#FDFBF4"] },
-      "ink": { "role": "neutral", "displayName": "Garden Ink", "canonical": "#2C2E2A", "tonalRamp": ["#1C1F19", "#2C2E2A", "#575A50", "#60634F", "#8E9082", "#B4B6A8", "#D6D0B9", "#F2EFE2"] },
-      "brand": { "role": "primary", "displayName": "Meadow Green", "canonical": "#8ED462", "tonalRamp": ["#1F5A10", "#2E6B1D", "#4E9A33", "#6FBF48", "#8ED462", "#B5E48A", "#D6EFBC", "#E2F1D0"] },
-      "accent": { "role": "primary", "displayName": "Forest Link", "canonical": "#2E6B1D", "tonalRamp": ["#1F5A10", "#2E6B1D", "#4E9A33", "#6FBF48", "#8ED462", "#A6E07C", "#D6EFBC", "#E2F1D0"] },
-      "tier-avoid": { "role": "tier", "displayName": "Avoid outline", "canonical": "#B3321F", "tonalRamp": ["#4A2520", "#B3321F", "#FF705D", "#FF9A8A", "#FFD3CB", "#FFE3DD"] },
-      "tier-ok": { "role": "tier", "displayName": "OK outline", "canonical": "#6B6754", "tonalRamp": ["#34362B", "#6B6754", "#BDB89F", "#E9E4D0"] },
-      "tier-good": { "role": "tier", "displayName": "Good outline", "canonical": "#2F6B1E", "tonalRamp": ["#2C4220", "#2F6B1E", "#9CD97B", "#D6EFBC"] },
-      "tier-must-go": { "role": "tier", "displayName": "Must-go outline", "canonical": "#1F5A10", "tonalRamp": ["#365A24", "#1F5A10", "#B9F08A", "#B5E48A"] },
-      "tier-life-changing": { "role": "tier", "displayName": "Life-changing outline", "canonical": "#7A5A00", "tonalRamp": ["#5C4A10", "#7A5A00", "#FFD84D", "#FFE681"] }
+      "ground": {
+        "role": "neutral",
+        "displayName": "Warm Cream",
+        "canonical": "#F5F1E4",
+        "tonalRamp": [
+          "#2C2E2A",
+          "#575A50",
+          "#8E9082",
+          "#D6D0B9",
+          "#E2DCC6",
+          "#ECE7D6",
+          "#F5F1E4",
+          "#FDFBF4"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Garden Ink",
+        "canonical": "#2C2E2A",
+        "tonalRamp": [
+          "#1C1F19",
+          "#2C2E2A",
+          "#575A50",
+          "#60634F",
+          "#8E9082",
+          "#B4B6A8",
+          "#D6D0B9",
+          "#F2EFE2"
+        ]
+      },
+      "brand": {
+        "role": "primary",
+        "displayName": "Meadow Green",
+        "canonical": "#8ED462",
+        "tonalRamp": [
+          "#1F5A10",
+          "#2E6B1D",
+          "#4E9A33",
+          "#6FBF48",
+          "#8ED462",
+          "#B5E48A",
+          "#D6EFBC",
+          "#E2F1D0"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Forest Link",
+        "canonical": "#2E6B1D",
+        "tonalRamp": [
+          "#1F5A10",
+          "#2E6B1D",
+          "#4E9A33",
+          "#6FBF48",
+          "#8ED462",
+          "#A6E07C",
+          "#D6EFBC",
+          "#E2F1D0"
+        ]
+      },
+      "tier-avoid": {
+        "role": "tier",
+        "displayName": "Avoid outline",
+        "canonical": "#B3321F",
+        "tonalRamp": [
+          "#4A2520",
+          "#B3321F",
+          "#FF705D",
+          "#FF9A8A",
+          "#FFD3CB",
+          "#FFE3DD"
+        ]
+      },
+      "tier-ok": {
+        "role": "tier",
+        "displayName": "OK outline",
+        "canonical": "#6B6754",
+        "tonalRamp": [
+          "#34362B",
+          "#6B6754",
+          "#BDB89F",
+          "#E9E4D0"
+        ]
+      },
+      "tier-good": {
+        "role": "tier",
+        "displayName": "Good outline",
+        "canonical": "#2F6B1E",
+        "tonalRamp": [
+          "#2C4220",
+          "#2F6B1E",
+          "#9CD97B",
+          "#D6EFBC"
+        ]
+      },
+      "tier-must-go": {
+        "role": "tier",
+        "displayName": "Must-go outline",
+        "canonical": "#1F5A10",
+        "tonalRamp": [
+          "#365A24",
+          "#1F5A10",
+          "#B9F08A",
+          "#B5E48A"
+        ]
+      },
+      "tier-life-changing": {
+        "role": "tier",
+        "displayName": "Life-changing outline",
+        "canonical": "#7A5A00",
+        "tonalRamp": [
+          "#5C4A10",
+          "#7A5A00",
+          "#FFD84D",
+          "#FFE681"
+        ]
+      },
+      "band": {
+        "role": "neutral",
+        "displayName": "Band",
+        "canonical": "#E2DCC6",
+        "tonalRamp": [
+          "#31352A",
+          "#E2DCC6"
+        ]
+      },
+      "flag": {
+        "role": "status",
+        "displayName": "Flag",
+        "canonical": "#B3321F",
+        "tonalRamp": [
+          "#3A1F1B",
+          "#B3321F",
+          "#FF9A8A",
+          "#FFE3DD"
+        ]
+      },
+      "warn": {
+        "role": "status",
+        "displayName": "Warn",
+        "canonical": "#7A5A00",
+        "tonalRamp": [
+          "#3A3010",
+          "#7A5A00",
+          "#F2C94C",
+          "#FFF1C2"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "The xl Tier badge." },
-      "headline": { "displayName": "Headline", "purpose": "Restaurant name on the Report hero." },
-      "title": { "displayName": "Title", "purpose": "Section headings and card names." },
-      "body": { "displayName": "Body", "purpose": "Reading text and the one-line explanation." },
-      "label": { "displayName": "Label", "purpose": "Chips and row labels." },
-      "data": { "displayName": "Data", "purpose": "Percentiles, counts, axis ticks." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Landing hero heading only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Restaurant name on the Report hero."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings and card names."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Reading text and the one-line explanation."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Chips and row labels."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Percentiles, counts, axis ticks."
+      },
+      "hero-tier": {
+        "displayName": "Hero Tier",
+        "purpose": "Large Tier badge on the Report hero."
+      },
+      "page-title": {
+        "displayName": "Page title",
+        "purpose": "Sign-in, settings, baseline checks, inbox."
+      },
+      "section-title": {
+        "displayName": "Section title",
+        "purpose": "Directory heading, baseline groups, inbox sections."
+      },
+      "subhead": {
+        "displayName": "Subhead",
+        "purpose": "Settings and account section heads, phone card names."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "Explanation line and search input."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Small Book and spot-check links."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Footnotes, tooltips, footers."
+      }
     },
     "shadows": [
-      { "name": "flat-offset", "value": "0 2px 0 rgba(44,46,42,.1)", "purpose": "The one ledge under hero, cards, rows, filter panel. Dark theme: 0 2px 0 rgba(0,0,0,.35)." }
+      {
+        "name": "flat-offset",
+        "value": "0 2px 0 rgba(44,46,42,.1)",
+        "purpose": "The one ledge under hero, ledge cards, rows, inline filter panel, state pages. Dark theme: 0 2px 0 rgba(0,0,0,.35). Open filter sheet and feedback panel use a 2px ink border instead."
+      },
+      {
+        "name": "scrim",
+        "value": "rgba(28,31,25,.55)",
+        "purpose": "Filter sheet backdrop, both themes. A colour layer, not a shadow."
+      }
     ],
     "motion": [
-      { "name": "tier-swell", "value": "transform 160ms ease; scale(1.04)", "purpose": "Tier badge swells on directory row hover and focus. Disabled under prefers-reduced-motion." }
+      {
+        "name": "tier-swell",
+        "value": "transform 160ms ease; scale(1.04)",
+        "purpose": "Tier badge swells on directory row hover and focus. Disabled under prefers-reduced-motion."
+      },
+      {
+        "name": "busy-dim",
+        "value": "opacity .15s; 0.5 while aria-busy",
+        "purpose": "Directory results dim while refetching."
+      },
+      {
+        "name": "skel-pulse",
+        "value": "1.4s ease-in-out infinite; opacity to .55",
+        "purpose": "Page skeleton blocks. Removed under prefers-reduced-motion."
+      }
     ],
     "breakpoints": [
-      { "name": "phone-hero", "value": "480px" },
-      { "name": "book-fit", "value": "560px" },
-      { "name": "filter-sheet", "value": "720px" },
-      { "name": "directory-card", "value": "1000px" }
+      {
+        "name": "phone-hero",
+        "value": "480px"
+      },
+      {
+        "name": "book-fit",
+        "value": "560px"
+      },
+      {
+        "name": "filter-sheet",
+        "value": "720px"
+      },
+      {
+        "name": "directory-card",
+        "value": "1000px"
+      }
     ]
   },
   "components": [
@@ -91,6 +311,45 @@
       "description": "Phone directory card: lobe corners with a tight bottom-left tail.",
       "html": "<div class=\"ds-card\"><b>Restaurant name</b><span class=\"ds-tier\">Good</span></div>",
       "css": ".ds-card{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--surface);color:var(--ink);border-radius:32px 32px 32px 10px;box-shadow:0 2px 0 rgba(44,46,42,.1);padding:16px}.ds-card b{flex:1 1 100%;font-size:19px;line-height:1.2}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive capsule: flag fill, flag border, ink text.",
+      "html": "<button class=\"ds-danger\">Delete my data</button>",
+      "css": ".ds-danger{display:inline-flex;align-items:center;justify-content:center;font:inherit;font-weight:700;min-height:44px;padding:8px 20px;border-radius:999px;background:var(--flag-bg);color:var(--ink);border:2px solid var(--flag);cursor:pointer}.ds-danger:hover{opacity:.9}.ds-danger:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
+    },
+    {
+      "name": "Ledge Card",
+      "kind": "card",
+      "refersTo": "ledge-card",
+      "description": "Default container: surface, flat ledge, 20px radius, no border.",
+      "html": "<section class=\"ds-ledge\"><h2>Section</h2><p>Body copy.</p></section>",
+      "css": ".ds-ledge{display:grid;gap:12px;padding:16px;background:var(--surface);color:var(--ink);border-radius:20px;box-shadow:var(--shadow)}.ds-ledge h2{margin:0;font-size:19px;font-weight:800}.ds-ledge p{margin:0;color:var(--muted);font-size:14px}"
+    },
+    {
+      "name": "Filter Sheet",
+      "kind": "custom",
+      "refersTo": "filter-sheet",
+      "description": "Modal bottom sheet under 720px: sticky header, ink border, backdrop beneath.",
+      "html": "<div class=\"ds-sheet\"><div class=\"ds-sheet-head\"><b>Filters</b><button class=\"ds-close\">Close</button></div><label>Area</label></div>",
+      "css": ".ds-sheet{background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-bottom:0;border-radius:32px 32px 0 0;padding:0 16px 16px;max-height:82vh;overflow-y:auto}.ds-sheet-head{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);padding:14px 0 10px}.ds-close{font:inherit;font-weight:700;min-height:44px;padding:0 16px;border-radius:999px;background:var(--sunk);border:2px solid var(--line);color:var(--ink)}"
+    },
+    {
+      "name": "Skeleton Row",
+      "kind": "custom",
+      "refersTo": "skeleton-block",
+      "description": "Pulsing Band block shaped like a directory row.",
+      "html": "<div class=\"ds-skel\"></div>",
+      "css": ".ds-skel{height:70px;background:var(--band);border-radius:32px 32px 32px 10px;animation:ds-pulse 1.4s ease-in-out infinite}@keyframes ds-pulse{50%{opacity:.55}}@media (prefers-reduced-motion:reduce){.ds-skel{animation:none}}"
+    },
+    {
+      "name": "Arrow Action",
+      "kind": "custom",
+      "description": "Action words followed by the 14px ArrowIcon.",
+      "html": "<span class=\"ds-action\">Open Verdict <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></span>",
+      "css": ".ds-action{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--accent)}"
     }
   ],
   "narrative": {
@@ -104,11 +363,36 @@
       "Light and dark themes share the same structure; only values change."
     ],
     "rules": [
-      { "name": "The Never-Hue-Alone Rule", "body": "Tier is carried by fill plus pip count (1 to 5 filled round pips) plus the label. Confidence is carried by dot count (1 to 3) plus its word. Trend is carried by arrow glyph plus word. Colour never stands alone.", "section": "colors" },
-      { "name": "The Dashed Means Unsure Rule", "body": "A dashed outline means a provisional Tier or Not enough evidence. Nothing else uses a dashed border on a Tier or status atom.", "section": "colors" },
-      { "name": "The Ink-On-Fill Rule", "body": "Text on any Tier or chip fill is ink. Tier outline colours are for borders and pips, not text.", "section": "colors" },
-      { "name": "The Verdict Vocabulary Rule", "body": "Copy never calls a Verdict a score, rating or grade. Say Verdict, Tier, Confidence.", "section": "typography" },
-      { "name": "The One Ledge Rule", "body": "The only shadow token is the 2px flat offset. Cards do not gain extra elevation on hover; the Tier badge swells instead.", "section": "elevation" }
+      {
+        "name": "The Never-Hue-Alone Rule",
+        "body": "Tier is carried by fill plus pip count (1 to 5 filled round pips) plus the label. Confidence is carried by dot count (1 to 3) plus its word. Trend is carried by arrow glyph plus word. Colour never stands alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dashed Means Unsure Rule",
+        "body": "A dashed outline means a provisional Tier or Not enough evidence. Nothing else uses a dashed border on a Tier or status atom.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink-On-Fill Rule",
+        "body": "Text on any Tier or chip fill is ink. Tier outline colours are for borders and pips, not text.",
+        "section": "colors"
+      },
+      {
+        "name": "The Verdict Vocabulary Rule",
+        "body": "Copy never calls a Verdict a score, rating or grade. Say Verdict, Tier, Confidence.",
+        "section": "typography"
+      },
+      {
+        "name": "The Step-Not-Size Rule",
+        "body": "New text takes a named step above. A new literal size needs a reason and a place in this list.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Ledge Rule",
+        "body": "The only shadow token is the 2px flat offset. Cards do not gain extra elevation on hover; the Tier badge swells instead.",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do give every new Tier, Confidence or status atom both a shape cue (pips, dots, arrow, dashed outline) and a word.",
