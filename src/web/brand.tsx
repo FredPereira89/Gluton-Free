@@ -5,7 +5,7 @@ import Link from "next/link";
 export function Brand({ className = "" }: { className?: string }) {
   return (
     <Link className={`brand ${className}`} href="/">
-      <Image src="/brand-mark.png" alt="" width={32} height={32} priority />
+      <Image src="/logo-mark.png" alt="" width={32} height={32} priority />
       <span>Gluton-Free</span>
     </Link>
   );

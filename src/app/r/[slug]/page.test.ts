@@ -42,6 +42,24 @@ describe("Shared directory labels (issue #111)", () => {
   });
 });
 
+describe("Source attribution", () => {
+  it.each(["owner", "invitee"] as const)("omits mismatched links throughout the %s Report without hiding Evidence", async (role) => {
+    const page = bundle(3);
+    const wrongUrl = "https://www.instagram.com/zedatasca_oficial/";
+    page.sources[0]!.url = wrongUrl;
+    page.verdict!.blocks.quotes = [{ reviewId: 7, aspect: "food", polarity: 1, text: "Delicious meal", textEn: null, lang: "en", stars: 5, source: "google", month: "2026-08" }];
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
+    vi.mocked(pageRole).mockResolvedValueOnce(role);
+    const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+    expect(html).not.toContain(`href="${wrongUrl}"`);
+    expect(html).not.toContain("on Google</span>");
+    expect(html).toContain("Delicious meal");
+    expect(html).toContain("Incident 1 in the kitchen");
+    expect(html).toContain("<h3>Google</h3>");
+    expect(html).toContain("Source link unavailable.");
+  });
+});
+
 describe("Invitee view (issue #109)", () => {
   it("marks every report state for an Invitee so the shell hides Settings, and not for the Owner", async () => {
     for (const variant of [{ ...bundle(1), verdict: null }, bundle(1)]) {
@@ -58,7 +76,7 @@ describe("Invitee view (issue #109)", () => {
   function ownerBundle(): RestaurantBundle {
     const page = bundle(1);
     page.restaurant = { ...page.restaurant, formatProvenance: "llm" };
-    page.sources.push({ code: "tripadvisor", name: "Tripadvisor", kind: "crowd", access: "public_ok", matchProvenance: "pasted", url: "https://example.com/ta",
+    page.sources.push({ code: "tripadvisor", name: "Tripadvisor", kind: "crowd", access: "public_ok", matchProvenance: "pasted", url: "https://www.tripadvisor.com/Restaurant_Review-g189158-d123-Reviews-Sample-Lisbon.html",
       rating: 4, reviewCount: 3, textCount: 3, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" });
     const flag = page.verdict!.blocks.rollup.redFlags[0]!;
     flag.incidents = flag.incidents!.map((incident) => ({ ...incident, evidence: SCRUBBED_EVIDENCE }));
@@ -85,8 +103,8 @@ describe("Invitee view (issue #109)", () => {
     expect(html).toContain("See how this verdict has changed");
     expect(html).toContain("In their words");
     for (const text of [SCRUBBED_PERSONAL, SCRUBBED_PUBLIC, SCRUBBED_EVIDENCE, "(proposed)", "<h2>Sources</h2>", "2026-03-01: New chef"]) expect(html, text).toContain(text);
-    expect(html).toContain('href="https://example.com/restaurant"');
-    expect(html).toContain('href="https://example.com/ta"');
+    expect(html).toContain('href="https://maps.google.com/?cid=12345"');
+    expect(html).toContain('href="https://www.tripadvisor.com/Restaurant_Review-g189158-d123-Reviews-Sample-Lisbon.html"');
     expect(html).not.toContain("The food is good.");
     expect(html).not.toContain("Technical explanation");
   });
@@ -172,7 +190,7 @@ function bundle(incidentCount: number, moneyIncident = false, reviewCount = 20):
     verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: null, blocks: { rollup: r, quotes: [] } },
     reportFacts: { standoutDishes: [], dietaryFits: [] },
-    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
+    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://maps.google.com/?cid=12345",
       rating: 4.9, reviewCount: 20, textCount: 20, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
     distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [], unavailableSources: [],
   };
@@ -198,7 +216,7 @@ function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBund
     verdict: { id: 1, state: r.state, tier: r.tier, confidence: r.confidence.level, explanation: "The food is good.",
       issuedAt: now.toISOString(), provisional: r.provisional, peerSnapshotId: r.peerSnapshot?.id ?? null, blocks: { rollup: r, quotes: [] } },
     reportFacts: { standoutDishes: [], dietaryFits: [] },
-    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://example.com/restaurant",
+    sources: [{ code: "google", name: "Google", kind: "crowd", access: "personal_only", matchProvenance: "auto_accepted", url: "https://maps.google.com/?cid=12345",
       rating: 4.9, reviewCount, textCount: reviewCount, newestAt: publishedAt.toISOString(), fetchStatus: "fetched" }],
     distinctions: [], critics: [], series: [], changePoints: [], activeJob: null, ownerQuestions: [], unavailableSources: [],
   };
@@ -217,14 +235,14 @@ describe("Quote evidence (issue #43)", () => {
     expect(html).toContain("A comida estava muito saborosa.");
     expect(html).toContain("Translate");
     expect(html).toContain("Personal only");
-    expect(html).toContain('href="https://example.com/restaurant"');
+    expect(html).toContain('href="https://maps.google.com/?cid=12345"');
     expect(html).not.toContain("reviewerName");
     expect(html).not.toContain("reviewPermalink");
     vi.mocked(pageRole).mockResolvedValueOnce("invitee");
     const invitee = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
     expect(invitee).toContain("In their words");
     expect(invitee).toContain("A comida estava muito saborosa.");
-    expect(invitee).toContain('href="https://example.com/restaurant"');
+    expect(invitee).toContain('href="https://maps.google.com/?cid=12345"');
     expect(invitee).not.toContain("Translate");
     expect(invitee).not.toContain("Personal only");
   });
@@ -444,7 +462,8 @@ describe("Decision-first report (issue #112)", () => {
     }
     const empty = await render("invitee", { ...bundle(0), reportFacts: { standoutDishes: [], dietaryFits: [] } });
     expect(empty).not.toContain("Standout dishes");
-    expect(empty).not.toContain("Dietary fit");
+    // Missing dietary information is stated, never left as a silent gap.
+    expect(empty).toContain("No dietary information in the Reviews yet");
   });
 
   it("lists the top 3 strengths and warnings with how many reviewers raise them", async () => {
@@ -471,7 +490,7 @@ describe("Decision-first report (issue #112)", () => {
     expect(highlights).toContain("Reviewers warn");
     expect(hero).not.toContain('class="scorecard"');
     expect(hero).not.toContain('class="bars');
-    const judged = html.slice(html.indexOf('<details class="judged"'));
+    const judged = html.slice(html.indexOf('<section class="sec judged"'));
     expect(judged).toContain('class="scorecard"');
     expect(judged).toContain('class="bars');
   });
@@ -485,13 +504,12 @@ describe("Decision-first report (issue #112)", () => {
     expect(html).toMatch(/class="score lv-5"/);
   });
 
-  it("keeps the reasoning in a collapsed 'How we judged this' with Peer group, positions, chart, confidence and consistency", async () => {
+  it("shows the reasoning openly under 'How we judged this' with Peer group, positions, chart, confidence and consistency", async () => {
     const page = withThemes(bundleWithPeers(40, 40));
     page.verdict!.blocks.rollup.series = [{ quarter: "2026-Q1", composite: 0.5, compositePercentile: 72, enoughReviews: true, volume: 10, textVolume: 10 }];
     const html = await render("invitee", page);
-    const judged = html.slice(html.indexOf('<details class="judged"'));
+    const judged = html.slice(html.indexOf('<section class="sec judged"'));
     expect(judged).toContain("How we judged this");
-    expect(html).not.toMatch(/<details class="judged"[^>]*open/);
     expect(judged).toContain("Compared with 40 tascas in Lisbon");
     expect(judged).toContain("Aspect positions");
     expect(judged).toContain("How its standing has moved");
@@ -513,7 +531,7 @@ describe("Decision-first report (issue #112)", () => {
 
   it("gives the Owner the same plain report, plus why the Tier landed, with no technical explanation", async () => {
     const html = await render("owner", withThemes(bundleWithPeers(40, 40)));
-    const judged = html.slice(html.indexOf('<details class="judged"'));
+    const judged = html.slice(html.indexOf('<section class="sec judged"'));
     expect(judged).toContain("Why this Tier (Owner)");
     expect(judged).toContain("Ceiling: needs at least 50 Peers");
     expect(html).not.toContain("Technical explanation");

@@ -4,9 +4,9 @@ import {
   MAX_BIGINT_ID, restaurantBundleSchema,
   type IdPagination, type ReportFacts, type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
 } from "@/lib/api-contract";
-import { BlocksSchema, type Blocks } from "@/verdict/blocks";
+import { BlocksSchema, RollupSchema, type Blocks } from "@/verdict/blocks";
 import { PARAMS, quarterlySourceHistory, reviewWindowCutoff, type Rollup } from "@/verdict/rollup";
-import { heroReason } from "@/verdict/plain-report";
+import { evidenceGapReason, heroReason, redFlagLine, strengthsAndWarnings } from "@/verdict/plain-report";
 import { trendOf } from "@/verdict/trend";
 import type { DirectoryQuery, DirectoryResponse, SearchResponse } from "@/lib/api-contract";
 import { buildDirectory } from "@/lib/directory";
@@ -435,7 +435,40 @@ async function loadDishDietaryFacts(windows: { id: number; as_of: Date; since: D
     where w.source_rank <= ${PARAMS.reviewWindowCap}` : [];
 }
 
-export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryResponse> {
+export type CompareEvidence = {
+  strengths: { label: string; reviewers: number }[];
+  warnings: { label: string; reviewers: number }[];
+  redFlags: string[];
+  // A forcing red flag decides the Tier, so Compare keeps booking secondary for it.
+  forcesAvoid: boolean;
+  // Why there is no Verdict, null when there is one.
+  gapReason: string | null;
+};
+
+/** The same recurring Themes and red flags shown on each Report, read from its latest Verdict. */
+export async function loadCompareEvidence(slugs: string[]): Promise<Record<string, CompareEvidence>> {
+  if (!slugs.length) return {};
+  const sql = db();
+  const rows = await sql`
+    select r.slug, v.blocks->'rollup' as rollup
+    from restaurant r
+    join lateral (select blocks from verdict where restaurant_id = r.id order by id desc limit 1) v on true
+    where r.slug in ${sql(slugs)}`;
+  return Object.fromEntries(rows.map((row) => {
+    const rollup = RollupSchema.parse(row.rollup);
+    const { strengths, warnings } = strengthsAndWarnings(rollup);
+    return [row.slug as string, {
+      strengths: strengths.map(({ label, reviewers }) => ({ label, reviewers })),
+      warnings: warnings.map(({ label, reviewers }) => ({ label, reviewers })),
+      redFlags: rollup.redFlags.map(redFlagLine),
+      forcesAvoid: rollup.redFlags.some((group) => group.forcesAvoid),
+      gapReason: rollup.state === "not_enough_evidence" ? evidenceGapReason(rollup.notEnoughEvidence) : null,
+    } satisfies CompareEvidence];
+  }));
+}
+
+/** `selectedSlugs` narrows the load to those Restaurants (the shortlist comparison); omit it for the whole directory. */
+export async function loadDirectory(query: DirectoryQuery, selectedSlugs?: string[]): Promise<DirectoryResponse> {
   const now = new Date();
   const rows = await db()`
     select r.id, v.created_at, v.blocks->'rollup'->>'changePointAt' as change_point_at, r.slug, r.name, r.city, r.address, r.area, r.lat, r.lng, r.format, r.price_tier,
@@ -448,7 +481,8 @@ export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryRes
            (select url from listing where restaurant_id = r.id and source_code = 'thefork') as thefork_url
     from restaurant r
     join lateral (select created_at, state, tier, confidence, provisional, blocks from verdict where restaurant_id = r.id order by id desc limit 1) v on true
-    where r.status <> 'permanently_closed'`;
+    where r.status <> 'permanently_closed'
+    ${selectedSlugs ? db()`and r.slug in ${db()(selectedSlugs.length ? selectedSlugs : [""])}` : db()``}`;
   const windows = rows.map((r) => ({ id: Number(r.id), as_of: new Date(r.created_at), since: reviewWindowCutoff(new Date(r.created_at), r.change_point_at ? new Date(r.change_point_at) : null) }));
   const facts = await loadDishDietaryFacts(windows);
   const categories = rows.length ? await db()`select restaurant_id, categories from listing where restaurant_id in (select jsonb_array_elements_text(${db().json(rows.map((r) => r.id))}::jsonb)::bigint)` : [];

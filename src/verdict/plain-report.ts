@@ -195,6 +195,13 @@ export function missingEvidence(nee: Rollup["notEnoughEvidence"]): string[] {
   return lines;
 }
 
+export const EVIDENCE_GAP_FALLBACK = "The available Reviews do not support a Verdict.";
+
+/** The one line saying why there is no Verdict: a reopening note, else the first bar the Reviews missed. */
+export function evidenceGapReason(nee: Rollup["notEnoughEvidence"]): string {
+  return nee.reasonLine || missingEvidence(nee)[0] || EVIDENCE_GAP_FALLBACK;
+}
+
 const CAP_WORDS: [test: (cap: string) => boolean, words: string][] = [
   [(c) => c === "only one Crowd Source", "Only one review site was found"],
   [(c) => c.startsWith("fewer than 5 Reviews with text"), "Few recent written reviews"],

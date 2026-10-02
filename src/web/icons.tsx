@@ -22,6 +22,11 @@ export function ArrowIcon() {
   return <Icon d="M5 12h14M13 6l6 6-6 6" size={14} />;
 }
 
+/** Dismisses or removes. A button that carries only this icon names its action in an aria-label. */
+export function CloseIcon({ size = 14 }: { size?: number }) {
+  return <Icon d="M6 6l12 12M18 6L6 18" size={size} />;
+}
+
 /** Marks a link that leaves the app. Always sits beside link text, never alone. */
 export function ExternalIcon() {
   return <Icon d="M7 17L17 7M9 7h8v8" size={14} />;

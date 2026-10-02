@@ -14,6 +14,7 @@ export type QuoteProps = {
   month: string;
   aspectLabel: string;
   negative: boolean;
+  positive?: boolean;
   reviewId: number;
   restaurantSlug: string;
   access?: "public_ok" | "personal_only";
@@ -44,7 +45,8 @@ export function Quote(q: QuoteProps) {
     finally { setLoading(false); }
   }
   return (
-    <figure className={`quote ${q.negative ? "neg" : ""}`} style={{ margin: 0 }}>
+    <figure className={`quote ${q.negative ? "neg" : q.positive ? "pos" : ""}`} style={{ margin: 0 }}>
+      {(q.negative || q.positive) && <span className="quote-flag">{q.negative ? "Criticism" : "Praise"}</span>}
       <blockquote lang={translated ? "en" : (q.lang ?? undefined)}>“{showing}”</blockquote>
       <figcaption className="meta">
         {q.lang && <span className="lang">{(translated ? "en" : q.lang).toUpperCase()}</span>}

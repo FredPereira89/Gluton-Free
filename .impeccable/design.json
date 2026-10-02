@@ -1,52 +1,58 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T20:00:00Z",
+  "generatedAt": "2026-10-02T21:21:36Z",
   "title": "Design System: Gluton-Free",
   "extensions": {
     "colorMeta": {
-      "ground": { "role": "neutral", "displayName": "Table Paper", "canonical": "#F5EFE0", "tonalRamp": ["#141B3A", "#424968", "#6F7592", "#D6CDB6", "#E4DBC3", "#ECE4CE", "#F5EFE0", "#FFFFFF"] },
-      "ink": { "role": "neutral", "displayName": "Blue-Black Ink", "canonical": "#141B3A", "tonalRamp": ["#0B1030", "#141B3A", "#424968", "#525877", "#6F7592", "#B0B6CF", "#D6CDB6", "#EEF0F8"] },
-      "brand": { "role": "primary", "displayName": "Ementa Blue", "canonical": "#1C3D9B", "tonalRamp": ["#0B1030", "#122A70", "#1C3D9B", "#3F5FBF", "#8FA9FF", "#A6BAFF", "#C9D5FF", "#E7ECF9"] },
-      "accent-soft": { "role": "tertiary", "displayName": "Blue Wash", "canonical": "#E7ECF9", "tonalRamp": ["#1F274A", "#1C3D9B", "#8FA9FF", "#E7ECF9"] },
-      "flag": { "role": "secondary", "displayName": "Tomato", "canonical": "#B5301D", "tonalRamp": ["#3A1F1B", "#3D1E1A", "#B5301D", "#D9402B", "#FF9C8A", "#FCE6E1"] },
-      "tier-good": { "role": "tier", "displayName": "Menu Green", "canonical": "#1F6F43", "tonalRamp": ["#16301F", "#14502F", "#1F6F43", "#7FD1A0", "#A5E8BF", "#C5E4D1", "#DEF0E5"] },
-      "tier-ok": { "role": "tier", "displayName": "OK Slate", "canonical": "#4D5578", "tonalRamp": ["#262B42", "#4D5578", "#B7BDD6", "#E9EBF3"] },
-      "tier-life-changing": { "role": "tier", "displayName": "Amber", "canonical": "#8A5200", "tonalRamp": ["#4A3A0A", "#8A5200", "#FFD25A", "#FFEAB3"] },
-      "sun": { "role": "secondary", "displayName": "Highlighter", "canonical": "#FFE27A", "tonalRamp": ["#6A5710", "#FFE27A"] },
-      "band": { "role": "neutral", "displayName": "Band", "canonical": "#E4DBC3", "tonalRamp": ["#2A3050", "#E4DBC3"] }
+      "ground": { "role": "neutral", "displayName": "Lemon Ground", "canonical": "#FFD23F", "tonalRamp": ["#0E1233", "#4D4108", "#7A6416", "#E2C766", "#EBD9A0", "#F6E6B4", "#FFD23F", "#FFF8E7"] },
+      "surface": { "role": "neutral", "displayName": "Cream Paper", "canonical": "#FFF8E7", "tonalRamp": ["#1A2050", "#7A6416", "#E2C766", "#EBD9A0", "#F6E6B4", "#FFF8E7"] },
+      "ink": { "role": "neutral", "displayName": "Warm Ink", "canonical": "#14110F", "tonalRamp": ["#14110F", "#4D4108", "#594C10", "#7A6416", "#CDD0EE", "#FFF3D1"] },
+      "brand": { "role": "primary", "displayName": "Cobalt", "canonical": "#1F3FBF", "tonalRamp": ["#0E1233", "#14298A", "#1F3FBF", "#4A63D0", "#808ACB", "#DDE4FA", "#2B3478", "#FFD23F"] },
+      "accent-soft": { "role": "tertiary", "displayName": "Cobalt Wash", "canonical": "#DDE4FA", "tonalRamp": ["#2B3478", "#1F3FBF", "#DDE4FA"] },
+      "coral": { "role": "secondary", "displayName": "Tomato", "canonical": "#D63A26", "tonalRamp": ["#4A1E1E", "#B72A17", "#D63A26", "#FF8A75", "#FBDDD6"] },
+      "olive": { "role": "secondary", "displayName": "Olive", "canonical": "#5E8A1E", "tonalRamp": ["#26391A", "#4A7216", "#5E8A1E", "#A8D45A", "#E1EBC9"] },
+      "sun": { "role": "secondary", "displayName": "Highlighter", "canonical": "#FFD23F", "tonalRamp": ["#6A5710", "#FFD23F"] },
+      "flag": { "role": "secondary", "displayName": "Avoid Red", "canonical": "#B72A17", "tonalRamp": ["#44201C", "#4A1E1E", "#B72A17", "#FF8A75", "#FBDDD6"] },
+      "tier-good": { "role": "tier", "displayName": "Good Olive", "canonical": "#4A7216", "tonalRamp": ["#26391A", "#4A7216", "#A8D45A", "#E1EBC9"] },
+      "tier-must-go": { "role": "tier", "displayName": "Must-go Green", "canonical": "#14603A", "tonalRamp": ["#153D2A", "#14603A", "#6FD39A", "#CFE6D6"] },
+      "tier-ok": { "role": "tier", "displayName": "OK Slate", "canonical": "#55506B", "tonalRamp": ["#262C60", "#55506B", "#B9BEDD", "#E6E3EE"] },
+      "tier-life-changing": { "role": "tier", "displayName": "Life-changing Amber", "canonical": "#F2A900", "tonalRamp": ["#4A3A08", "#F2A900", "#FFD23F", "#FFE9A8"] },
+      "band": { "role": "neutral", "displayName": "Band", "canonical": "#EBD9A0", "tonalRamp": ["#2B3470", "#EBD9A0"] }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Landing headline only, in Ementa Blue." },
+      "display": { "displayName": "Display", "purpose": "Landing headline only; 'eat' sits on a tomato blob." },
       "headline": { "displayName": "Headline", "purpose": "Restaurant name on the Report hero." },
-      "directory-title": { "displayName": "Directory title", "purpose": "Directory heading and state-page title." },
-      "ementa-name": { "displayName": "Ementa name", "purpose": "A Restaurant's line in the Directory." },
-      "hero-tier": { "displayName": "Hero Tier", "purpose": "Large Verdict capsule on the Report hero." },
+      "directory-title": { "displayName": "Directory title", "purpose": "Directory heading, Compare title and state-page title." },
+      "line-name": { "displayName": "Line name", "purpose": "A Restaurant's line in the Directory." },
+      "hero-tier": { "displayName": "Hero Tier", "purpose": "Large Verdict pill on the Report hero." },
       "page-title": { "displayName": "Page title", "purpose": "Sign-in, settings, baseline checks, inbox." },
       "section-title": { "displayName": "Section title", "purpose": "Report section headings." },
-      "title": { "displayName": "Title", "purpose": "Sheet legends, judged summary, source-card names." },
-      "lede": { "displayName": "Lede", "purpose": "Intro, reason line, search input." },
+      "title": { "displayName": "Title", "purpose": "Filter group summaries, judged summary, source-card names." },
+      "lede": { "displayName": "Lede", "purpose": "Landing intro." },
+      "reason": { "displayName": "Reason", "purpose": "The Report's main reason, under the highlighter band." },
       "body": { "displayName": "Body", "purpose": "Reading text and inputs." },
       "label": { "displayName": "Label", "purpose": "Chips, row labels, meta lines." },
       "caption": { "displayName": "Caption", "purpose": "Footnotes, tooltips, axis. 12px floor." },
-      "ledger": { "displayName": "Ledger", "purpose": "Courier Prime for price, counts, dates and Evidence figures only." }
+      "ledger": { "displayName": "Ledger", "purpose": "Courier Prime for percentiles, axis ticks, counts and language tags only." }
     },
     "shadows": [
-      { "name": "paper-lift", "value": "0 1px 0 rgba(20,27,58,.08), 0 6px 18px -10px rgba(20,27,58,.28)", "purpose": "The one soft lift under secondary cards, the sample report, state pages and the feedback panel. Dark: 0 1px 0 rgba(0,0,0,.4), 0 6px 18px -10px rgba(0,0,0,.6)." },
-      { "name": "double-rule", "value": "border: 2px solid #1C3D9B; outline: 2px solid #1C3D9B; outline-offset: 3px; margin: 5px", "purpose": "Frame for the ementa, Report hero, sample report, state pages. Not a shadow; carries no blur." },
-      { "name": "highlight-band", "value": "inset 0 -.42em 0 #FFE27A", "purpose": "Flat marker stroke under the main reason; landing 'eat' uses inset 0 -.2em 0 Tomato Wash." },
+      { "name": "paper-lift", "value": "0 2px 0 rgba(20,17,15,.05), 0 16px 28px -18px rgba(60,40,0,.55)", "purpose": "Cream cards: ementa, Report hero, sample, Compare, sources, quotes, forms, state pages. Dark: 0 2px 0 rgba(0,0,0,.25), 0 16px 28px -16px rgba(0,0,0,.7)." },
+      { "name": "button-lift", "value": "0 8px 16px -8px rgba(20,17,15,.5)", "purpose": "Book and .btn pills. Dark: .7 alpha. None on Directory-line Book links." },
+      { "name": "bottom-sheet-lift", "value": "0 -12px 32px -12px rgba(20,17,15,.55)", "purpose": "Filter sheet; the shortlist dock uses 0 -14px 28px -14px at the same ink." },
+      { "name": "highlight-band", "value": "inset 0 -.5em 0 #FFD23F", "purpose": "Flat marker stroke under the one main reason. Dark band #6A5710." },
       { "name": "scrim", "value": "rgba(10,14,36,.55)", "purpose": "Filter sheet backdrop, both themes." }
     ],
     "motion": [
-      { "name": "leader-draw", "value": "clip-path 200ms ease-out", "purpose": "Blue dotted leader draws name to Verdict on row hover and focus-within. Collapses to instant under prefers-reduced-motion." },
-      { "name": "chevron-turn", "value": "transform .15s ease-out", "purpose": "How-we-judged summary chevron. Off under reduced motion." },
+      { "name": "leader-draw", "value": "clip-path 200ms ease-out", "purpose": "Tomato dotted leader draws name to Verdict on row hover, focus-within and touch press. The one authored motion moment. Instant under prefers-reduced-motion." },
+      { "name": "chevron-turn", "value": "transform .15s ease-out", "purpose": "Judged and filter-group summary chevrons. Off under reduced motion." },
       { "name": "busy-dim", "value": "opacity .15s; .55 while aria-busy", "purpose": "Ementa dims while the Directory refetches." },
       { "name": "skel-pulse", "value": "1.4s ease-in-out infinite; opacity to .55", "purpose": "Skeleton blocks. Removed under reduced motion." }
     ],
     "breakpoints": [
-      { "name": "phone-tier", "value": "480px" },
-      { "name": "sheet-tier-line", "value": "520px" },
+      { "name": "phone", "value": "480px" },
+      { "name": "row-compact", "value": "520px" },
       { "name": "book-fit", "value": "560px" },
-      { "name": "sources-stack", "value": "720px" },
+      { "name": "compare-split", "value": "720px" },
       { "name": "landing-split", "value": "900px" },
       { "name": "directory-panel", "value": "1000px" }
     ]
@@ -56,132 +62,140 @@
       "name": "Tier",
       "kind": "custom",
       "refersTo": "tier",
-      "description": "Capsule with Tier border, tint, five round pips and label. Dashed when provisional.",
+      "description": "Solid Tier-colour pill with white label and five round pips; provisional is tinted with ink text and a dashed rule.",
       "html": "<span class=\"ds-tier\"><span class=\"ds-pips\"><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i></i><i></i></span>Good</span> <span class=\"ds-tier ds-dashed\"><span class=\"ds-pips\"><i class=\"on\"></i><i class=\"on\"></i><i></i><i></i><i></i></span>OK</span>",
-      "css": ".ds-tier{display:inline-flex;align-items:center;gap:10px;color:var(--ink);background:var(--t-good-bg);border:2px solid var(--t-good);border-radius:999px;padding:4px 14px;font-family:var(--display);font-weight:700;white-space:nowrap}.ds-pips{display:inline-flex;gap:4px}.ds-pips i{width:9px;height:9px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--t-good)}.ds-pips i.on{background:var(--t-good)}.ds-dashed{border-style:dashed;background:var(--t-ok-bg);border-color:var(--t-ok)}.ds-dashed .ds-pips i{box-shadow:inset 0 0 0 1.5px var(--t-ok)}.ds-dashed .ds-pips i.on{background:var(--t-ok)}"
+      "css": ".ds-tier{display:inline-flex;align-items:center;gap:10px;color:#fff;background:var(--t-good);border:2px solid var(--t-good);border-radius:999px;padding:4px 14px;font-family:var(--display);font-weight:400;white-space:nowrap}.ds-pips{display:inline-flex;gap:4px}.ds-pips i{width:9px;height:9px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #fff}.ds-pips i.on{background:#fff}.ds-dashed{border-style:dashed;background:var(--t-ok-bg);border-color:var(--t-ok);color:var(--ink)}.ds-dashed .ds-pips i{box-shadow:inset 0 0 0 1.5px var(--ink)}.ds-dashed .ds-pips i.on{background:var(--ink)}"
     },
     {
       "name": "Report Verdict (large Tier)",
       "kind": "custom",
       "refersTo": "tier-lg",
-      "description": "Solid Tier colour with paper text and pips; provisional stays tinted with a dashed rule.",
+      "description": "The hero Verdict: solid Tier colour, 26px to 38px, 14px pips.",
       "html": "<span class=\"ds-tier-lg\"><span class=\"ds-pips\"><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i></i><i></i></span>Good</span>",
-      "css": ".ds-tier-lg{display:inline-flex;align-items:center;gap:10px;background:var(--t-good);color:var(--on-t);border:2px solid var(--t-good);border-radius:999px;padding:8px 22px;font-family:var(--display);font-weight:700;font-size:26px}.ds-pips{display:inline-flex;gap:5px}.ds-pips i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--on-t)}.ds-pips i.on{background:var(--on-t)}"
+      "css": ".ds-tier-lg{display:inline-flex;align-items:center;gap:10px;background:var(--t-good);color:#fff;border:2px solid var(--t-good);border-radius:999px;padding:8px 22px;font-family:var(--display);font-weight:400;font-size:26px}.ds-pips{display:inline-flex;gap:5px}.ds-pips i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #fff}.ds-pips i.on{background:#fff}"
     },
     {
       "name": "Not enough evidence",
       "kind": "custom",
       "refersTo": "nee",
-      "description": "A state, not a Tier: dashed muted frame, no pips.",
+      "description": "A state, not a Tier: dashed faint pill on cream, no pips.",
       "html": "<span class=\"ds-nee\">Not enough evidence</span>",
-      "css": ".ds-nee{display:inline-flex;align-items:center;border:2px dashed var(--faint);color:var(--muted);border-radius:6px;padding:8px 18px;font-family:var(--display);font-weight:700;font-size:22px}"
+      "css": ".ds-nee{display:inline-flex;align-items:center;border:2px dashed var(--faint);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 18px;font-family:var(--display);font-weight:400;font-size:22px}"
     },
     {
       "name": "Book",
       "kind": "button",
       "refersTo": "book",
-      "description": "The one action a diner came for: a blue capsule, 52px.",
-      "html": "<a class=\"ds-book\" href=\"#\">Book a table</a>",
-      "css": ".ds-book{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 26px;border-radius:999px;background:var(--brand);color:var(--on-brand);border:2px solid var(--brand);font-family:var(--display);font-weight:700;font-size:17px;text-decoration:none}.ds-book:hover{background:color-mix(in srgb,var(--brand) 86%,#000)}.ds-book:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
+      "description": "The one action a diner came for: a cobalt pill, 52px, with a button lift.",
+      "html": "<a class=\"ds-book\" href=\"#\">Open in Google Maps</a>",
+      "css": ".ds-book{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 26px;border-radius:999px;background:var(--brand);color:var(--on-brand);border:2px solid var(--brand);box-shadow:0 8px 16px -8px rgba(20,17,15,.5);font-family:var(--display);font-weight:400;font-size:18px;text-decoration:none}.ds-book:hover{background:color-mix(in srgb,var(--brand) 86%,#000)}.ds-book:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "btn-secondary",
-      "description": "White capsule, blue text and border.",
-      "html": "<button class=\"ds-secondary\">Sign in</button>",
-      "css": ".ds-secondary{font:inherit;font-weight:700;min-height:44px;padding:8px 20px;border-radius:999px;background:var(--surface);color:var(--accent);border:2px solid var(--accent);cursor:pointer}.ds-secondary:hover{background:var(--accent-soft)}.ds-secondary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
+      "description": "Cream pill, cobalt text and border.",
+      "html": "<button class=\"ds-secondary\">Remove</button>",
+      "css": ".ds-secondary{font:inherit;font-weight:800;min-height:44px;padding:8px 20px;border-radius:999px;background:var(--surface);color:var(--accent);border:2px solid var(--accent);cursor:pointer}.ds-secondary:hover{background:var(--accent-soft)}.ds-secondary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
     },
     {
       "name": "Filter Chip",
       "kind": "chip",
       "refersTo": "dir-chip",
-      "description": "Directory quick filter; pressed is Blue Wash with a blue border.",
-      "html": "<button class=\"ds-chip\" aria-pressed=\"false\">Gluten-free</button> <button class=\"ds-chip ds-on\" aria-pressed=\"true\">Vegan</button>",
-      "css": ".ds-chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border:2px solid var(--edge);border-radius:999px;background:var(--surface);color:var(--ink);font:600 15px var(--sans);cursor:pointer}.ds-on{background:var(--accent-soft);border-color:var(--accent)}.ds-chip:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
+      "description": "Directory quick filter; pressed is solid cobalt with a white check.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"false\">Good or better</button> <button class=\"ds-chip ds-on\" aria-pressed=\"true\">Vegan</button>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border:2px solid var(--edge);border-radius:999px;background:var(--surface);color:var(--ink);font:600 15px var(--sans);cursor:pointer}.ds-on{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}.ds-chip:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
+    },
+    {
+      "name": "Shortlist button",
+      "kind": "button",
+      "refersTo": "shortlist-btn",
+      "description": "Directory rows use an icon-only 44px target with a 28px plus/check disc; Reports use a labelled pill. A full shortlist leaves an unselected control focusable with a dashed disc.",
+      "html": "<button class=\"ds-short\" aria-label=\"Add to shortlist: Casa Imaginaria\" aria-pressed=\"false\"><span class=\"ds-mark\"></span></button> <button class=\"ds-short ds-labelled\" aria-pressed=\"false\"><span class=\"ds-mark\"></span>Shortlist</button>",
+      "css": ".ds-short{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;color:var(--accent);cursor:pointer}.ds-mark{width:28px;height:28px;border-radius:50%;border:2px solid currentColor}.ds-short[aria-pressed=true] .ds-mark{background:var(--brand);border-color:var(--brand)}.ds-short[aria-disabled=true] .ds-mark{border-style:dashed}.ds-labelled{width:auto;gap:8px;padding:0 14px 0 8px;border:2px solid var(--edge);border-radius:999px;background:var(--surface);color:var(--ink)}.ds-short:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
     },
     {
       "name": "Ementa Line",
       "kind": "custom",
       "refersTo": "ementa",
-      "description": "Signature: name, dotted leader, Verdict inside a double-rule frame. The blue leader draws on hover and focus.",
+      "description": "Signature: name, dotted leader, Verdict on a cream card. The tomato leader draws on hover, focus and touch press.",
       "html": "<ul class=\"ds-ementa\"><li class=\"ds-row\"><div class=\"ds-top\"><a href=\"#\">Casa Imaginaria</a><i class=\"ds-leader\"></i><span class=\"ds-tier\">Good</span></div><p>Tasca · EUR · Alfama</p></li></ul>",
-      "css": ".ds-ementa{list-style:none;margin:5px;padding:0;background:var(--surface);color:var(--ink);border:2px solid var(--brand);outline:2px solid var(--brand);outline-offset:3px;border-radius:6px}.ds-row{display:grid;gap:6px;padding:16px 16px 8px}.ds-row:hover{background:var(--sunk)}.ds-row p{margin:0;font-size:14px;color:var(--muted)}.ds-top{display:grid;grid-template-columns:minmax(min-content,auto) minmax(10px,1fr) auto;align-items:baseline;column-gap:8px}.ds-top a{font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}.ds-leader{display:block;height:0;border-bottom:2px dotted var(--edge);position:relative}.ds-leader::after{content:\"\";position:absolute;left:0;right:0;bottom:-2px;border-bottom:2px dotted var(--brand);clip-path:inset(-4px 100% -4px 0);transition:clip-path 200ms ease-out}.ds-row:hover .ds-leader::after{clip-path:inset(-4px 0 -4px 0)}.ds-tier{display:inline-flex;border:2px solid var(--t-good);background:var(--t-good-bg);border-radius:999px;padding:4px 14px;font-family:var(--display);font-weight:700}@media (prefers-reduced-motion:reduce){.ds-leader::after{transition:none}}"
+      "css": ".ds-ementa{list-style:none;margin:5px;padding:0;background:var(--surface);color:var(--ink);border-radius:22px;box-shadow:0 2px 0 rgba(20,17,15,.05),0 16px 28px -18px rgba(60,40,0,.55);overflow:clip}.ds-row{display:grid;gap:6px;padding:16px 16px 8px}.ds-row:hover{background:var(--sunk)}.ds-row p{margin:0;font-size:14px;color:var(--muted)}.ds-top{display:grid;grid-template-columns:minmax(min-content,auto) minmax(10px,1fr) auto;align-items:baseline;column-gap:8px}.ds-top a{font-family:var(--display);font-size:22px;line-height:1.15;color:var(--ink);text-decoration:none}.ds-row:hover .ds-top a{color:var(--brand)}.ds-leader{display:block;height:0;border-bottom:2px dotted var(--edge);position:relative}.ds-leader::after{content:\"\";position:absolute;left:0;right:0;bottom:-2px;border-bottom:3px dotted var(--coral);clip-path:inset(-4px 100% -4px 0);transition:clip-path 200ms ease-out}.ds-row:hover .ds-leader::after,.ds-row:active .ds-leader::after{clip-path:inset(-4px 0 -4px 0)}.ds-tier{display:inline-flex;border:2px solid var(--t-good);background:var(--t-good);color:#fff;border-radius:999px;padding:4px 14px;font-family:var(--display)}@media (prefers-reduced-motion:reduce){.ds-leader::after{transition:none}}"
     },
     {
       "name": "Report Hero",
       "kind": "card",
       "refersTo": "report-hero",
-      "description": "Double-rule card holding name, Verdict, highlighted reason and Book.",
+      "description": "Cream 28px-radius card holding name, Verdict, highlighted reason and the next action.",
       "html": "<section class=\"ds-hero\"><h1>Casa Imaginaria</h1><p class=\"ds-reason\"><span class=\"ds-hl\">Solid choice for its kind.</span></p></section>",
-      "css": ".ds-hero{background:var(--surface);color:var(--ink);border:2px solid var(--brand);outline:2px solid var(--brand);outline-offset:3px;margin:5px;border-radius:6px;padding:24px;display:grid;gap:16px}.ds-hero h1{margin:0;font-family:var(--display);font-size:clamp(32px,8.4vw,46px);font-weight:800;letter-spacing:-.025em;line-height:1.02}.ds-reason{margin:0;font-size:20px;font-weight:600;line-height:1.4}.ds-hl{box-shadow:inset 0 -.42em 0 var(--sun);box-decoration-break:clone;padding:0 2px}"
+      "css": ".ds-hero{background:var(--surface);color:var(--ink);box-shadow:0 2px 0 rgba(20,17,15,.05),0 16px 28px -18px rgba(60,40,0,.55);border-radius:28px;padding:24px;display:grid;gap:16px}.ds-hero h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(32px,8vw,48px);line-height:1.05}.ds-reason{margin:0;font-size:22px;font-weight:600;line-height:1.35}.ds-hl{box-shadow:inset 0 -.5em 0 var(--sun);box-decoration-break:clone;padding:0 2px}"
     },
     {
-      "name": "Stamp",
+      "name": "Compare Table",
       "kind": "custom",
-      "description": "Rotated tomato disc marking the fictional example on the landing.",
-      "html": "<span class=\"ds-stamp\">Not a real Verdict</span>",
-      "css": ".ds-stamp{display:grid;place-items:center;width:88px;height:88px;padding:10px;border:3px double var(--flag);border-radius:50%;color:var(--flag);font-family:var(--display);font-size:12px;font-weight:800;line-height:1.05;letter-spacing:.04em;text-align:center;text-transform:uppercase;transform:rotate(-12deg)}"
+      "refersTo": "compare-table",
+      "description": "One cream table aligns facts across two or three Restaurants. Phone columns scroll sideways behind a sticky fact column; neutral Tier outlines avoid implying a winner.",
+      "html": "<div class=\"ds-compare-scroll\"><table class=\"ds-compare\"><thead><tr><th>Fact</th><th>Casa Imaginaria</th><th>Outra Casa</th></tr></thead><tbody><tr><th scope=\"row\">Price</th><td>EUR</td><td>EUR EUR</td></tr></tbody></table></div>",
+      "css": ".ds-compare-scroll{overflow-x:auto;border-radius:22px;background:var(--surface);box-shadow:0 2px 0 rgba(20,17,15,.05),0 16px 28px -18px rgba(60,40,0,.55)}.ds-compare{width:100%;min-width:356px;table-layout:fixed;border-spacing:0;color:var(--ink)}.ds-compare th,.ds-compare td{padding:12px 8px;text-align:left;border-bottom:1px dotted var(--edge)}.ds-compare th:first-child{position:sticky;left:0;width:112px;background:var(--surface)}.ds-compare td{border-left:1px solid var(--line)}"
     },
     {
       "name": "Flag",
       "kind": "card",
       "refersTo": "flag",
-      "description": "Tomato-ruled card with a round icon badge, framed all round.",
+      "description": "Avoid-Red-ruled card with a round icon badge, framed all round.",
       "html": "<div class=\"ds-flag\"><span class=\"ds-ico\">!</span><b>Cross-contact reported</b><p>Two diners describe a shared fryer.</p></div>",
-      "css": ".ds-flag{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;background:var(--flag-bg);color:var(--ink);border:2px solid var(--flag);border-radius:6px;padding:14px 16px}.ds-ico{grid-row:span 2;width:28px;height:28px;border-radius:50%;background:var(--flag);color:var(--on-t);display:grid;place-items:center;font-weight:800}.ds-flag p{margin:4px 0 0}"
+      "css": ".ds-flag{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;background:var(--flag-bg);color:var(--ink);border:2px solid var(--flag);border-radius:22px;padding:14px 16px}.ds-ico{grid-row:span 2;width:28px;height:28px;border-radius:50%;background:var(--flag);color:#fff;display:grid;place-items:center;font-weight:800}.ds-flag p{margin:4px 0 0}"
     },
     {
       "name": "Source Card",
       "kind": "card",
       "refersTo": "source-card",
-      "description": "One printed card per Source: display name over a dotted rule, labelled ledger figures.",
-      "html": "<div class=\"ds-source\"><div class=\"ds-source-name\">Google Maps</div><div><span class=\"ds-lab\">Reviews</span><span class=\"ds-num\">1,284</span></div></div>",
-      "css": ".ds-source{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;padding:14px 16px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px}.ds-source-name{grid-column:1/-1;font-family:var(--display);font-size:18px;font-weight:700;padding-bottom:8px;border-bottom:2px dotted var(--edge)}.ds-lab{display:block;font-size:13px;font-weight:700;color:var(--muted)}.ds-num{font-family:var(--mono);font-variant-numeric:tabular-nums}"
+      "description": "One cream card per Source: display-face name over a dotted rule, labelled figures.",
+      "html": "<div class=\"ds-source\"><h3>Google Maps</h3><dl><dt>Reviews</dt><dd>1,284</dd></dl></div>",
+      "css": ".ds-source{display:grid;gap:12px;padding:14px 16px;background:var(--surface);color:var(--ink);border-radius:22px;box-shadow:0 2px 0 rgba(20,17,15,.05),0 16px 28px -18px rgba(60,40,0,.55)}.ds-source h3{margin:0;font-family:var(--display);font-weight:400;font-size:18px;padding-bottom:8px;border-bottom:1px dotted var(--edge)}.ds-source dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0;font-size:14px}.ds-source dt{color:var(--muted);font-weight:600}.ds-source dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}"
     }
   ],
   "narrative": {
-    "northStar": "Ementa do Dia",
-    "overview": "The guide is an ementa, the paper menu of a Lisbon tasca, printed in one colour of blue ink on table-paper white. A Restaurant is a line: name, dotted leader, Verdict. The leader carries the eye from a name to its call, so a diner compares tables by reading down one edge. The system refuses the category default of a photo card with a star score.\n\nSurfaces are flat paper framed by blue double rules; the page is quiet, the Verdict is the loudest thing on it. Recognisable with content removed: a blue double rule on paper, dotted leaders, round pips. There are no gradients in surfaces and no photographs; one soft paper lift is the only shadow.",
+    "northStar": "Recorte",
+    "overview": "The guide is a paper cut-out, Matisse's scissors in a Lisbon kitchen. Flat saturated colour fields and food shapes (lemon, tomato, olive, cobalt) are cut from paper and set on a lemon ground; cream paper cards carry the facts. The joy is colour with a job: lemon is the ground, cobalt is the action, tomato marks the word \"eat\" and warnings, olive is Good-side. The system refuses the category default of a white photo card with a star score, and the sober paper-menu look it replaces.\n\nCards are cream paper lifted off the ground by one soft shadow, with large radii. A Restaurant is still a line: name, dotted leader, Verdict. Recognisable with content removed: a lemon page, a tomato blob and cobalt disc bleeding off the edges, cream rounded cards, a chunky rounded face.",
     "keyCharacteristics": [
-      "One ink: blue carries brand, links, actions, rules and focus. Tomato appears only on the stamp and red flags; menu green only on Good-side Tiers and positives.",
-      "Double-rule frames (2px rule plus a second 2px rule 3px outside) mark the ementa, the Report hero, the sample report, state pages and the filter sheet.",
-      "Dotted rules (2px, edge) divide sections and join name to Verdict.",
-      "Round pips and dots carry meaning (Tier 1-5, Confidence 1-3) alongside words.",
-      "Capsule controls, 44px minimum touch height.",
-      "Light and dark themes share one structure; only values change."
+      "Lemon ground (#FFD23F) with cream cards (#FFF8E7); ink (#14110F) for all text.",
+      "Cobalt (#1F3FBF) is the action and link colour; coral and olive appear as cut shapes and as Avoid/Good-side signals.",
+      "Chunky single-weight display face for the wordmark, headlines, Restaurant names and Verdicts; plain sans for reading.",
+      "Round cut-paper discs, a leaf and organic blobs; pill controls with 44px minimum touch height.",
+      "Dotted leaders join name to Verdict; the leader draws in coral on hover, focus and touch press.",
+      "Dark theme is a deep cobalt-ink night with a lemon action; structure unchanged."
     ],
     "rules": [
-      { "name": "The One Ink Rule", "body": "Blue is the only interactive and brand colour. Tomato is for the stamp and red flags, green for Good-side Tiers; neither is used as decoration.", "section": "colors" },
-      { "name": "The Never-Hue-Alone Rule", "body": "Tier is carried by label plus pip count (1 to 5 filled round pips) plus fill. Confidence is carried by dot count (1 to 3) plus its word. Trend is carried by arrow plus word. Colour never stands alone.", "section": "colors" },
-      { "name": "The Dashed Means Unsure Rule", "body": "A dashed outline on a Tier or status atom means a provisional Tier or Not enough evidence. Nothing else uses a dashed border there.", "section": "colors" },
-      { "name": "The NEE Is A State Rule", "body": "Not enough evidence is a state, not a Tier: no pips, no Tier colour, a dashed muted frame at card radius. It is never ranked or coloured like a Tier.", "section": "colors" },
-      { "name": "The Ink-On-Fill Rule", "body": "In lists and chips, text on a tinted Tier fill is ink; Tier colours are borders and pips. The one exception is the Report's large Verdict, which is solid Tier colour with paper-colour text. A provisional large Verdict stays tinted with ink text and a dashed rule.", "section": "colors" },
-      { "name": "The Ledger Only Rule", "body": "Courier Prime appears only on figures that must align: price, counts, dates, percentiles, Evidence numbers. Never on names, headings, labels or running copy.", "section": "typography" },
-      { "name": "The Step-Not-Size Rule", "body": "New text takes a named step above. A new literal size needs a reason and a place in this list.", "section": "typography" },
-      { "name": "The Verdict Vocabulary Rule", "body": "Copy never calls a Verdict a score, rating or grade. Say Verdict, Tier, Confidence.", "section": "typography" },
-      { "name": "The Paper Lift Only Rule", "body": "One shadow token. No extra elevation on hover; hover changes tone (Sunk row) or draws the leader.", "section": "elevation" }
+      { "name": "The Colour-With-A-Job Rule", "body": "Lemon is the ground, cobalt is the action, tomato marks \"eat\", warnings and the leader, olive is Good-side. A cut shape is decoration only when it sits in the page gutter or behind a figure, never under text.", "section": "colors" },
+      { "name": "The Never-Hue-Alone Rule", "body": "Tier is carried by label plus pip count (1 to 5 round pips) plus fill. Confidence is dots plus its word. Trend is an arrow plus its word.", "section": "colors" },
+      { "name": "The Dashed Means Unsure Rule", "body": "A dashed outline on a Tier or status atom means a provisional Tier or Not enough evidence, and the disabled shortlist button. Nothing else uses a dashed border on such atoms.", "section": "colors" },
+      { "name": "The NEE Is A State Rule", "body": "Not enough evidence is a state, not a Tier: no pips, no Tier colour, a dashed faint pill. Never ranked or coloured like a Tier.", "section": "colors" },
+      { "name": "The Provisional Stays Tinted Rule", "body": "A provisional Tier keeps the tinted fill with ink text and ink pips and a dashed rule; only a confirmed Tier is solid.", "section": "colors" },
+      { "name": "The Ledger Only Rule", "body": "Courier Prime appears only on figures that must align. Never on names, headings, labels or running copy.", "section": "typography" },
+      { "name": "The One Face Per Job Rule", "body": "Bagel Fat One is for the wordmark, headlines, Restaurant names, Verdicts and button labels that name an action on the landing and state pages; Figtree carries all reading and UI chrome.", "section": "typography" },
+      { "name": "The Verdict Vocabulary Rule", "body": "Copy never calls a Verdict a \"score\", \"rating\" or \"grade\". Say Verdict, Tier, Confidence.", "section": "typography" },
+      { "name": "The Lift Does Not Move Rule", "body": "No extra elevation on hover; hover changes tone (Sunk row, Cobalt Wash) or draws the leader.", "section": "elevation" }
     ],
     "dos": [
       "Do give every Tier, Confidence or status atom a shape cue (pips, dots, arrow, dashed outline) and a word.",
-      "Do frame the ementa, Report hero, sample report, state pages and sheet with the blue double rule.",
-      "Do join a name to its Verdict with the dotted leader; draw it on hover and focus in 200ms ease-out and drop the animation under prefers-reduced-motion.",
+      "Do use cream cards with the paper lift on the lemon ground; keep shapes round (22px cards, 28px hero, pills for controls).",
+      "Do join a name to its Verdict with the dotted leader; draw it in tomato on hover, focus and touch press in 200ms ease-out, and drop the animation under `prefers-reduced-motion`.",
       "Do keep Not enough evidence a dashed state with no pips and no Tier colour.",
-      "Do use Courier Prime for price, counts, dates and Evidence figures only.",
+      "Do use Courier Prime for ledger figures only; use Bagel Fat One for names, Verdicts and headlines only.",
       "Do use the highlighter inset band for the one main reason on a screen.",
-      "Do make every tap target at least 44px tall; keep Book full width on phones.",
-      "Do keep text at 12px or above."
+      "Do keep cut shapes in gutters or behind figures, never under text.",
+      "Do make every tap target at least 44px tall; keep Book full width on phones; keep text at 12px or above."
     ],
     "donts": [
-      "Don't use gradients in surfaces or fills, or any shadow beyond the paper lift.",
-      "Don't call a Verdict a score, rating or grade, or show a star or score pill as the Verdict.",
+      "Don't show a star, numeric score or score pill as the Verdict, and don't call a Verdict a score, rating or grade.",
       "Don't signal Tier or Confidence by hue alone.",
-      "Don't use a dashed outline on a Tier or status atom except for provisional Tier or Not enough evidence.",
+      "Don't use a dashed outline on a Tier or status atom except for a provisional Tier or Not enough evidence.",
       "Don't treat Not enough evidence as a Tier.",
-      "Don't use tomato or green as decoration; tomato is the stamp and red flags, green is Good-side.",
       "Don't add a coloured side stripe to cards or flags; frame them all round.",
-      "Don't use photographs or imagery that implies a listed Restaurant; the example is fictional and stamped.",
-      "Don't put a kicker, eyebrow or uppercase caption above headings. The stamp is the only uppercase text."
+      "Don't rank or highlight a winner in Compare.",
+      "Don't use photographs or imagery that implies a listed Restaurant.",
+      "Don't put a kicker, eyebrow or uppercase caption above headings."
     ]
   }
 }

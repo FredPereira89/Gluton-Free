@@ -1,4 +1,5 @@
 import { DIRECTORY_DEFAULT_PAGE_SIZE, parseDirectoryQuery, type DirectoryQuery } from "./api-contract";
+import { comparisonHref, shortlistSlugs } from "./shortlist";
 
 /** Link/place references open the stored-link recogniser instead of filtering every row by URL text. */
 export function isLookupQuery(value: string): boolean {
@@ -32,15 +33,44 @@ export function directoryQueryFromPage(searchParams: Record<string, string | str
   }
 }
 
-/** A report may return only to a canonical home-directory URL, never an arbitrary internal route. */
-export function safeDirectoryReturn(value: string | undefined): string {
-  if (!value || /[\x00-\x1f\x7f\\]/.test(value) || !value.startsWith("/") || value.startsWith("//")) return "/";
+const BASE = "https://directory.invalid";
+
+function internalUrl(value: string | undefined): URL | null {
+  if (!value || /[\x00-\x1f\x7f\\]/.test(value) || !value.startsWith("/") || value.startsWith("//")) return null;
   try {
-    const base = "https://directory.invalid";
-    const url = new URL(value, base);
-    if (url.origin !== base || url.pathname !== "/") return "/";
+    const url = new URL(value, BASE);
+    return url.origin === BASE ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A comparison may return only to a canonical home-directory URL. */
+export function safeDirectoryReturn(value: string | undefined): string {
+  const url = internalUrl(value);
+  if (!url || url.pathname !== "/") return "/";
+  try {
     return directoryHref(parseDirectoryQuery(url.searchParams));
   } catch {
     return "/";
   }
+}
+
+/** A report may return only to a canonical home-directory or comparison URL, never an arbitrary internal route. */
+export function safeReportReturn(value: string | undefined): string {
+  const url = internalUrl(value);
+  if (url?.pathname !== "/compare") return safeDirectoryReturn(value);
+  const slugs = shortlistSlugs(url.searchParams.getAll("r"));
+  return slugs.length ? comparisonHref(slugs, safeDirectoryReturn(url.searchParams.get("from") ?? undefined)) : "/";
+}
+
+/** The shortlist keeps the results view even when a diner opens Compare from a Report. */
+export function shortlistDirectoryReturn(pathname: string, searchParams: Pick<URLSearchParams, "get" | "toString">): string {
+  if (pathname === "/") return safeDirectoryReturn(`/?${searchParams.toString()}`);
+  if (!pathname.startsWith("/r/")) return "/";
+  const from = safeReportReturn(searchParams.get("from") ?? undefined);
+  const returnUrl = internalUrl(from);
+  return returnUrl?.pathname === "/compare"
+    ? safeDirectoryReturn(returnUrl.searchParams.get("from") ?? undefined)
+    : safeDirectoryReturn(from);
 }

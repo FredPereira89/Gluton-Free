@@ -1,7 +1,8 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { TIER_LABEL } from "@/domain/aspects";
-import { ConfChip, DietIcon, TierBadge, TrendChip } from "@/web/atoms";
+import { ConfChip, DietIcon, TierBadge } from "@/web/atoms";
+import { ShortlistButton } from "@/web/shortlist";
 import { ExternalIcon } from "@/web/icons";
 import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "@/lib/api-contract";
 import { directoryHref } from "@/lib/directory-url";
@@ -34,9 +35,11 @@ function Row({ item, trackUsage, returnTo }: { item: DirectoryItem; trackUsage: 
     {meta && <p className="line-meta">{meta}</p>}
     <div className="line-foot">
       {item.confidence && <ConfChip level={item.confidence} />}
-      <TrendChip trend={item.trend} />
       {item.dietaryFits.length > 0 && <span className="dir-diet">{item.dietaryFits.map((diet) => <DietIcon key={diet} diet={diet} iconOnly />)}</span>}
-      <UsageTrackedLink className="book sm" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">{item.booking.label}<ExternalIcon /></UsageTrackedLink>
+      <span className="line-actions">
+        <ShortlistButton slug={item.slug} name={item.name} />
+        <UsageTrackedLink className="book sm" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">{item.booking.label}<ExternalIcon /></UsageTrackedLink>
+      </span>
     </div>
   </li>;
 }
@@ -54,7 +57,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
   for (const price of query.price) filterGroups.push({ label: `Price: ${price}`, href: withFilters({ price: query.price.filter((value) => value !== price) }) });
   for (const area of query.area) filterGroups.push({ label: `Neighbourhood: ${area}`, href: withFilters({ area: query.area.filter((value) => value !== area) }) });
   for (const diet of query.diet) filterGroups.push({ label: `Dietary fit: ${DIET_LABEL[diet as (typeof DIETS)[number]]}`, href: withFilters({ diet: query.diet.filter((value) => value !== diet) }) });
-  if (query.nee) filterGroups.push({ label: "Not enough evidence", href: withFilters({ nee: false }) });
+  if (query.nee) filterGroups.push({ label: "Including Not enough evidence", href: withFilters({ nee: false }) });
   const hasFilters = query.tier.length > 0 || query.family.length > 0 || query.price.length > 0 || query.area.length > 0 || query.diet.length > 0 || query.nee;
   const view = (page: number) => directoryHref({ ...query, page });
   return <section className="directory" aria-labelledby="directory-title">
@@ -62,7 +65,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
       <h2 id="directory-title">All Restaurants</h2>
       <p className="small muted" role="status">
         {result.total} {result.total === 1 ? "Restaurant" : "Restaurants"}
-        {!query.nee && result.hiddenNotEnoughEvidence > 0 && <> · <Link href={directoryHref({ ...query, nee: true }, { resetPage: true })}>Show {result.hiddenNotEnoughEvidence} with Not enough evidence</Link></>}
+        {!query.nee && result.hiddenNotEnoughEvidence > 0 && <> · <Link href={directoryHref({ ...query, nee: true }, { resetPage: true })}>Include {result.hiddenNotEnoughEvidence} with Not enough evidence</Link></>}
       </p>
     </div>
     {filterGroups.length > 0 && <ul className="active-filters" aria-label="Active search and filters">
@@ -71,7 +74,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
     <div className="dir-layout">
       <DirectoryControls query={query} neighbourhoods={result.neighbourhoods} resultCount={result.total} trackUsage={trackUsage} />
       <div className="dir-main">
-        <TierLegend />
+        {result.items.length > 0 && <p className="dir-shortlist-help small muted">Use Shortlist (+) on two or three Restaurants to compare.</p>}
         {result.items.length === 0
           ? <div className="dir-empty">
             <p><strong>{query.q ? `No Restaurants match “${query.q}”.` : "No Restaurants match these filters."}</strong></p>
@@ -87,6 +90,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
               <Row item={item} trackUsage={trackUsage} returnTo={returnTo} />
             </Fragment>)}
           </ol>}
+        <TierLegend />
         {result.totalPages > 1 && <nav className="dir-pages" aria-label="Pages">
           {result.page > 1 ? <Link className="btn btn-secondary" rel="prev" href={view(result.page - 1)}>Previous</Link> : <span />}
           <span className="small muted">Page {result.page} of {result.totalPages}</span>

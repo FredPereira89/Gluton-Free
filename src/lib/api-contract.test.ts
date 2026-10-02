@@ -57,6 +57,8 @@ describe("API registry and OpenAPI", () => {
       "/api/v1/restaurants/{slug}/verdict-feedback", "/api/v1/restaurants/{slug}/verdicts",
     ]);
     expect(requiredAuthLevel("GET", "/feedback")).toBe("owner");
+    expect(requiredAuthLevel("GET", "/compare")).toBe("invitee");
+    expect(requiredAuthLevel("POST", "/compare")).toBe("owner");
     expect(requiredAuthLevel("GET", "/api/v1/restaurants/o-velho-eurico/verdict-feedback")).toBe("invitee");
     expect(requiredAuthLevel("PUT", "/api/v1/restaurants/o-velho-eurico/verdict-feedback")).toBe("invitee");
   });
