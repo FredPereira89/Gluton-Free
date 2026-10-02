@@ -217,8 +217,9 @@ body:has(.directory) .topbar,body:has(.skeleton-page.wide) .topbar{max-width:112
 /* On a phone the tagline would push Feedback and Settings onto a second row. */
 @media(max-width:480px){.topbar .tagline{display:none}}
 .public-page a{font-weight:600}
-.landing-page{display:grid;gap:clamp(24px,5vw,48px);padding:8px 0 28px}
+.landing-page{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(24px,5vw,48px);padding:8px 0 28px}
 .landing-header,.privacy-header{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.landing-header{gap:var(--s-2)}
 .privacy-header a,.privacy-back a{display:inline-flex;align-items:center;min-height:44px}
 .landing-sign-in{margin:0;padding:8px 18px;font-size:15px}
 .landing-top{display:grid;grid-template-areas:"copy" "actions" "example";gap:clamp(20px,4vw,32px);align-items:start}
@@ -240,7 +241,7 @@ body:has(.directory) .topbar,body:has(.skeleton-page.wide) .topbar{max-width:112
 .sample-report h3{white-space:nowrap;font-size:clamp(20px,5.2vw,26px);font-weight:800;line-height:1.1}
 .sample-report-reason{max-width:56ch;font-size:17px;line-height:1.5}
 .sample-report-reason .hl{box-shadow:inset 0 -.42em 0 var(--sun);box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:0 2px;font-weight:600}
-.sample-report-foot{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+.sample-report-foot{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
 .sample-report-conf{display:grid;gap:8px;justify-items:start}
 @media(min-width:900px){
   .landing-top{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"copy example" "actions example";column-gap:clamp(32px,6vw,72px);row-gap:28px;align-items:center;padding-top:clamp(8px,3vw,36px)}
@@ -675,7 +676,7 @@ summary.small{cursor:pointer}
 .A{max-width:720px}
 .A .hero{gap:var(--s-4)}
 .A .name h1{font-size:clamp(36px,10vw,60px);line-height:1}
-.A .hero .book.book-secondary{width:fit-content;min-height:44px;padding:0 8px;background:transparent;border-color:transparent;color:var(--accent)!important;font-family:var(--sans);font-size:15px;text-decoration:underline;text-underline-offset:3px}
+.A .hero .book.book-secondary{width:fit-content;min-height:44px;padding:0 8px;background:transparent;border-color:transparent;box-shadow:none;color:var(--accent)!important;font-family:var(--sans);font-size:15px;text-decoration:underline;text-underline-offset:3px}
 .A .hero .book.book-secondary:hover{background:var(--accent-soft)}
 .source-card summary{min-height:44px}
 .A .sec a[target="_blank"]{padding-block:8px}
@@ -853,7 +854,7 @@ html:has(.compare-page){overflow-x:clip}
 .compare-table .tier .pips{gap:2px}
 .compare-table .tier .pips i{width:6px;height:6px;box-shadow:inset 0 0 0 1px var(--ink)}
 .compare-table .tier .pips i.on{background:var(--ink)}
-@media(max-width:719px){.compare-table .tier .pips{display:none}}
+@media(max-width:719px){.compare-table .tier{flex-direction:column;align-items:flex-start;gap:4px}}
 .compare-table .chip{font-size:12px;padding:4px 7px;white-space:normal}
 .compare-reason{font-weight:600}
 .compare-diets,.compare-themes{display:grid;gap:6px;margin:0;padding:0;list-style:none}
@@ -881,7 +882,7 @@ html:has(.compare-page){overflow-x:clip}
 /* Report: back and shortlist share a row; the next action and the Evidence jump sit together under the Verdict. */
 .report-nav{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 .report-actions{display:grid;gap:4px;justify-items:start}
-.A .hero .report-actions .book{width:100%}
+.A .hero .report-actions .book:not(.book-secondary){width:100%}
 .evidence-jump{display:inline-flex;align-items:center;min-height:44px;padding:0 8px;color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 .evidence-jump:hover{background:var(--accent-soft)}
 @media(min-width:560px){.report-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}.A .hero .report-actions .book{width:fit-content}}
@@ -916,7 +917,7 @@ html:has(.compare-page){overflow-x:clip}
 .landing-figure figcaption{padding-inline:6px}
 .sample-report{transform:rotate(-1.2deg)}
 .sample-report-reason .hl,.A .hero .explain .hl{box-shadow:inset 0 -.5em 0 var(--sun)}
-.landing-sign-in{background:var(--surface);color:var(--ink);border:3px solid var(--ink)}
+.btn.landing-sign-in{flex:none;white-space:nowrap;padding:8px 12px;background:var(--surface);color:var(--ink);border:3px solid var(--ink)}
 .landing-sign-in:hover{background:var(--sunk)}
 .dir-chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
 .dir-chip[aria-pressed="true"]::before{border-color:var(--on-brand)}
@@ -948,8 +949,12 @@ html:has(.compare-page){overflow-x:clip}
   .landing-figure{grid-area:fig}
   .landing-actions{grid-area:act;align-self:start}
   .landing-side .landing-example{grid-area:ex}
-  .landing-facts,.landing-intro-more{display:none}
+  .landing-facts{display:none}
   .landing-figure figcaption{font-size:12.5px}
+}
+@media(max-width:360px){
+  .landing-header .brand{font-size:20px;gap:8px}
+  .landing-header .brand img{width:32px;height:32px}
 }
 /* The Directory leader also draws on touch press, so a phone diner sees it. */
 .dir-row:active .leader::after{clip-path:inset(-4px 0 -4px 0)}

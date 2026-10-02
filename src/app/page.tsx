@@ -33,7 +33,7 @@ function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
           <h1 id="landing-title">Know where to <span className="hl-eat">eat</span> in Lisbon.</h1>
           <p className="landing-intro">
             <strong>A Lisbon Restaurant Verdict guide.</strong> Gluton-Free reads what diners say. Restaurants are
-            judged against others of their own kind<span className="landing-intro-more">: a tasca against tascas, not the whole city</span>.
+            judged against others of the same kind: cafés against cafés, for example.
             {" "}When evidence is too thin, we say “Not enough evidence”.
           </p>
         </div>
@@ -58,7 +58,7 @@ function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
                 <i className="leader" aria-hidden="true" />
                 <TierBadge tier="good" />
               </div>
-              <p className="sample-report-kind">Lisbon tasca</p>
+              <p className="sample-report-kind">Lisbon tasca · traditional Portuguese restaurant</p>
               <p className="sample-report-reason">
                 <span className="hl">Solid choice for its kind.</span> Diners praise the simple plates;
                 reports about busy-hour waits are mixed.

@@ -11,7 +11,7 @@ Supersedes the round-2 "Ementa do Dia" brief. The world, palette and motion are 
 
 Mode: Operate (the Verdict, Confidence, reason and next action); "How we judged this" and the Evidence are Read.
 
-Direction in the Recorte world: a cream, 28px-radius hero card on the lemon ground with the paper lift. Back link and shortlist button share the top row. Hero order: name, address, large Verdict pill with Confidence, the main reason under one highlighter band, then Open in Google Maps (cobalt Book pill, full width on phones) and a "Read the Evidence" jump to `#report-evidence`. Booking is secondary for a forced Avoid. Below: standout dishes, Dietary fit (always rendered, honest unknown state), Flags, quotes, Source cards, method ("How we judged this", always open after the Evidence) and history, feedback, collapsed Owner tools.
+Direction in the Recorte world: a cream, 28px-radius hero card on the lemon ground with the paper lift. Back link and shortlist button share the top row. Hero order: name, address, large Verdict pill with Confidence, the main reason under one highlighter band, then Open in Google Maps (cobalt Book pill, full width on phones) and a "Read the Evidence" jump to `#report-evidence`. Booking is secondary for a forced Avoid, Not enough evidence or No Verdict yet: an underlined 44px link without a shadow or full-width fill. Below: standout dishes, Dietary fit (always rendered, honest unknown state), Flags, quotes, Source cards, method ("How we judged this", always open after the Evidence) and history, feedback, collapsed Owner tools.
 
 Anti-goals: stars or a numeric score as the Verdict, Google and Tripadvisor links in the hero (they live in Sources), imagery implying a listed Restaurant, winner styling.
 

@@ -64,6 +64,7 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
   const { restaurant: R } = page;
   const v: ReportVerdict | null = page.verdict;
   const hasForcingRedFlag = v?.blocks.rollup.redFlags.some((group) => group.forcesAvoid) ?? false;
+  const secondaryBooking = hasForcingRedFlag || v?.blocks.rollup.state !== "verdict";
   const marker = owner ? null : <><InviteeView /><UsageEventOnMount type="report_opened" actionKey={R.slug} /></>;
   const ctx = { format: R.format, city: R.city };
   const sourceByCode = new Map<string, SourceLink>(page.sources.map((s) => [s.code, s]));
@@ -85,9 +86,9 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
       <ShortlistButton slug={R.slug} name={R.name} labelled />
     </nav>
   );
-  // The booking link is the next step after the Verdict, so it sits in the hero's first screen as a capsule.
+  // Booking leads after a Verdict; missing evidence and forced Avoid keep it secondary.
   const bookLink = R.booking && (
-    <UsageTrackedLink className={`book${hasForcingRedFlag ? " book-secondary" : ""}`} track={role === "invitee"} href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label}<ExternalIcon /></UsageTrackedLink>
+    <UsageTrackedLink className={`book${secondaryBooking ? " book-secondary" : ""}`} track={role === "invitee"} href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label}<ExternalIcon /></UsageTrackedLink>
   );
   const baseChips = (
     <>

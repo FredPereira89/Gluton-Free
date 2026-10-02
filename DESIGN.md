@@ -388,7 +388,7 @@ Chips are pills on Sunk. Confidence: dots filled to level plus the word, tinted 
 ### Book (`.book`) and Buttons
 - **Book:** cobalt pill, white text, display face 18px, min-height 52px, padding 0 26px, button lift; hover mixes 14% black into cobalt. Full width on phones. `.book.sm`: 44px, Figtree 800 15px. In Directory lines it is a plain cobalt underlined link (hidden at 520px and below); in Compare cards a cream pill with a cobalt border; on the Report a secondary underlined link when Booking is not the lead.
 - **`.btn`:** same pill, 44px, Figtree 800 (display face on the landing CTA and state pages). **Secondary:** cream fill, cobalt text, 2px cobalt border. **Danger:** Red Wash fill, ink text, 2px Avoid Red border.
-- **Sign in (landing):** cream pill, ink text, 3px ink border; hover Sunk.
+- **Sign in (landing):** cream pill, ink text, 3px ink border, one-line label; hover Sunk. Compact header spacing and a smaller logo at 360px and below keep the control in view.
 - **Focus:** 3px ink outline (lemon-cream #FFE27A in dark), 3px offset. **Disabled:** Sunk fill, muted text, line border, not-allowed.
 
 ### Directory ementa (signature)
@@ -400,13 +400,13 @@ Chips are pills on Sunk. Confidence: dots filled to level plus the word, tinted 
 `.shortlist-btn`: icon-only on Directory rows, a 28px drawn plus/check disc inside a 44px target. The Report keeps the labelled 44px pill. Pressed has a cobalt disc and white check (`aria-pressed`); at three, an unselected button remains focusable with a dashed disc and an explanation. Up to 3 slugs and their display names live in `sessionStorage`, cleared on sign-out. `.shortlist-dock`: fixed cream bar with 28px top corners, named chips with individual 44px remove buttons, count/status and a "Compare N" pill; hides on `/compare` and on the public landing.
 
 ### Compare (`/compare`)
-`.compare-scroll` contains one `.compare-table`: Restaurant names head aligned fact rows (Verdict, reason, Format, Price, Neighbourhood, optional Trend, Known for and Dietary fit, then up to three praised and criticised Review themes with reviewer counts). The More row puts each Restaurant's booking link, Read the Verdict and Remove just after the Verdict and reason, within the first phone screen. Phone columns scroll sideways with a sticky fact column and a swipe hint for three Restaurants. Tier pills use neutral ink outlines; a note explains when different Formats mean the Tiers do not compare directly. It never ranks or highlights a winner; missing evidence is named plainly.
+`.compare-scroll` contains one `.compare-table`: Restaurant names head aligned fact rows (Verdict, reason, Format, Price, Neighbourhood, optional Trend, Known for and Dietary fit, then up to three praised and criticised Review themes with reviewer counts). The More row puts each Restaurant's booking link, Read the Verdict and Remove just after the Verdict and reason, within the first phone screen. Phone columns scroll sideways with a sticky fact column and a swipe hint for three Restaurants. Tier pills use neutral ink outlines and retain their five pips above the label on phones; a note explains when different Formats mean the Tiers do not compare directly. It never ranks or highlights a winner; missing evidence is named plainly.
 
 ### Directory controls and filter sheet
 Quick chips: 44px pills, 2px `edge` border on cream, 15px 600; pressed is solid cobalt with a white check. Sort is a pill select. Filter options are pills (2px `edge`), checked Cobalt Wash with a cobalt border; "Not enough evidence" is dashed. At 1000px and up options are plain 36px rows in a sticky cream panel. Below 1000px the filters open as a modal bottom sheet: cream, 28px top corners, max-height 86vh, sticky header with a dotted rule, over the scrim. Empty state: cream card, 2px dashed `edge`.
 
 ### Report
-**Hero:** cream, 28px radius, paper lift, 24px padding: name, address, Verdict, Confidence, the highlighted reason, then `.report-actions` (Open in Google Maps, "Read the Evidence" jump). Forced Avoid keeps booking secondary.
+**Hero:** cream, 28px radius, paper lift, 24px padding: name, address, Verdict, Confidence, the highlighted reason, then `.report-actions` (Open in Google Maps, "Read the Evidence" jump). Forced Avoid, Not enough evidence and No Verdict yet keep booking secondary: an underlined 44px link without a shadow or full-width fill.
 **Sections:** dotted-top sections with 24px display headings. Quotes and Sources follow the highlights; "How we judged this" remains open after the Evidence.
 **Flags:** Red-ruled card with a round 28px icon badge; minor flags use the amber pair.
 **Quotes:** cream card with paper lift; negative quotes take an inset 2px Avoid Red ring.
@@ -419,7 +419,7 @@ Quick chips: 44px pills, 2px `edge` border on cream, 15px 600; pressed is solid 
 **Praising quote:** a solid deep-green paper card (#14603A light, #1F6B45 dark) with cream text and an explicit "Praise" pill, so its meaning never depends on colour.
 
 ### Landing
-Wordmark and Sign in pill; headline with "eat" on a tomato blob; the framed illustration `public/lisbon-table.png` (a cut-out plate of grilled sardines) in a blob-shaped mask with the cobalt disc, tomato disc and olive leaf behind it, captioned "Original illustration. It does not show any listed Restaurant."; a short intro and full-width cobalt sign-in action; the tier menu; three numbered steps (cobalt, tomato, olive discs); the tilted fictional Casa Imaginária sample with a Good Tier, a highlighted reason and Medium Confidence, labelled as an example.
+Wordmark and Sign in pill; headline with "eat" on a tomato blob; the framed illustration `public/lisbon-table.png` (a cut-out plate of grilled sardines) in a blob-shaped mask with the cobalt disc, tomato disc and olive leaf behind it, captioned "Original illustration. It does not show any listed Restaurant."; a short intro comparing cafés with cafés at every width, explicitly naming Not enough evidence, and a full-width cobalt sign-in action; the tier menu; three numbered steps (cobalt, tomato, olive discs); the tilted fictional Casa Imaginária sample with a Good Tier, a highlighted reason and a content-width Medium Confidence chip. Its fiction label comes first inside the card; tasca is explained as a traditional Portuguese restaurant.
 
 ### Inputs / Fields
 44px minimum height, 2px `edge` border, cream fill, 10px radius (search input 22px, 48px tall), 16px text. Focus: 3px ink outline, 2px offset.
