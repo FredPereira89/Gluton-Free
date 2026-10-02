@@ -101,6 +101,7 @@ function ShortlistMark({ chosen }: { chosen: boolean }) {
  * When the shortlist is full the button stays focusable and says why, rather than going dead.
  */
 export function ShortlistButton({ slug, name, labelled = false, className = "" }: { slug: string; name: string; labelled?: boolean; className?: string }) {
+  const [explainFull, setExplainFull] = useState(false);
   const shortlist = useContext(ShortlistContext);
   // Outside the layout's provider (a bare render of the page) there is no shortlist to add to.
   if (!shortlist) return null;
@@ -111,9 +112,11 @@ export function ShortlistButton({ slug, name, labelled = false, className = "" }
   return <button type="button" className={`shortlist-btn ${labelled ? "is-labelled" : "is-compact"} ${className}`.trim()} aria-pressed={chosen} aria-disabled={blocked || undefined}
     aria-label={`${label}: ${name}`}
     title={blocked ? `The shortlist holds ${SHORTLIST_LIMIT} Restaurants. Remove one to add another.` : undefined}
-    onClick={() => { if (!blocked) toggle(slug, name); }}>
+    onBlur={() => setExplainFull(false)}
+    onClick={() => { if (blocked) setExplainFull(true); else { setExplainFull(false); toggle(slug, name); } }}>
     <ShortlistMark chosen={chosen} />
     {labelled && <span>{chosen ? "On shortlist" : blocked ? "Shortlist full" : "Shortlist"}</span>}
+    {blocked && explainFull && <span className="shortlist-full-note" role="status">{SHORTLIST_LIMIT} saved. Remove one from the shortlist bar to add another.</span>}
   </button>;
 }
 

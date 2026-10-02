@@ -46,7 +46,7 @@ export function Quote(q: QuoteProps) {
   }
   return (
     <figure className={`quote ${q.negative ? "neg" : q.positive ? "pos" : ""}`} style={{ margin: 0 }}>
-      {q.negative && <span className="quote-flag">Criticism</span>}
+      {(q.negative || q.positive) && <span className="quote-flag">{q.negative ? "Criticism" : "Praise"}</span>}
       <blockquote lang={translated ? "en" : (q.lang ?? undefined)}>“{showing}”</blockquote>
       <figcaption className="meta">
         {q.lang && <span className="lang">{(translated ? "en" : q.lang).toUpperCase()}</span>}

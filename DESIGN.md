@@ -392,7 +392,7 @@ Chips are pills on Sunk. Confidence: dots filled to level plus the word, tinted 
 - **Focus:** 3px ink outline (lemon-cream #FFE27A in dark), 3px offset. **Disabled:** Sunk fill, muted text, line border, not-allowed.
 
 ### Directory ementa (signature)
-`ul.ementa`: cream, 22px radius, paper lift, clipped. Optional `li.ementa-course` headers (display 18px on Sunk with a dotted rule). Each `.dir-row` is a ledger line with a dotted `line` rule between rows: name (display 22px) | dotted leader | Tier, then the one-line reason, a muted meta line (Kind, Price, Area), then a foot of Confidence, dietary marks, shortlist button and, on desktop, the Book link. Trend is not shown on rows. The whole row is clickable through the name link's stretched overlay; hover or focus-within tints the row Sunk and turns the name cobalt.
+`ul.ementa`: cream, 22px radius, paper lift, clipped. Optional `li.ementa-course` headers (display 18px on Sunk with a dotted rule on desktop; hidden on phones). Each `.dir-row` is a ledger line with a dotted `line` rule between rows: name (display 22px) | dotted leader | Tier, then the one-line reason, a muted meta line (Kind, Price, Area), then a foot of Confidence, dietary marks, shortlist button and, on desktop, the Book link. Trend is not shown on rows. The whole row is clickable through the name link's stretched overlay; hover or focus-within tints the row Sunk and turns the name cobalt. The Tier guide follows the results, so a phone shows a Verdict sooner.
 
 **The leader** is a 2px dotted `edge` line from name to Verdict. On row hover, focus-within and touch press a 3px dotted tomato line is revealed left to right (`clip-path`, 200ms ease-out). Under `prefers-reduced-motion` transitions collapse and the tomato leader appears at once. Keyboard focus shows a 3px inset outline on the row. This is the one authored motion moment.
 
@@ -407,7 +407,7 @@ Quick chips: 44px pills, 2px `edge` border on cream, 15px 600; pressed is solid 
 
 ### Report
 **Hero:** cream, 28px radius, paper lift, 24px padding: name, address, Verdict, Confidence, the highlighted reason, then `.report-actions` (Open in Google Maps, "Read the Evidence" jump). Forced Avoid keeps booking secondary.
-**Sections:** dotted-top sections with 24px display headings. "How we judged this" is always open, an ordinary section straight after the highlights: no disclosure.
+**Sections:** dotted-top sections with 24px display headings. Quotes and Sources follow the highlights; "How we judged this" remains open after the Evidence.
 **Flags:** Red-ruled card with a round 28px icon badge; minor flags use the amber pair.
 **Quotes:** cream card with paper lift; negative quotes take an inset 2px Avoid Red ring.
 **Scorecard and strips:** five-segment meters (olive at 4-5, slate at 3, amber at 2, red at 1), 4px rails with a dot, Courier Prime values.
@@ -416,7 +416,7 @@ Quick chips: 44px pills, 2px `edge` border on cream, 15px 600; pressed is solid 
 **Standing chart:** three cut-paper strips (Higher, Middle, Lower, each labelled in words), a 5px cobalt line with round caps, cream disc dots with a cobalt ring (solid for the latest quarter, hollow for few reviews), a tomato pill marks a Change point. It scales to the column and never sets the page width.
 **Critical quote:** a solid tomato paper card with on-coral text and a "Criticism" pill; never an outline.
 
-**Praising quote:** a solid deep-green paper card (#14603A light, #1F6B45 dark) with cream text, so praise stands off the lemon ground and sits beside the tomato cards; no pill, since the colour is never the only cue (the Criticism pill names the other side).
+**Praising quote:** a solid deep-green paper card (#14603A light, #1F6B45 dark) with cream text and an explicit "Praise" pill, so its meaning never depends on colour.
 
 ### Landing
 Wordmark and Sign in pill; headline with "eat" on a tomato blob; the framed illustration `public/lisbon-table.png` (a cut-out plate of grilled sardines) in a blob-shaped mask with the cobalt disc, tomato disc and olive leaf behind it, captioned "Original illustration. It does not show any listed Restaurant."; a short intro and full-width cobalt sign-in action; the tier menu; three numbered steps (cobalt, tomato, olive discs); the tilted fictional Casa Imaginária sample with a Good Tier, a highlighted reason and Medium Confidence, labelled as an example.

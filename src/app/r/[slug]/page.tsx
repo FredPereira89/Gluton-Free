@@ -270,6 +270,8 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
 
       <section className="sec report-highlights" aria-label="Strengths and dietary fit">{highlights}</section>
 
+      {evidenceSections}
+
       <section className="sec judged" aria-labelledby="judged-title">
         <h2 id="judged-title">How we judged this</h2>
         <div className="judged-body">
@@ -291,7 +293,7 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
                 {positions.map((l) => (
                   <li key={l.input} className={`score lv-${l.level}${l.counted ? "" : " off"}`}>
                     <span className="score-label">{l.label}</span>
-                    <span className="meter" role="img" aria-label={`${l.label}: ${l.phrase} ${l.group}${l.counted ? "" : " (not counted)"}`}>{[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= l.level ? "on" : ""} />)}</span>
+                    <span className="meter" role="img" aria-label={`${l.label}: ${l.phrase} ${l.group}${l.counted ? "" : " (not counted)"}`}>{[1, 2, 3, 4, 5].map((n) => <i key={n} className={l.counted && n <= l.level ? "on" : ""} />)}</span>
                     <span className="score-text">{l.counted ? l.phrase : "not counted"}{l.group !== leadGroup && <span className="muted"> {l.group}</span>}</span>
                   </li>
                 ))}
@@ -331,8 +333,6 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
           )}
         </div>
       </section>
-
-      {evidenceSections}
 
       {role === "invitee" && r.state === "verdict" && <VerdictFeedback restaurantSlug={R.slug} verdictId={v.id} />}
       {!owner && <BundleExtras page={page} owner={owner} />}

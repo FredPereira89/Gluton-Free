@@ -74,7 +74,6 @@ export default function Directory({ query, result, trackUsage = false }: { query
     <div className="dir-layout">
       <DirectoryControls query={query} neighbourhoods={result.neighbourhoods} resultCount={result.total} trackUsage={trackUsage} />
       <div className="dir-main">
-        <TierLegend />
         {result.items.length === 0
           ? <div className="dir-empty">
             <p><strong>{query.q ? `No Restaurants match “${query.q}”.` : "No Restaurants match these filters."}</strong></p>
@@ -90,6 +89,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
               <Row item={item} trackUsage={trackUsage} returnTo={returnTo} />
             </Fragment>)}
           </ol>}
+        <TierLegend />
         {result.totalPages > 1 && <nav className="dir-pages" aria-label="Pages">
           {result.page > 1 ? <Link className="btn btn-secondary" rel="prev" href={view(result.page - 1)}>Previous</Link> : <span />}
           <span className="small muted">Page {result.page} of {result.totalPages}</span>

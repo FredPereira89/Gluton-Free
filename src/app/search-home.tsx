@@ -240,9 +240,13 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
         : error ? "Search is unavailable. Try again."
         : results.message ?? (isLookupQuery(query) && query.trim() && !results.recognised && !results.known.length && !results.candidates.length ? "No Restaurants found." : "")}
     </div>
-    {canAddRestaurant && <button type="button" className="btn btn-secondary" disabled={!query.trim() || adding || loading} onClick={() => void addRestaurant()}>
-      {adding ? "Searching Google Maps…" : "Owner: search Google Maps to add a Restaurant"}
-    </button>}
+    {canAddRestaurant && <details className="owner-search-tools">
+      <summary>Owner: add a Restaurant</summary>
+      <button type="button" className="btn btn-secondary" disabled={!query.trim() || adding || loading} onClick={() => void addRestaurant()}>
+        {adding ? "Searching Google Maps…" : "Search Google Maps to add a Restaurant"}
+      </button>
+      <Link href="/restaurants" className="small browse-link">Owner inventory · all lookups</Link>
+    </details>}
     {results.recognised && <div className="search-group">
       <h2>Recognised Restaurant</h2>
       {"slug" in results.recognised ? <Link className="search-result" href={`/r/${encodeURIComponent(results.recognised.slug)}`}>
@@ -262,6 +266,5 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
       {results.candidates.map(candidateRow)}
     </div>}
     {noResults && <p className="small muted">No stored Restaurant matched that link. Search by name or neighbourhood instead.</p>}
-    {canAddRestaurant && <Link href="/restaurants" className="small browse-link">Owner inventory · all lookups</Link>}
   </section>;
 }

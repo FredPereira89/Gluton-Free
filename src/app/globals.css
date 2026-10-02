@@ -279,6 +279,10 @@ body:has(.directory) .topbar,body:has(.skeleton-page.wide) .topbar{max-width:112
 .index>a.small{display:inline-flex;align-items:center;min-height:44px;width:fit-content}
 .search-home{gap:14px}
 .search-home input[type="search"]{width:100%;border:2px solid var(--edge);border-radius:var(--r-card);padding:12px 16px;min-height:48px;background:var(--surface);color:var(--ink);font:inherit;font-size:17px}
+.search-home input[type="search"]::placeholder{color:var(--muted);opacity:1}
+.owner-search-tools{display:grid;gap:8px;justify-items:start}
+.owner-search-tools>summary{display:list-item;min-height:44px;align-content:center;color:var(--accent);font-size:14px;font-weight:700;cursor:pointer}
+.owner-search-tools:not([open])>*:not(summary){display:none}
 .search-group{display:grid;gap:9px;margin-top:6px}
 .search-group h2{font-size:17px}
 .search-result{display:grid;gap:4px;background:var(--surface);border-radius:var(--r-card);border:1px solid var(--line);box-shadow:var(--shadow);padding:14px 16px;color:var(--ink);text-decoration:none;text-align:left;width:100%;border:0;cursor:pointer}
@@ -786,6 +790,7 @@ body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 .shortlist-btn.is-labelled[aria-pressed="true"] .shortlist-mark circle{fill:var(--on-brand);stroke:var(--on-brand)}
 .shortlist-btn.is-labelled[aria-pressed="true"] .shortlist-mark path{stroke:var(--brand)}
 .shortlist-btn.is-labelled[aria-disabled="true"]{border-style:dashed}
+.shortlist-full-note{position:absolute;z-index:5;top:calc(100% + 4px);right:0;width:220px;white-space:normal;text-align:left;padding:8px 10px;border-radius:var(--r-sm);background:var(--ink);color:var(--surface);box-shadow:var(--shadow);font-family:var(--sans);font-size:13px;font-weight:600;line-height:1.35}
 @media(max-width:520px){
   .line-foot .book.sm{display:none}
   .dir-row{padding:12px 14px 4px;gap:4px}
@@ -990,3 +995,10 @@ body:has(.landing-page) .shortlist-dock{display:none}
 .A .quotes .quote.pos blockquote,.A .quotes .quote.pos .meta,.A .quotes .quote.pos .tr,.A .quotes .quote.pos a,.A .quotes .quote.pos .stars{color:var(--pos-ink)}
 .A .quotes .quote.pos a{text-decoration:underline;text-underline-offset:2px}
 .A .quotes .quote.pos .lang{border-color:currentColor;color:var(--pos-ink)}
+.A .quotes .quote.pos .quote-flag{background:var(--pos-ink);color:var(--pos-card)}
+@media(max-width:520px){
+  .search-home{gap:6px}
+  .directory{margin-top:12px}
+  .dir-main{gap:8px}
+  .ementa-course{display:none}
+}
