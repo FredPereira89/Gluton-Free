@@ -38,9 +38,7 @@ function GeneralFeedback({ entries }: { entries: GeneralFeedbackInboxItem[] }) {
             <li key={entry.id}>
               <div className="feedback-entry-heading">
                 <strong>{entry.senderRole === "owner" ? "Owner" : entry.email ?? `Invitee ${entry.userId.slice(0, 8)}`}</strong>
-                <time dateTime={entry.submittedAt}>{new Intl.DateTimeFormat("en-GB", {
-                  dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Lisbon",
-                }).format(new Date(entry.submittedAt))}</time>
+                <time dateTime={entry.submittedAt}>{formatFeedbackTime(entry.submittedAt)}</time>
               </div>
               <p className="small muted">{feedbackKindLabel(entry.kind)} · From {entry.pagePath}</p>
               {entry.restaurantSlug && entry.restaurantName && (
@@ -63,6 +61,12 @@ function feedbackKindLabel(kind: GeneralFeedbackInboxItem["kind"]): string {
   }
 }
 
+function formatFeedbackTime(submittedAt: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Lisbon",
+  }).format(new Date(submittedAt));
+}
+
 function FeedbackGroup({ group }: { group: VerdictFeedbackInboxGroup }) {
   return (
     <section className="feedback-group" aria-labelledby={`${group.restaurantSlug}-${group.tier}`}>
@@ -81,9 +85,7 @@ function FeedbackGroup({ group }: { group: VerdictFeedbackInboxGroup }) {
           <li key={`${entry.email ?? "invitee"}-${entry.submittedAt}-${index}`}>
             <div className="feedback-entry-heading">
               <strong>{entry.email ?? `Invitee ${entry.userId.slice(0, 8)}`}</strong>
-              <time dateTime={entry.submittedAt}>{new Intl.DateTimeFormat("en-GB", {
-                dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Lisbon",
-              }).format(new Date(entry.submittedAt))}</time>
+              <time dateTime={entry.submittedAt}>{formatFeedbackTime(entry.submittedAt)}</time>
             </div>
             <p>Thinks the Verdict is {VERDICT_FEEDBACK_LABELS[entry.judgement].toLowerCase()}</p>
             {entry.eatenHere === true && <p className="small muted">I've eaten here</p>}
