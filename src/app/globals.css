@@ -679,3 +679,32 @@ body{background-image:var(--grain)}
 .public-page .landing-footer a{padding-block:14px}
 .A .sec a[target="_blank"]{padding-block:13px}
 .verdict-feedback input[type="checkbox"]{width:24px;height:24px}
+
+/* Round 4: the report reads as one menu entry (issue #121) */
+.sample-line{grid-template-columns:minmax(10px,1fr) auto;row-gap:8px;align-items:center}
+.sample-line h3{grid-column:1/-1;font-size:clamp(24px,6vw,28px)}
+.landing-menu{justify-items:center;text-align:center}
+.landing-menu .tier-menu,.landing-menu-lede{text-align:left}
+@media(min-width:900px){
+  .landing-menu{grid-template-columns:minmax(0,1fr);grid-template-areas:none;grid-template-rows:none;max-width:720px;margin-inline:auto;width:100%}
+  .landing-menu h2,.landing-menu-lede,.landing-menu .tier-menu,.landing-menu-note{grid-area:auto}
+}
+.landing-menu h2,.landing-menu .tier-menu,.landing-menu-lede{width:100%}
+.landing-menu-lede{max-width:none;text-align:center}
+.A .hero{position:relative}
+.A .hero::after{content:"";position:absolute;inset:3px;border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:calc(var(--r-lobe) - 2px);pointer-events:none}
+.A .name p{font-family:var(--serif);font-style:italic;font-size:17px;color:var(--ink)}
+.A .name p a{font-style:normal;font-family:var(--sans)}
+.A .hero .explain{font-family:var(--serif);font-style:italic;font-weight:500;font-size:clamp(23px,6vw,30px);line-height:1.3;letter-spacing:-.005em}
+.A .hero .explain .hl{box-shadow:inset 0 -.3em 0 var(--sun)}
+.A .hero-summary{font-size:17px;line-height:1.55;max-width:62ch}
+.A .sec h2{font-family:var(--serif);font-style:italic;font-size:clamp(24px,5.4vw,30px);font-weight:600;letter-spacing:0}
+.A .quote blockquote{font-family:var(--serif);font-style:italic;font-size:19px;line-height:1.45}
+.A .quotes .quote{background:var(--surface);box-shadow:var(--shadow)}
+.A .owner-section{background:var(--sunk);border:1px solid var(--line);border-radius:var(--r-card);padding:var(--s-5);margin-top:var(--s-4)}
+.A .owner-tools-label{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--brand)}
+.A .owner-section h2{font-family:var(--display);font-style:normal;font-size:19px;font-weight:800}
+.A{max-width:780px}
+.A .hero{padding:clamp(20px,4vw,36px);gap:var(--s-5)}
+.A .name h1{font-size:clamp(36px,10vw,60px);line-height:1}
+.A .hero .explain{font-size:clamp(25px,6.6vw,36px);line-height:1.22;padding-block:var(--s-4);border-block:2px dotted var(--edge);max-width:none}

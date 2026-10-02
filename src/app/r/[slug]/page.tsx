@@ -469,7 +469,8 @@ function BundleExtras({ page, owner }: { page: InviteeBundle; owner: RestaurantB
     );
   }
   return (
-    <section className="sec owner-section">
+    <section className="sec owner-section" aria-label="Owner tools">
+      <p className="owner-tools-label">Owner tools</p>
       <h2>Restaurant details</h2>
       <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
         priceTier={page.restaurant.priceTier} busy={owner.activeJob !== null} />
