@@ -37,6 +37,8 @@ describe("Compare", () => {
     const head = html.match(/<thead>[\s\S]*?<\/thead>/)?.[0] ?? "";
     expect(head.indexOf("beta")).toBeLessThan(head.indexOf("alpha"));
     expect(head.indexOf("alpha")).toBeLessThan(head.indexOf("gamma"));
+    expect(head).not.toContain("Open in Google Maps");
+    expect(html.match(/<tr class="compare-action-row">[\s\S]*?<\/tr>/)?.[0]).toContain("Open in Google Maps");
     expect(html).toContain('scope="row"');
     expect(html).toContain("Different Formats.");
     expect(html).toContain("8 reviewers");
@@ -47,10 +49,10 @@ describe("Compare", () => {
 
   it("keeps the comparison when one Restaurant has no Tier or theme evidence", async () => {
     vi.mocked(loadDirectory).mockResolvedValue(directory([
-      item("alpha"), item("thin", { state: "not_enough_evidence", tier: null, confidence: null, reason: null }),
+      item("alpha"), item("thin", { state: "not_enough_evidence", tier: null, confidence: null, reason: null }), item("gamma"),
     ]));
     vi.mocked(loadCompareEvidence).mockResolvedValue({});
-    const html = renderToStaticMarkup(await ComparePage({ searchParams: Promise.resolve({ r: ["alpha", "thin"] }) }));
+    const html = renderToStaticMarkup(await ComparePage({ searchParams: Promise.resolve({ r: ["alpha", "thin", "gamma"] }) }));
     expect(html).toContain("Not enough evidence");
     expect(html).toContain("No recurring criticism");
     expect(html).not.toContain("Different Formats.");

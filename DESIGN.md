@@ -194,14 +194,22 @@ components:
     backgroundColor: "{colors.brand}"
     textColor: "{colors.on-brand}"
   shortlist-btn:
+    backgroundColor: "transparent"
+    textColor: "{colors.accent}"
+    rounded: "{rounded.pill}"
+    padding: "0"
+    height: "44px"
+  shortlist-btn-labelled:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.pill}"
-    padding: "0 14px 0 10px"
+    padding: "0 14px 0 8px"
     height: "44px"
   shortlist-btn-pressed:
-    backgroundColor: "{colors.brand}"
-    textColor: "{colors.on-brand}"
+    backgroundColor: "transparent"
+    textColor: "{colors.accent}"
+    markFill: "{colors.brand}"
+    markColor: "{colors.on-brand}"
   ementa:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -215,11 +223,11 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.lobe}"
     padding: "24px"
-  compare-card:
+  compare-table:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.card}"
-    padding: "16px"
+    padding: "0"
   shortlist-dock:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -341,7 +349,7 @@ Avoid #B72A17, OK #55506B, Good #4A7216 (olive-leaning), Must-go #14603A, Life-c
 
 Single centred column. `.wrap` max 720px; the landing widens to 960px; the Directory (and its skeleton and top bar) to 1120px. Body gutters 16px; bottom padding 32px plus safe-area inset, growing to 96px (112px at 520px and below) while the shortlist dock exists. Spacing scale 4 / 8 / 12 / 16 / 24 / 32 / 48.
 
-Landing on a phone: headline, framed illustration, short intro, full-width Sign in, then the tilted fictional sample card; the tier menu and three steps follow. From 900px the copy and illustration sit side by side (1.05fr / .95fr). Directory: below 1000px one column of search, a Filters button, scrollable quick chips, removable active filters, then the ementa; from 1000px a 268px sticky filter panel sits left. Filter groups are `details.dir-group` in the order Neighbourhood, Price, Dietary fit, Kind of place, Tier, open on desktop and folded in the sheet. Compare: one column on phones, side by side from 720px. Report: back link and shortlist button share a row; name, address, Verdict, Confidence and reason come first, then Open in Google Maps and "Read the Evidence". The page keeps its state in the URL.
+Landing on a phone: headline, framed illustration, short intro, full-width Sign in, then the tilted fictional sample card; the tier menu and three steps follow. From 900px the copy and illustration sit side by side (1.05fr / .95fr). Directory: below 1000px one column of search, a Filters button, scrollable quick chips, removable active filters, then the ementa; from 1000px a 268px sticky filter panel sits left. Filter groups are `details.dir-group` in the order Neighbourhood, Price, Dietary fit, Kind of place, Tier, open on desktop and folded in the sheet. Compare: one aligned table at every width; phones show two Restaurants with a sticky fact column and sideways access to a third. Report: back link and shortlist button share a row; name, address, Verdict, Confidence and reason come first, then Open in Google Maps and "Read the Evidence". The page keeps its state in the URL.
 
 Cut-paper discs bleed off the page edge on every signed-in page (a tomato disc at right, a cobalt disc at left, fixed, behind content); only the gutter sliver shows.
 
@@ -389,10 +397,10 @@ Chips are pills on Sunk. Confidence: dots filled to level plus the word, tinted 
 **The leader** is a 2px dotted `edge` line from name to Verdict. On row hover, focus-within and touch press a 3px dotted tomato line is revealed left to right (`clip-path`, 200ms ease-out). Under `prefers-reduced-motion` transitions collapse and the tomato leader appears at once. Keyboard focus shows a 3px inset outline on the row. This is the one authored motion moment.
 
 ### Shortlist and dock
-`.shortlist-btn`: 44px pill, 2px `edge` border, round plus-mark that becomes a check; pressed is cobalt with white mark (`aria-pressed`); at three it disables with a dashed border. Up to 3, slugs only in `sessionStorage`, cleared on sign-out. `.shortlist-dock`: fixed cream bar with 28px top corners, count in the display face, Clear link and a "Compare N" pill; hides on `/compare` and on the public landing.
+`.shortlist-btn`: icon-only on Directory rows, a 28px drawn plus/check disc inside a 44px target. The Report keeps the labelled 44px pill. Pressed has a cobalt disc and white check (`aria-pressed`); at three, an unselected button remains focusable with a dashed disc and an explanation. Up to 3 slugs and their display names live in `sessionStorage`, cleared on sign-out. `.shortlist-dock`: fixed cream bar with 28px top corners, named chips with individual 44px remove buttons, count/status and a "Compare N" pill; hides on `/compare` and on the public landing.
 
 ### Compare (`/compare`)
-`ol.compare-grid` of `li.compare-card`: name, Tier, Confidence, reason, `dl.compare-facts` (Kind of place, Price, Neighbourhood, Known for, Dietary fit) with dotted dividers, then actions (Read the Verdict primary, booking secondary, Remove link). It never ranks or highlights a winner; missing data reads "No ... in the Reviews yet".
+`.compare-scroll` contains one `.compare-table`: Restaurant names head aligned fact rows (Verdict, reason, Format, Price, Neighbourhood, optional Trend, Known for and Dietary fit, then up to three praised and criticised Review themes with reviewer counts). The More row puts each Restaurant's booking link, Read the Verdict and Remove just after the Verdict and reason, within the first phone screen. Phone columns scroll sideways with a sticky fact column and a swipe hint for three Restaurants. Tier pills use neutral ink outlines; a note explains when different Formats mean the Tiers do not compare directly. It never ranks or highlights a winner; missing evidence is named plainly.
 
 ### Directory controls and filter sheet
 Quick chips: 44px pills, 2px `edge` border on cream, 15px 600; pressed is solid cobalt with a white check. Sort is a pill select. Filter options are pills (2px `edge`), checked Cobalt Wash with a cobalt border; "Not enough evidence" is dashed. At 1000px and up options are plain 36px rows in a sticky cream panel. Below 1000px the filters open as a modal bottom sheet: cream, 28px top corners, max-height 86vh, sticky header with a dotted rule, over the scrim. Empty state: cream card, 2px dashed `edge`.
@@ -451,4 +459,4 @@ Drawn SVG icons from `src/web/icons.tsx` and `atoms.tsx`: 24px viewBox, 2.25 str
 
 Beta surfaces on this system: landing, privacy, Directory, Compare, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. The paginated Restaurant inventory is Owner-only. Portuguese UI is out of scope.
 
-Drift in the build, recorded but not canonized: single-weight Bagel Fat One still carries inert `font-weight` 700/800 declarations; some rules are declared twice (box-shadow on `.state-page` and `.compare-card`); several CSS comments still say "blue double rule" though no double rule ships; `--blob-a`/`--blob-b` are the only organic radii and `--coral` doubles as the leader colour. These are cleanup items, not rules.
+Drift in the build, recorded but not canonized: single-weight Bagel Fat One still carries inert `font-weight` 700/800 declarations; some rules are declared twice (box-shadow on `.state-page`); several CSS comments still say "blue double rule" though no double rule ships; `--blob-a`/`--blob-b` are the only organic radii and `--coral` doubles as the leader colour. These are cleanup items, not rules.

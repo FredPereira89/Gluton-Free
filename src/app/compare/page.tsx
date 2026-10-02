@@ -56,9 +56,6 @@ function CompareTable({ items, evidence, from, back, trackUsage, showDish, showD
         <th scope="col" className="compare-corner"><span className="sr-only">Fact</span></th>
         {items.map((item) => <th key={item.slug} scope="col" className="compare-restaurant">
           <Link className="compare-name" href={report(item)}>{item.name}</Link>
-          <UsageTrackedLink className="book sm compare-book" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">
-            {item.booking.label}<ExternalIcon />
-          </UsageTrackedLink>
         </th>)}
       </tr></thead>
       <tbody>
@@ -67,6 +64,13 @@ function CompareTable({ items, evidence, from, back, trackUsage, showDish, showD
           {item.confidence && <ConfChip level={item.confidence} compact />}
         </div>}</CompareRow>
         <CompareRow label="Why" items={items}>{(item) => <span className="compare-reason">{item.reason ?? "Not enough Reviews yet for a Verdict."}</span>}</CompareRow>
+        <CompareRow label="More" items={items} className="compare-action-row">{(item) => <div className="compare-actions">
+          <UsageTrackedLink className="book sm compare-book" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">
+            {item.booking.label}<ExternalIcon />
+          </UsageTrackedLink>
+          <Link href={report(item)}>Read the Verdict</Link>
+          <CompareRemove slug={item.slug} name={item.name} slugs={slugs} from={from} />
+        </div>}</CompareRow>
         <CompareRow label="Format" items={items}>{(item) => item.format || "Not known"}</CompareRow>
         <CompareRow label="Price" items={items}>{(item) => item.priceTier ?? "Not known"}</CompareRow>
         <CompareRow label="Neighbourhood" items={items}>{(item) => item.neighbourhood || "Not known"}</CompareRow>
@@ -77,10 +81,6 @@ function CompareTable({ items, evidence, from, back, trackUsage, showDish, showD
           : <span className="muted">No dietary information yet</span>}</CompareRow>}
         <CompareRow label="Reviewers praise" items={items} className="compare-theme-row">{(item) => <ThemeList themes={(evidence[item.slug] ?? emptyEvidence).strengths} empty="No recurring praise yet" />}</CompareRow>
         <CompareRow label="Reviewers warn" items={items} className="compare-theme-row">{(item) => <ThemeList themes={(evidence[item.slug] ?? emptyEvidence).warnings} redFlags={(evidence[item.slug] ?? emptyEvidence).redFlags} empty="No recurring criticism" />}</CompareRow>
-        <CompareRow label="More" items={items} className="compare-action-row">{(item) => <div className="compare-actions">
-          <Link href={report(item)}>Read the Verdict</Link>
-          <CompareRemove slug={item.slug} name={item.name} slugs={slugs} from={from} />
-        </div>}</CompareRow>
       </tbody>
     </table>
   </div>;

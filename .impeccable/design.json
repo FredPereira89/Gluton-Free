@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T21:00:00Z",
+  "generatedAt": "2026-10-02T21:21:36Z",
   "title": "Design System: Gluton-Free",
   "extensions": {
     "colorMeta": {
@@ -110,9 +110,9 @@
       "name": "Shortlist button",
       "kind": "button",
       "refersTo": "shortlist-btn",
-      "description": "44px pill with a round plus-mark; pressed is cobalt.",
-      "html": "<button class=\"ds-short\" aria-pressed=\"false\"><span class=\"ds-mark\"></span>Shortlist</button>",
-      "css": ".ds-short{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 10px;border:2px solid var(--edge);border-radius:999px;background:var(--surface);color:var(--ink);font:700 14px var(--sans);cursor:pointer}.ds-mark{width:20px;height:20px;border-radius:50%;border:2px solid currentColor}.ds-short:hover{background:var(--accent-soft);border-color:var(--accent)}.ds-short:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
+      "description": "Directory rows use an icon-only 44px target with a 28px plus/check disc; Reports use a labelled pill. A full shortlist leaves an unselected control focusable with a dashed disc.",
+      "html": "<button class=\"ds-short\" aria-label=\"Add to shortlist: Casa Imaginaria\" aria-pressed=\"false\"><span class=\"ds-mark\"></span></button> <button class=\"ds-short ds-labelled\" aria-pressed=\"false\"><span class=\"ds-mark\"></span>Shortlist</button>",
+      "css": ".ds-short{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;color:var(--accent);cursor:pointer}.ds-mark{width:28px;height:28px;border-radius:50%;border:2px solid currentColor}.ds-short[aria-pressed=true] .ds-mark{background:var(--brand);border-color:var(--brand)}.ds-short[aria-disabled=true] .ds-mark{border-style:dashed}.ds-labelled{width:auto;gap:8px;padding:0 14px 0 8px;border:2px solid var(--edge);border-radius:999px;background:var(--surface);color:var(--ink)}.ds-short:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
     },
     {
       "name": "Ementa Line",
@@ -131,12 +131,12 @@
       "css": ".ds-hero{background:var(--surface);color:var(--ink);box-shadow:0 2px 0 rgba(20,17,15,.05),0 16px 28px -18px rgba(60,40,0,.55);border-radius:28px;padding:24px;display:grid;gap:16px}.ds-hero h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(32px,8vw,48px);line-height:1.05}.ds-reason{margin:0;font-size:22px;font-weight:600;line-height:1.35}.ds-hl{box-shadow:inset 0 -.5em 0 var(--sun);box-decoration-break:clone;padding:0 2px}"
     },
     {
-      "name": "Compare Card",
-      "kind": "card",
-      "refersTo": "compare-card",
-      "description": "Cream card with name, Verdict and dotted-divided facts. Never ranked.",
-      "html": "<div class=\"ds-compare\"><h3>Casa Imaginaria</h3><dl><div><dt>Price</dt><dd>EUR</dd></div><div><dt>Neighbourhood</dt><dd>Alfama</dd></div></dl></div>",
-      "css": ".ds-compare{display:grid;gap:12px;padding:16px;background:var(--surface);color:var(--ink);border-radius:22px;box-shadow:0 2px 0 rgba(20,17,15,.05),0 16px 28px -18px rgba(60,40,0,.55)}.ds-compare h3{margin:0;font-family:var(--display);font-weight:400;font-size:24px}.ds-compare dl{margin:0}.ds-compare dl div{display:grid;grid-template-columns:38% 1fr;gap:8px;padding:10px 0;border-top:1px dotted var(--edge)}.ds-compare dt{color:var(--muted);font-size:14px;font-weight:700}.ds-compare dd{margin:0}"
+      "name": "Compare Table",
+      "kind": "custom",
+      "refersTo": "compare-table",
+      "description": "One cream table aligns facts across two or three Restaurants. Phone columns scroll sideways behind a sticky fact column; neutral Tier outlines avoid implying a winner.",
+      "html": "<div class=\"ds-compare-scroll\"><table class=\"ds-compare\"><thead><tr><th>Fact</th><th>Casa Imaginaria</th><th>Outra Casa</th></tr></thead><tbody><tr><th scope=\"row\">Price</th><td>EUR</td><td>EUR EUR</td></tr></tbody></table></div>",
+      "css": ".ds-compare-scroll{overflow-x:auto;border-radius:22px;background:var(--surface);box-shadow:0 2px 0 rgba(20,17,15,.05),0 16px 28px -18px rgba(60,40,0,.55)}.ds-compare{width:100%;min-width:356px;table-layout:fixed;border-spacing:0;color:var(--ink)}.ds-compare th,.ds-compare td{padding:12px 8px;text-align:left;border-bottom:1px dotted var(--edge)}.ds-compare th:first-child{position:sticky;left:0;width:112px;background:var(--surface)}.ds-compare td{border-left:1px solid var(--line)}"
     },
     {
       "name": "Flag",
