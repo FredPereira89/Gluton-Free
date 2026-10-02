@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition, type Ref } from "react";
 import { createPortal } from "react-dom";
 import { DIETS, DIET_LABEL } from "@/domain/dish-dietary";
 import { TIERS, TIER_LABEL } from "@/domain/aspects";
@@ -122,6 +122,19 @@ export default function DirectoryControls({ query, neighbourhoods, resultCount, 
     return <button key={label} type="button" className="dir-chip" aria-pressed={pressed} onClick={onClick}>{label}</button>;
   }
 
+  // Wide screens keep Sort in the sidebar. Below that it moves into the filter sheet, so the first screen is results.
+  function sortControl(ref?: Ref<HTMLSelectElement>) {
+    return <label className="dir-sort">
+      <span className="row-label">Sort by</span>
+      <select ref={ref} value={shown.sort} onChange={(event) => {
+        const sort = event.target.value as DirectoryQuery["sort"];
+        if (sort !== shown.sort) go({ sort }, "sort");
+      }}>
+        {DIRECTORY_SORTS.map((sort) => <option key={sort} value={sort}>{SORT_LABEL[sort]}</option>)}
+      </select>
+    </label>;
+  }
+
   const filterOptions = <>
     {group("area", "Neighbourhood", neighbourhoods.map(({ name, count }) => ({ value: name, label: name, count })))}
     {group("price", "Price", PRICE_TIERS.map((price) => ({ value: price, label: price })))}
@@ -144,28 +157,21 @@ export default function DirectoryControls({ query, neighbourhoods, resultCount, 
         {DIETS.map((diet) => quick(DIET_LABEL[diet], shown.diet.includes(diet), () => pick("diet", diet)))}
       </div>
       <button ref={filterButton} type="button" className="dir-chip dir-more" aria-expanded={sheetOpen && mobileViewport} aria-controls="dir-filters" onClick={() => setSheetOpen(true)}>
-        Filters{activeFilters ? ` (${activeFilters})` : ""}
+        Filters &amp; sort{activeFilters ? ` (${activeFilters})` : ""}
       </button>
     </div>
-    <label className="dir-sort">
-      <span className="row-label">Sort by</span>
-      <select ref={sortSelect} value={shown.sort} onChange={(event) => {
-        const sort = event.target.value as DirectoryQuery["sort"];
-        if (sort !== shown.sort) go({ sort }, "sort");
-      }}>
-        {DIRECTORY_SORTS.map((sort) => <option key={sort} value={sort}>{SORT_LABEL[sort]}</option>)}
-      </select>
-    </label>
+    {sortControl(sortSelect)}
     <div className="dir-filters dir-sidebar">{filterOptions}</div>
     {mobileViewport && createPortal(
       <dialog ref={filterDialog} id="dir-filters" className="dir-mobile-filter-dialog" aria-labelledby="dir-filter-title"
         onClick={(event) => { if (event.target === event.currentTarget) closeSheet(); }}>
         <div className="dir-mobile-filter-sheet">
           <div className="dir-sheet-head">
-            <strong id="dir-filter-title">Filters</strong>
+            <strong id="dir-filter-title">Filters &amp; sort</strong>
             <button ref={closeButton} type="button" className="btn" onClick={closeSheet}>Show {resultCount} {resultCount === 1 ? "result" : "results"}</button>
           </div>
           <p className="small muted" role="status">{resultCount} {resultCount === 1 ? "Restaurant" : "Restaurants"} match these filters.</p>
+          {sortControl()}
           {filterOptions}
         </div>
       </dialog>, document.body,

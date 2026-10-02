@@ -82,7 +82,7 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
   const nav = (
     <nav className="report-nav" aria-label="Report navigation">
       <Link className="btn btn-secondary report-back" href={from}>{from.startsWith("/compare") ? "Back to comparison" : "Back to results"}</Link>
-      <ShortlistButton slug={R.slug} name={R.name} />
+      <ShortlistButton slug={R.slug} name={R.name} labelled />
     </nav>
   );
   // The booking link is the next step after the Verdict, so it sits in the hero's first screen as a capsule.

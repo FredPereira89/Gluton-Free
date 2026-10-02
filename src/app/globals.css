@@ -279,7 +279,6 @@ body:has(.directory) .topbar,body:has(.skeleton-page.wide) .topbar{max-width:112
 .index>a.small{display:inline-flex;align-items:center;min-height:44px;width:fit-content}
 .search-home{gap:14px}
 .search-home input[type="search"]{width:100%;border:2px solid var(--edge);border-radius:var(--r-card);padding:12px 16px;min-height:48px;background:var(--surface);color:var(--ink);font:inherit;font-size:17px}
-.search-home label{margin-bottom:-10px}
 .search-group{display:grid;gap:9px;margin-top:6px}
 .search-group h2{font-size:17px}
 .search-result{display:grid;gap:4px;background:var(--surface);border-radius:var(--r-card);border:1px solid var(--line);box-shadow:var(--shadow);padding:14px 16px;color:var(--ink);text-decoration:none;text-align:left;width:100%;border:0;cursor:pointer}
@@ -438,6 +437,7 @@ body:has(.directory) .topbar,body:has(.skeleton-page.wide) .topbar{max-width:112
 .dir-sort .row-label{min-width:0}
 .dir-sort select{flex:1;min-width:0;max-width:340px;border:2px solid var(--edge);border-radius:var(--r-pill);min-height:44px;padding:9px 16px;background:var(--surface);color:var(--ink);font:inherit}
 .dir-filters{display:none}
+.dir-controls>.dir-sort{display:none}
 .dir-sheet-head{display:none}
 .dir-group{border:0;margin:0;padding:0;min-width:0;display:grid;gap:8px;align-content:start}
 .dir-options{display:flex;flex-wrap:wrap;gap:8px}
@@ -505,6 +505,7 @@ body:has(.dir-controls[aria-busy="true"]) .ementa{opacity:.55}
   .dir-layout{grid-template-columns:268px minmax(0,1fr);gap:var(--s-5)}
   .dir-mobile-filter-row{display:none}
   .dir-controls{position:sticky;top:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:16px 18px;gap:20px}
+  .dir-controls>.dir-sort{display:grid}
   .dir-sort{display:grid;gap:4px}
   .dir-sort select{max-width:none;width:100%}
   .dir-filters{display:grid;gap:20px}
@@ -574,8 +575,10 @@ body:has(.dir-controls[aria-busy="true"]) .ementa{opacity:.55}
 .A .score.off .meter i.on{background:var(--faint)}
 
 /* Welcome card and Tier legend (issue #119) */
-.welcome-card{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--accent-soft);color:var(--ink);border:1px dashed var(--brand);border-radius:var(--r-card);padding:12px 16px;margin-bottom:14px}
-.welcome-card p{margin:0;font-size:14px;font-weight:600}
+.welcome-card{display:flex;gap:4px;align-items:center;justify-content:space-between;background:var(--accent-soft);color:var(--ink);border:1px dashed var(--brand);border-radius:var(--r-pill);padding:0 4px 0 16px;margin-bottom:10px}
+.welcome-card p{margin:0;padding:6px 0;font-size:14px;font-weight:600;line-height:1.3}
+.welcome-dismiss{flex:none;display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:50%;background:none;color:var(--ink);cursor:pointer}
+.welcome-dismiss:hover{background:color-mix(in srgb,var(--brand) 14%,transparent)}
 .tier-legend{font-size:13.5px}
 .tier-legend summary{cursor:pointer;color:var(--muted);font-weight:600;width:fit-content;min-height:44px;display:flex;align-items:center}
 .tier-legend .legend-note{margin:8px 0 0;color:var(--muted)}
@@ -741,9 +744,6 @@ body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 
 /* Home: results come sooner. The headline is a question, the help is folded away. */
 .search-home h1{font-size:clamp(26px,7vw,36px);font-weight:800;}
-.search-help{margin-top:-4px}
-.search-help>summary{display:flex;align-items:center;min-height:44px;width:fit-content;cursor:pointer;color:var(--accent);font-weight:700}
-.search-help p{padding-bottom:8px;max-width:60ch}
 @media(max-width:520px){body:has(.directory) .directory{margin-top:var(--s-4)}}
 
 /* Filters: each group folds behind its name on a phone; the desktop sidebar keeps them open. */
@@ -766,15 +766,26 @@ body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 /* Rows: one calm line per Restaurant; the shortlist is the diner's own action, Booking waits for the Report on a phone. */
 .line-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
 .line-foot .book.sm{margin-left:0}
-.shortlist-btn{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 10px;border:2px solid var(--edge);border-radius:var(--r-pill);background:var(--surface);color:var(--ink);font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
-.shortlist-btn:hover:not(:disabled){background:var(--accent-soft);border-color:var(--accent)}
-.shortlist-btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
-.shortlist-btn:disabled{color:var(--muted);border-style:dashed;cursor:not-allowed}
-.shortlist-mark{position:relative;flex:none;width:20px;height:20px;border-radius:50%;border:2px solid currentColor}
-.shortlist-mark::before{content:"";position:absolute;inset:0;background:linear-gradient(currentColor,currentColor) center/8px 2px no-repeat,linear-gradient(currentColor,currentColor) center/2px 8px no-repeat}
-.shortlist-btn[aria-pressed="true"] .shortlist-mark{background:var(--accent);border-color:var(--accent)}
-.shortlist-btn[aria-pressed="true"] .shortlist-mark::before{inset:2px 5px 4px 5px;background:none;border:solid var(--on-brand);border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
-.shortlist-btn:disabled .shortlist-mark::before{background:none}
+/* The shortlist toggle: a drawn disc. Rows carry it alone (44px to tap, 28px to see); the Report spells it out. A full list dashes the disc and stays focusable. */
+.shortlist-btn{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;color:var(--accent);font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.shortlist-mark{flex:none;display:block;overflow:visible}
+.shortlist-mark circle{fill:none;stroke:currentColor;stroke-width:2.25}
+.shortlist-mark path{fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.shortlist-btn[aria-pressed="true"] .shortlist-mark circle{fill:var(--brand);stroke:var(--brand)}
+.shortlist-btn[aria-pressed="true"] .shortlist-mark path{stroke:var(--on-brand)}
+.shortlist-btn[aria-disabled="true"]{color:var(--muted);cursor:not-allowed}
+.shortlist-btn[aria-disabled="true"] .shortlist-mark circle{stroke-dasharray:4 3.5}
+.shortlist-btn.is-compact{width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none}
+.shortlist-btn.is-compact:hover:not([aria-disabled="true"]) .shortlist-mark circle{fill:var(--accent-soft)}
+.shortlist-btn.is-compact[aria-pressed="true"]:hover .shortlist-mark circle{fill:color-mix(in srgb,var(--brand) 86%,#000)}
+.shortlist-btn.is-labelled{min-height:44px;padding:0 14px 0 8px;border:2px solid var(--edge);border-radius:var(--r-pill);background:var(--surface);color:var(--ink)}
+.shortlist-btn.is-labelled .shortlist-mark{width:24px;height:24px}
+.shortlist-btn.is-labelled:hover:not([aria-disabled="true"]){background:var(--accent-soft);border-color:var(--accent)}
+.shortlist-btn.is-labelled[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.shortlist-btn.is-labelled[aria-pressed="true"]:hover{background:color-mix(in srgb,var(--brand) 86%,#000);border-color:transparent}
+.shortlist-btn.is-labelled[aria-pressed="true"] .shortlist-mark circle{fill:var(--on-brand);stroke:var(--on-brand)}
+.shortlist-btn.is-labelled[aria-pressed="true"] .shortlist-mark path{stroke:var(--brand)}
+.shortlist-btn.is-labelled[aria-disabled="true"]{border-style:dashed}
 @media(max-width:520px){
   .line-foot .book.sm{display:none}
   .dir-row{padding:12px 14px 4px;gap:4px}
@@ -783,15 +794,27 @@ body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 }
 
 /* The dock: follows the diner between results and Reports while a shortlist exists. */
-.shortlist-dock{position:fixed;inset:auto 0 0;z-index:30;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 16px;padding:10px max(16px,calc((100% - 1120px) / 2)) calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border-radius:var(--r-lobe) var(--r-lobe) 0 0;box-shadow:0 -14px 28px -14px rgba(20,17,15,.55)}
-.shortlist-dock p{font-size:15px;line-height:1.3;flex:1 1 200px}
-.shortlist-dock p strong{font-family:var(--display);font-size:17px}
-.shortlist-dock-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
-.shortlist-clear{min-height:44px;padding:0 12px;border:0;background:none;color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-.shortlist-compare{min-width:128px}
+.shortlist-dock{position:fixed;inset:auto 0 0;z-index:30;display:flex;flex-direction:column;gap:6px;padding:10px max(16px,calc((100% - 1120px) / 2)) calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border-radius:var(--r-lobe) var(--r-lobe) 0 0;box-shadow:0 -14px 28px -14px rgba(20,17,15,.55)}
+.shortlist-chips{display:flex;gap:8px;margin:0;padding:0;list-style:none;min-width:0;overflow-x:auto;scrollbar-width:none}
+.shortlist-chips::-webkit-scrollbar{display:none}
+.shortlist-chip{flex:none;display:inline-flex;align-items:center;max-width:70%;min-height:44px;border-radius:var(--r-pill);background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
+.shortlist-chip-name{min-width:0;padding-left:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:700}
+.shortlist-chip button{flex:none;display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:50%;background:none;color:var(--accent);cursor:pointer}
+.shortlist-chip button:hover{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.shortlist-dock-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.shortlist-dock p{display:grid;font-size:14px;line-height:1.25;color:var(--muted);min-width:0}
+.shortlist-dock p strong{font-family:var(--display);font-size:17px;font-weight:400;color:var(--ink)}
+.shortlist-compare{flex:none;min-width:128px}
 .shortlist-compare[aria-disabled="true"]{background:var(--sunk);color:var(--muted);border:2px dashed var(--edge);cursor:not-allowed}
-body:has(.shortlist-dock){padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
-@media(max-width:520px){body:has(.shortlist-dock){padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))}}
+body:has(.shortlist-dock){padding-bottom:calc(140px + env(safe-area-inset-bottom,0px))}
+@media(min-width:720px){
+  .shortlist-dock{flex-direction:row;align-items:center;justify-content:space-between;gap:16px}
+  .shortlist-chips{flex:1}
+  .shortlist-chip{max-width:260px}
+  .shortlist-dock-actions{flex:none;gap:16px}
+  .shortlist-dock p{text-align:right}
+  body:has(.shortlist-dock){padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+}
 
 /* Compare: the facts that differ, one column on a phone, side by side from a tablet up. Never ranked. */
 .compare-page{display:grid;gap:var(--s-4);margin-top:var(--s-4)}
@@ -836,7 +859,6 @@ body:has(.shortlist-dock){padding-bottom:calc(96px + env(safe-area-inset-bottom,
 .search-home [role="status"]:empty{display:none}
 @media(max-width:520px){
   .search-home{gap:8px}
-  .search-home label{margin-bottom:-4px}
   .search-home>.btn{padding:6px 14px;font-size:14px}
   .directory h2{font-size:24px}
   .dir-head{gap:0 12px}
@@ -858,10 +880,6 @@ body:has(.shortlist-dock){padding-bottom:calc(96px + env(safe-area-inset-bottom,
 .landing-sign-in:hover{background:var(--sunk)}
 .dir-chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
 .dir-chip[aria-pressed="true"]::before{border-color:var(--on-brand)}
-.shortlist-btn[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
-.shortlist-btn[aria-pressed="true"]:hover:not(:disabled){background:color-mix(in srgb,var(--brand) 86%,#000);border-color:transparent}
-.shortlist-btn[aria-pressed="true"] .shortlist-mark{background:var(--on-brand);border-color:var(--on-brand)}
-.shortlist-btn[aria-pressed="true"] .shortlist-mark::before{border-color:var(--brand)}
 .A .quotes .quote{border:0;box-shadow:var(--shadow)}
 .A .quotes .quote.neg{box-shadow:var(--shadow),inset 0 0 0 2px var(--t-avoid)}
 .source-card,.index a.row,.account-page section,.signin form{border:0;box-shadow:var(--shadow)}

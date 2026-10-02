@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { welcomeDismissedCookie } from "@/domain/welcome";
+import { CloseIcon } from "@/web/icons";
 
 /** First-visit welcome (issue #119). The server renders it only until the dismissal cookie exists. */
 export function WelcomeCard({ restaurantsCount }: { restaurantsCount: number }) {
@@ -13,6 +14,6 @@ export function WelcomeCard({ restaurantsCount }: { restaurantsCount: number }) 
   };
   return <aside className="welcome-card" aria-label="Welcome">
     <p>Browse {restaurantsCount.toLocaleString("en")} Lisbon Restaurants, each judged against its own kind.</p>
-    <button type="button" className="btn btn-secondary" onClick={dismiss}>Dismiss</button>
+    <button type="button" className="welcome-dismiss" aria-label="Dismiss welcome" onClick={dismiss}><CloseIcon size={16} /></button>
   </aside>;
 }
