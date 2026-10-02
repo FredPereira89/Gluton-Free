@@ -51,6 +51,14 @@ export const TIER_LABEL: Record<Tier, string> = {
   must_go: "Must Go",
   life_changing: "Life Changing",
 };
+/** What each Tier means to a diner, shown in the Tier legend. */
+export const TIER_MEANING: Record<Tier, string> = {
+  life_changing: "Among the very best of its kind in Lisbon, worth planning a trip around",
+  must_go: "Clearly better than most of its kind",
+  good: "Solid choice for its kind",
+  ok: "Fine if convenient",
+  avoid: "Reviewers report real problems",
+};
 
 export const FLAG_TYPES = ["food_poisoning", "hygiene", "scam_overcharge", "other_safety"] as const;
 export type FlagType = (typeof FLAG_TYPES)[number];

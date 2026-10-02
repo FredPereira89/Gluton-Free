@@ -3,6 +3,7 @@ import Link from "next/link";
 import { TierBadge, TrendChip } from "@/web/atoms";
 import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "@/lib/api-contract";
 import { directoryHref } from "@/lib/directory-url";
+import { TierLegend } from "@/web/tier-legend";
 import DirectoryControls from "./directory-controls";
 
 const CONFIDENCE = { low: ["Low", 1], medium: ["Medium", 2], high: ["High", 3] } as const;
@@ -39,6 +40,7 @@ export default function Directory({ query, result }: { query: DirectoryQuery; re
   return <section className="directory" aria-labelledby="directory-title">
     <h2 id="directory-title">All Restaurants</h2>
     <DirectoryControls query={query} neighbourhoods={result.neighbourhoods} />
+    <TierLegend />
     <p className="small muted" role="status">
       {result.total} {result.total === 1 ? "Restaurant" : "Restaurants"}
       {!query.nee && result.hiddenNotEnoughEvidence > 0 && ` · ${result.hiddenNotEnoughEvidence} with Not enough evidence hidden`}

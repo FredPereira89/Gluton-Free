@@ -64,6 +64,12 @@ describe("directory", () => {
     expect(render(result())).not.toContain("Page 1 of 1");
   });
 
+  it("offers the Tier legend (issue #119)", () => {
+    const html = render(result());
+    expect(html).toContain("What do the Tiers mean?");
+    expect(html).toContain("Among the very best of its kind in Lisbon, worth planning a trip around");
+  });
+
   it("offers Clear filters when nothing matches", () => {
     const html = render(result({ items: [], total: 0 }), { tier: ["avoid"] });
     expect(html).toContain("No Restaurants match");

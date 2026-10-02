@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { AuthError, requireCaller } from "@/lib/auth";
 import { directoryQueryFromPage } from "@/lib/directory-url";
+import { WELCOME_DISMISSED_COOKIE } from "@/domain/welcome";
 import { loadDirectory } from "@/web/data";
+import { WelcomeCard } from "@/web/welcome-card";
 import Directory from "./directory";
 import SearchHome from "./search-home";
 
@@ -86,7 +88,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   // The directory's state lives in the URL, so a refresh or a shared link restores it.
   const query = directoryQueryFromPage(await searchParams ?? {});
   const result = await loadDirectory(query);
+  const welcomed = (await cookies()).get(WELCOME_DISMISSED_COOKIE) !== undefined;
   return <>
+    {!welcomed && <WelcomeCard />}
     <SearchHome canAddRestaurant={role === "owner"} initialQuery={query.q} />
     <Directory query={query} result={result} />
   </>;
