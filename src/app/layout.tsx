@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { AuthError } from "@/lib/auth";
 import { pageRole } from "@/lib/page-role";
+import { Brand } from "@/web/brand";
 import { FeedbackWidget } from "@/web/feedback-widget";
 import { ServiceWorkerRegistration } from "@/web/pwa-settings";
 import "./globals.css";
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0E6170" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#F5F1E4" };
 
 async function SignedInNavigation() {
   try {
@@ -41,7 +42,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <ServiceWorkerRegistration />
         <header className="topbar">
-          <Link href="/">Gluton-Free</Link>
+          <Brand />
           <span>Provisional · Lisboa</span>
           <SignedInNavigation />
         </header>

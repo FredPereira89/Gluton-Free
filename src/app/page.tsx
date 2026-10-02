@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { AuthError, requireCaller } from "@/lib/auth";
 import { directoryQueryFromPage } from "@/lib/directory-url";
 import { WELCOME_DISMISSED_COOKIE } from "@/domain/welcome";
+import { Brand } from "@/web/brand";
 import { ConfChip, TierBadge } from "@/web/atoms";
 import { loadDirectory } from "@/web/data";
 import { WelcomeCard } from "@/web/welcome-card";
@@ -20,8 +21,8 @@ function LandingPage() {
   return (
     <div className="public-page landing-page">
       <header className="landing-header">
-        <Link className="landing-brand" href="/">Gluton-Free</Link>
-        <Link className="btn btn-secondary landing-sign-in" href="/sign-in">Have an invite? Sign in</Link>
+        <Brand />
+        <Link className="btn btn-secondary landing-sign-in" href="/sign-in">Sign in</Link>
       </header>
 
       <section className="landing-hero">

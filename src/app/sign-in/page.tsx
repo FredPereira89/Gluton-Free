@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Brand } from "@/web/brand";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -15,6 +16,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
   const { error, next, sent } = await searchParams;
   return (
     <div className="signin">
+      <Brand />
       <h1>Sign in</h1>
       <p className="muted">Invited? Enter your email and we&apos;ll send you a link.</p>
       <form className="form" action="/api/auth/magic-link" method="post">

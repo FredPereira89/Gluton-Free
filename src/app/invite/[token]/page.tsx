@@ -2,7 +2,10 @@
 // (revoked, exhausted, unknown or malformed) says so and creates nothing.
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import Link from "next/link";
 import { inviteLinkIsOpen } from "@/lib/invite";
+import { Brand } from "@/web/brand";
+import { Icon } from "@/web/icons";
 
 export const metadata: Metadata = { title: "Join the beta", robots: { index: false, follow: false } };
 
@@ -24,14 +27,18 @@ export default async function InvitePage({ params, searchParams }: Props) {
   if (!(await inviteLinkIsOpen(token))) {
     return (
       <div className="signin">
+        <Brand />
         <h1>This link no longer works</h1>
         <p className="muted">It was revoked or has reached its limit. Ask whoever shared it for a new one.</p>
+        <p className="small muted">Already joined? <Link href="/sign-in">Sign in</Link>.</p>
       </div>
     );
   }
   if (sent === "1") {
     return (
       <div className="signin">
+        <Brand />
+        <span className="state-badge" aria-hidden="true"><Icon d="M5 13l4 4L19 7" size={28} /></span>
         <h1>Check your email</h1>
         <p className="muted">We sent you a link. Open it on any device and tap Continue to finish joining.</p>
       </div>
@@ -39,6 +46,7 @@ export default async function InvitePage({ params, searchParams }: Props) {
   }
   return (
     <div className="signin">
+      <Brand />
       <h1>Join the beta</h1>
       <p className="muted">Enter your email and we&apos;ll send you a link to sign in. You stay signed in on this device.</p>
       <form className="form" action="/api/auth/invite" method="post">

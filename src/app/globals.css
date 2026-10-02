@@ -183,6 +183,9 @@ table.src th.num{text-align:right}
 body{margin:0;padding:16px 16px 64px}
 .wrap{max-width:720px;margin:0 auto}
 .topbar{max-width:720px;margin:0 auto 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted)}
+.brand{display:inline-flex;align-items:center;gap:10px;font-size:17px;font-weight:800;letter-spacing:-.03em;color:var(--ink);text-decoration:none}
+.brand img{width:32px;height:32px;border-radius:9px;background:#F5F1E4}
+.brand span{white-space:nowrap}
 .topbar a{display:inline-flex;align-items:center;min-height:44px;color:var(--ink);font-weight:700;text-decoration:none;letter-spacing:-.01em}
 /* Public pages (sign-in, invite, welcome) are for people who cannot open the signed-in pages the bar links to. */
 body:has(.signin) .topbar{display:none}
@@ -196,7 +199,6 @@ body:has(.directory) .topbar{max-width:1120px}
 .public-page a{font-weight:600}
 .landing-page{display:grid;gap:clamp(26px,5vw,52px);padding:8px 0 28px}
 .landing-header,.privacy-header{display:flex;justify-content:space-between;align-items:center;gap:16px}
-.landing-brand{color:var(--ink);font-size:17px;font-weight:800!important;letter-spacing:-.03em;text-decoration:none}
 .landing-sign-in{margin:0;padding:8px 16px;font-size:14px}
 .landing-hero{display:grid;gap:18px;justify-items:start;padding:clamp(28px,6vw,62px);background:var(--surface);border-radius:var(--r-lobe) var(--r-lobe) var(--r-lobe) var(--r-sm);box-shadow:var(--shadow)}
 .landing-hero h1{max-width:14ch;font-size:clamp(36px,7vw,64px);font-weight:800;letter-spacing:-.055em;line-height:1.02}
@@ -234,7 +236,7 @@ body:has(.directory) .topbar{max-width:1120px}
 .usage-event-counts ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 16px;color:var(--muted);font-size:13px}
 @media(max-width:560px){
   .landing-header{align-items:flex-start}
-  .landing-sign-in{padding:8px 14px}
+  .landing-sign-in{padding:8px 14px;font-size:13px;min-height:44px}
   .landing-cta{width:100%}
   .landing-hero{padding:24px 20px}
   .landing-example-heading{align-items:flex-start}
@@ -266,6 +268,9 @@ body:has(.directory) .topbar{max-width:1120px}
 .signin h1,.settings h1{font-size:28px;font-weight:800;letter-spacing:-.03em}
 .signin form{display:grid;gap:14px;max-width:none;padding:var(--s-4);background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow)}
 .signin .btn{width:100%}
+.signin form.plain{padding:0;background:none;box-shadow:none}
+.signin .brand{justify-self:start;margin-bottom:var(--s-2)}
+.state-badge{display:grid;place-items:center;width:56px;height:56px;border-radius:var(--r-pill);background:var(--accent-soft);color:var(--accent)}
 .settings-section{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
 .settings-section h2{font-size:16px;font-weight:700}
 .settings-section p{color:var(--muted);font-size:13.5px}
