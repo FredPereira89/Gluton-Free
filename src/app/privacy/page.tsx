@@ -26,16 +26,15 @@ export default function PrivacyPage() {
           <li><strong>Your email address</strong>, to sign you in and keep your account connected to the Invite link that admitted you.</li>
           <li><strong>Invite details and account timestamps</strong>, such as which link you used, when you joined and when you last used the app, so the Owner can administer access.</li>
           <li><strong>Your feedback</strong>, including Verdict feedback and any note you choose to send, so the Owner can understand what is useful or wrong.</li>
-          <li><strong>First-party usage events</strong>, with minimal details and a timestamp, to understand which app features are used. Gluton-Free does not use third-party trackers.</li>
+          <li><strong>First-party usage events</strong> for searches, filters, sorting, reports opened and Booking links clicked, with a timestamp. Gluton-Free does not use third-party trackers.</li>
         </ul>
       </section>
 
       <section>
         <h2>How to delete your data</h2>
         <p>
-          Ask the Owner to delete your account through the person or private channel that shared your Invite link.
-          Include the email address you used to join. Deletion removes your Invitee record, sign-in account,
-          feedback and usage events. An in-app “Delete my data” control is planned and is not available yet.
+          Invitees can open <Link href="/account">Your data</Link> while signed in and choose “Delete my data”. This removes the Invitee record,
+          sign-in account, feedback and usage events, then signs them out. They can return only through a valid Invite link.
         </p>
       </section>
 

@@ -22,10 +22,13 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0E6170" };
 
-async function SignedInFeedback() {
+async function SignedInNavigation() {
   try {
-    await pageRole();
-    return <FeedbackWidget />;
+    const role = await pageRole();
+    return <>
+      <FeedbackWidget />
+      <Link href={role === "invitee" ? "/account" : "/settings"}>{role === "invitee" ? "Your data" : "Settings"}</Link>
+    </>;
   } catch (error) {
     if (error instanceof AuthError) return null;
     throw error;
@@ -40,8 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <header className="topbar">
           <Link href="/">Gluton-Free</Link>
           <span>Provisional · Lisboa</span>
-          <SignedInFeedback />
-          <Link href="/settings">Settings</Link>
+          <SignedInNavigation />
         </header>
         <main className="wrap">{children}</main>
       </body>

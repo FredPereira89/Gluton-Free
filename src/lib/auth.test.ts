@@ -369,8 +369,8 @@ describe("the proxy and the route registry's auth levels", () => {
     expect(requiredAuthLevel("GET", "/r/some-place/anything-else")).toBe("owner");
   });
 
-  it("opens the Restaurant list, the report and its Verdict history to Invitees, pages and API alike, read-only", () => {
-    for (const path of ["/restaurants", "/r/some-place", "/r/some-place/history", "/api/v1/restaurants", "/api/v1/restaurants/some-place", "/api/v1/restaurants/some-place/verdicts"]) {
+  it("opens Invitee pages and API endpoints at Invitee level", () => {
+    for (const path of ["/restaurants", "/r/some-place", "/r/some-place/history", "/account", "/api/v1/restaurants", "/api/v1/restaurants/some-place", "/api/v1/restaurants/some-place/verdicts"]) {
       expect(requiredAuthLevel("GET", path), path).toBe("invitee");
     }
     expect(requiredAuthLevel("POST", "/api/v1/restaurants")).toBe("owner");
