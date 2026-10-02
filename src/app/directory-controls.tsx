@@ -63,9 +63,10 @@ export default function DirectoryControls({ query, neighbourhoods, resultCount, 
     const updateViewport = () => {
       setMobileViewport(media.matches);
       if (!media.matches) {
-        if (filterDialog.current?.open) filterDialog.current.close();
+        const dialogWasOpen = filterDialog.current?.open;
+        if (dialogWasOpen) filterDialog.current?.close();
         setSheetOpen(false);
-        requestAnimationFrame(() => sortSelect.current?.focus());
+        if (dialogWasOpen) requestAnimationFrame(() => sortSelect.current?.focus());
       }
     };
     updateViewport();
