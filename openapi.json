@@ -4932,6 +4932,14 @@
                             "format": {
                               "type": "string"
                             },
+                            "formatProvenance": {
+                              "type": "string",
+                              "enum": [
+                                "llm",
+                                "owner",
+                                "baseline_auto"
+                              ]
+                            },
                             "priceTier": {
                               "anyOf": [
                                 {
@@ -5591,6 +5599,7 @@
                                                   "required": [
                                                     "reviewId",
                                                     "type",
+                                                    "evidence",
                                                     "source",
                                                     "publishedAt"
                                                   ],
@@ -6105,7 +6114,10 @@
                                           },
                                           "access": {
                                             "type": "string",
-                                            "const": "public_ok"
+                                            "enum": [
+                                              "public_ok",
+                                              "personal_only"
+                                            ]
                                           }
                                         },
                                         "required": [
@@ -6117,8 +6129,7 @@
                                           "lang",
                                           "stars",
                                           "source",
-                                          "month",
-                                          "access"
+                                          "month"
                                         ],
                                         "additionalProperties": false
                                       }
@@ -6192,6 +6203,111 @@
                             "dietaryFits"
                           ],
                           "additionalProperties": false
+                        },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "access": {
+                                "type": "string",
+                                "enum": [
+                                  "public_ok",
+                                  "personal_only"
+                                ]
+                              },
+                              "url": {
+                                "type": "string",
+                                "format": "uri"
+                              },
+                              "fetchStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "not_fetched",
+                                  "fetching",
+                                  "fetched",
+                                  "failed"
+                                ]
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "crowd",
+                                  "editorial"
+                                ]
+                              },
+                              "matchProvenance": {
+                                "type": "string",
+                                "enum": [
+                                  "pasted",
+                                  "proposed_confirmed",
+                                  "auto_accepted"
+                                ]
+                              },
+                              "rating": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "reviewCount": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "textCount": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "newestAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "name",
+                              "access",
+                              "url",
+                              "fetchStatus",
+                              "kind",
+                              "matchProvenance",
+                              "rating",
+                              "reviewCount",
+                              "textCount",
+                              "newestAt"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "distinctions": {
                           "type": "array",
@@ -6356,26 +6472,17 @@
                             ],
                             "additionalProperties": false
                           }
-                        },
-                        "sourceNames": {
-                          "type": "object",
-                          "propertyNames": {
-                            "type": "string"
-                          },
-                          "additionalProperties": {
-                            "type": "string"
-                          }
                         }
                       },
                       "required": [
                         "restaurant",
                         "verdict",
                         "reportFacts",
+                        "sources",
                         "distinctions",
                         "critics",
                         "series",
-                        "changePoints",
-                        "sourceNames"
+                        "changePoints"
                       ],
                       "additionalProperties": false
                     }

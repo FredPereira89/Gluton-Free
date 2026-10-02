@@ -2,11 +2,13 @@
 status: accepted
 ---
 
-# Read-only Invitees for the beta; personal-only quotes stay with the owner
+> **Amended 2026-10-02.** The Owner decided Invitees must read exactly the report the Owner reads, so the personal-only quote restriction below is lifted for the beta. An Invitee now sees quotes, translations already stored, incident evidence, Source links and the Sources table. Still Owner-only: Lookups, Owner questions, jobs, the editing tools and requesting new translations. The owner-only Settings page stays hidden. The residual risk (personal-only Review text reaching people the Owner may not know, e.g. via LinkedIn) is accepted for the invitation-only beta and **must be re-gated before any open launch**.
+
+# Read-only Invitees for the beta
 
 Gluton-Free was built for one user, the owner (ADR 0006; the MVP PRD put "more than one user" out of scope). For an invitation-only beta, shared with friends and promoted on LinkedIn, we add a second kind of signed-in person: the **Invitee**. Invitees can read Verdicts and Evidence and give feedback. They cannot start Lookups, answer Owner questions, declare Change points, or reach owner tools. Lookups stay owner-only, so the paid vendor calls behind them (the live DataForSEO Google Maps search, Apify, the LLM passes) never run on an Invitee's behalf. An Invitee's search reads only Restaurants already in the database.
 
-Every crowd Source (Google, Tripadvisor, TheFork) is tagged personal-only. So **Invitees never see verbatim Review text from a personal-only Source**: they see Themes, shares and other derived Evidence. Quotes and their translations stay owner-only. The Invitee projection of the Restaurant bundle keeps Review text only when its Source is recorded as public-OK, and treats an unknown Source as personal-only. It also drops the Sources table, Owner questions, the active job and the proposed Format marker.
+Every crowd Source (Google, Tripadvisor, TheFork) is tagged personal-only. *Original decision (superseded, see the amendment above):* Invitees never see verbatim Review text from a personal-only Source. *Now:* the Invitee projection of the Restaurant bundle is the Owner's report minus Owner questions, the active job and unavailable-Source notices. The strict Invitee schema still fails closed on any field added to the Owner bundle later.
 
 This is not the multi-user rewrite that ADR 0006 warned about. Verdicts are universal, so nothing an Invitee reads needs separating per user. Only rows an Invitee writes, such as feedback, belong to them. Authorization stays in the API layer: a route declares whether it is owner-only or open to Invitees.
 
@@ -22,5 +24,5 @@ Avoid Verdicts and Red flags are shown to Invitees, worded as what reviewers rep
 
 ## Considered Options
 
-- **Invitees see quotes too:** richer Evidence, but it redistributes personal-only Review text to people the owner may not know (LinkedIn).
+- **Invitees see quotes too:** richer Evidence, but it redistributes personal-only Review text to people the owner may not know (LinkedIn). Originally rejected; adopted on 2026-10-02 so both roles see one report.
 - **Invitees can start Lookups:** grows coverage, but strangers could drain the shared daily spend cap and stop the owner's own Lookups.

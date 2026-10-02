@@ -75,31 +75,29 @@ describe("Invitee view (issue #109)", () => {
   }
   const render = async () => renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
 
-  it("shows an Invitee the Verdict in plain words, with no Review text, quotes or technical explanation", async () => {
+  it("shows an Invitee the same report as the Owner: Source links, quotes, Sources table, incident evidence and Change points", async () => {
     vi.mocked(pageRole).mockResolvedValueOnce("invitee");
     vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
     const html = await render();
     expect(html).toContain("Sample Restaurant");
     expect(html).toContain("Reviewers rate it well");
     expect(html).toContain("Delicious food");
-    expect(html).not.toContain("Changes at this restaurant");
-    expect(html).not.toContain("2026-03-01: New chef");
     expect(html).toContain("See how this verdict has changed");
+    expect(html).toContain("In their words");
+    for (const text of [SCRUBBED_PERSONAL, SCRUBBED_PUBLIC, SCRUBBED_EVIDENCE, "(proposed)", "<h2>Sources</h2>", "2026-03-01: New chef"]) expect(html, text).toContain(text);
+    expect(html).toContain('href="https://example.com/restaurant"');
+    expect(html).toContain('href="https://example.com/ta"');
     expect(html).not.toContain("The food is good.");
-    expect(html).not.toContain("In their words");
-    expect(html).not.toContain(SCRUBBED_PUBLIC);
-    expect(html).not.toContain("SCRUBBED personal-only");
-    expect(html).not.toContain(SCRUBBED_EVIDENCE);
     expect(html).not.toContain("Technical explanation");
   });
 
-  it("renders no Owner tool, Sources table, Owner question, job line or proposed marker for an Invitee", async () => {
+  it("renders no Owner tool, Owner question, job line or Listing undo for an Invitee", async () => {
     vi.mocked(pageRole).mockResolvedValueOnce("invitee");
     vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
     const html = await render();
     for (const owner of [
-      "<form", "<button", "<input", "<select", "Save Restaurant details", "Declare Change point", "Delete ", "Translate",
-      "Owner questions", "Retry Google", "new Reviews being read", "(proposed)", "TheFork", "Add it by hand", "Personal only", "Public OK", "<th>Access</th>", "<h2>Sources</h2>",
+      "<form", "<input", "<select", "Save Restaurant details", "Declare Change point", "Delete ", "Translate", "Undo",
+      "Owner questions", "Retry Google", "new Reviews being read", "TheFork", "Add it by hand", "Personal only", "Public OK",
     ]) expect(html, owner).not.toContain(owner);
     expect(html).not.toMatch(/Current.*job/);
   });
@@ -205,7 +203,7 @@ function bundleWithPeers(reviewCount: number, peerCount: number): RestaurantBund
 }
 
 describe("Quote evidence (issue #43)", () => {
-  it("shows the Owner original quotes with a Listing link and Source access, and no Invitee quotes", async () => {
+  it("shows the Owner original quotes with a Listing link and Source access, and an Invitee the same quotes read-only", async () => {
     const page = bundle(0);
     page.verdict!.blocks.rollup.themes = [{ code: "food_delicious", aspect: "food", polarity: 1, count: 3, share: 0.15 }];
     page.verdict!.blocks.quotes = [{ reviewId: 7, aspect: "food", polarity: 1,
@@ -222,7 +220,11 @@ describe("Quote evidence (issue #43)", () => {
     expect(html).not.toContain("reviewPermalink");
     vi.mocked(pageRole).mockResolvedValueOnce("invitee");
     const invitee = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
-    expect(invitee).not.toContain("A comida estava muito saborosa.");
+    expect(invitee).toContain("In their words");
+    expect(invitee).toContain("A comida estava muito saborosa.");
+    expect(invitee).toContain('href="https://example.com/restaurant"');
+    expect(invitee).not.toContain("Translate");
+    expect(invitee).not.toContain("Personal only");
   });
 });
 
@@ -551,17 +553,16 @@ describe("Decision-first report (issue #112)", () => {
     expect(await render("invitee", bundle(0, false, 5))).not.toMatch(JARGON);
   });
 
-  it("words Red flags as what reviewers report, with evidence for the Owner only", async () => {
+  it("words Red flags as what reviewers report, with the same evidence for the Owner and an Invitee", async () => {
     const invitee = await render("invitee", bundle(4));
     expect(invitee).toContain("4 recent reviews report food poisoning");
-    expect(invitee).not.toContain("Incident 1 in the kitchen");
+    expect(invitee).toContain("Incident 1 in the kitchen");
     expect(invitee).not.toMatch(JARGON);
     expect(await render("owner", bundle(4))).toContain("Incident 1 in the kitchen");
   });
 
-  it("shows the Sources table and quotes to the Owner only", async () => {
-    expect(await render("owner", bundle(0))).toContain("<h2>Sources</h2>");
-    expect(await render("invitee", bundle(0))).not.toContain("<h2>Sources</h2>");
+  it("shows the Sources table to the Owner and an Invitee", async () => {
+    for (const role of ["owner", "invitee"] as const) expect(await render(role, bundle(0)), role).toContain("<h2>Sources</h2>");
   });
 });
 

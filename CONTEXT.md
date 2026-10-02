@@ -109,7 +109,7 @@ How expensive a Restaurant is, from € to €€€€. Shown with the Verdict;
 _Avoid_: Price level, price range, budget
 
 **Access tag**:
-The label on every Source saying how its Reviews may be used: public-OK (usable if Gluton-Free goes public) or personal-only. Verbatim text from a personal-only Source is shown only to the Owner.
+The label on every Source saying how its Reviews may be used: public-OK (usable if Gluton-Free goes public) or personal-only. During the beta, Owner and Invitees see the same verbatim text; personal-only text must be re-gated before any public launch.
 _Avoid_: License, permission
 
 **Owner**:
@@ -117,7 +117,7 @@ The one person who runs Gluton-Free: starts Lookups, answers Owner questions and
 _Avoid_: Admin, operator
 
 **Invitee**:
-A person the Owner has let into the beta to read Verdicts and give feedback. An Invitee never starts a Lookup and never sees verbatim Review text from a personal-only Source.
+A person the Owner has let into the beta to read Verdicts and give feedback. An Invitee never starts a Lookup or uses Owner tools, and reads the same report as the Owner, quotes included.
 _Avoid_: User, tester, guest, member
 
 **Invite link**:

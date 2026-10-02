@@ -4,7 +4,7 @@ import { FORMAT_FAMILIES } from "@/domain/format-labels";
 import { FORMATS } from "@/domain/restaurant-facts";
 import { DIETS } from "@/domain/dish-dietary";
 import { VERDICT_FEEDBACK_JUDGEMENTS } from "@/domain/verdict-feedback";
-import { BlocksSchema, RollupSchema, ShownQuoteSchema } from "@/verdict/blocks";
+import { BlocksSchema, RollupSchema } from "@/verdict/blocks";
 import {
   createInviteLinkBodySchema, inviteLinkListResponseSchema, inviteLinkSchema, inviteeListResponseSchema, inviteeSchema,
   revokeInviteLinkResponseSchema, setInviteeLockOutBodySchema,
@@ -139,26 +139,11 @@ export const quoteTranslationResponseSchema = z.strictObject({ textEn: z.string(
 export const quoteTranslationBodySchema = z.strictObject({ original: z.string().min(1).max(240) });
 export type RestaurantBundle = z.infer<typeof restaurantBundleSchema>;
 
-// What an Invitee reads of the same Restaurant (ADR 0008). Review text survives only from public-OK
-// Sources; the Sources table, Owner questions, the active job and the proposed Format marker are gone.
-const redFlagSchema = RollupSchema.shape.redFlags.element;
-const inviteeRollupSchema = RollupSchema.extend({
-  redFlags: z.array(redFlagSchema.extend({
-    incidents: z.array(redFlagSchema.shape.incidents.unwrap().element.extend({ evidence: z.string().optional() })).optional(),
-  })),
-});
+// What an Invitee reads of the same Restaurant (ADR 0008, amended): the Owner's report in full, quotes
+// and Sources table included. Only the Owner's operations are gone: Owner questions, the active job and
+// unavailable-Source notices.
 export const inviteeBundleSchema = restaurantBundleSchema
-  .omit({ sources: true, activeJob: true, ownerQuestions: true, unavailableSources: true })
-  .extend({
-    restaurant: restaurantSchema.omit({ formatProvenance: true }),
-    verdict: bundleVerdictSchema.extend({
-      blocks: z.strictObject({
-        rollup: inviteeRollupSchema,
-        quotes: z.array(ShownQuoteSchema.extend({ access: z.literal("public_ok") })),
-      }),
-    }).nullable(),
-    sourceNames: z.record(z.string(), z.string()),
-  });
+  .omit({ activeJob: true, ownerQuestions: true, unavailableSources: true });
 export type InviteeBundle = z.infer<typeof inviteeBundleSchema>;
 
 export const createChangePointBodySchema = z.strictObject({
