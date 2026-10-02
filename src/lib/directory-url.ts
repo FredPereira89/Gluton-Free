@@ -63,3 +63,14 @@ export function safeReportReturn(value: string | undefined): string {
   const slugs = shortlistSlugs(url.searchParams.getAll("r"));
   return slugs.length ? comparisonHref(slugs, safeDirectoryReturn(url.searchParams.get("from") ?? undefined)) : "/";
 }
+
+/** The shortlist keeps the results view even when a diner opens Compare from a Report. */
+export function shortlistDirectoryReturn(pathname: string, searchParams: Pick<URLSearchParams, "get" | "toString">): string {
+  if (pathname === "/") return safeDirectoryReturn(`/?${searchParams.toString()}`);
+  if (!pathname.startsWith("/r/")) return "/";
+  const from = safeReportReturn(searchParams.get("from") ?? undefined);
+  const returnUrl = internalUrl(from);
+  return returnUrl?.pathname === "/compare"
+    ? safeDirectoryReturn(returnUrl.searchParams.get("from") ?? undefined)
+    : safeDirectoryReturn(from);
+}

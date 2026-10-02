@@ -32,8 +32,9 @@ function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
         <div className="landing-copy">
           <h1 id="landing-title">Know where to <span className="hl-eat">eat</span> in Lisbon.</h1>
           <p className="landing-intro">
-            <strong>A Lisbon Restaurant Verdict guide.</strong> Gluton-Free reads what diners say and gives every Restaurant one clear Verdict,
-            judged against its own kind<span className="landing-intro-more">: a tasca against tascas, not the whole city</span>.
+            <strong>A Lisbon Restaurant Verdict guide.</strong> Gluton-Free reads what diners say. Restaurants are
+            judged against others of their own kind<span className="landing-intro-more">: a tasca against tascas, not the whole city</span>.
+            {" "}When evidence is too thin, we say “Not enough evidence”.
           </p>
         </div>
 
@@ -50,7 +51,8 @@ function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
 
           <div className="landing-example">
             <article className="sample-report" aria-labelledby="example-title">
-              <h2 id="example-title" className="sr-only">A sample report</h2>
+              <h2 id="example-title" className="sr-only">A fictional sample report</h2>
+              <p className="example-label">Fictional example. No real Restaurant Verdicts are public.</p>
               <div className="sample-line">
                 <h3>Casa Imaginária</h3>
                 <i className="leader" aria-hidden="true" />
@@ -65,7 +67,6 @@ function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
                 <ConfChip level="medium" />
               </div>
             </article>
-            <p className="example-label">Fictional example. No real Restaurant Verdicts are public.</p>
           </div>
         </div>
 
@@ -90,7 +91,7 @@ function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
 
       <section className="landing-menu" aria-labelledby="menu-title">
         <h2 id="menu-title">How a Verdict reads</h2>
-        <p className="landing-menu-lede">Every Restaurant gets one Tier, judged against its own kind. Highest first.</p>
+        <p className="landing-menu-lede">A Verdict gives one Tier, judged against Restaurants of the same kind. Highest first.</p>
         <ol className="ementa tier-menu">
           {[...TIERS].reverse().map((tier) => <li key={tier} className="tier-line">
             <p className="tier-meaning">{TIER_MEANING[tier]}</p>
@@ -98,7 +99,7 @@ function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
             <TierBadge tier={tier} />
           </li>)}
         </ol>
-        <p className="landing-menu-note">A dashed outline means the Tier is provisional.</p>
+        <p className="landing-menu-note">Not enough evidence means there is no Tier. A dashed outline means the Tier is provisional.</p>
       </section>
 
       <footer className="landing-footer">

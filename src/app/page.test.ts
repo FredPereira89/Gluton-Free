@@ -41,7 +41,7 @@ describe("home page", () => {
 
     expect(html).toContain("Lisbon only");
     expect(html).toContain("A Lisbon Restaurant Verdict guide.");
-    expect(html).toContain("judged against its own kind");
+    expect(html).toContain("judged against others of their own kind");
     expect(html).toContain("Original illustration. It does not show any listed Restaurant.");
     expect(html).toContain("Invitation-only beta");
     expect(html).toContain("Fictional example");

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { SHORTLIST_KEY, SHORTLIST_LIMIT, SHORTLIST_NAMES_KEY, comparisonHref, shortlistNames, shortlistSlugs, slugLabel } from "@/lib/shortlist";
+import { shortlistDirectoryReturn } from "@/lib/directory-url";
 import { CloseIcon } from "@/web/icons";
 
 type Held = { slugs: string[]; names: Record<string, string> };
@@ -124,7 +125,9 @@ export function ShortlistButton({ slug, name, labelled = false, className = "" }
 export function ShortlistDock() {
   const { slugs, full, nameOf, toggle } = useShortlist();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   if (!slugs.length || pathname.startsWith("/compare")) return null;
+  const from = shortlistDirectoryReturn(pathname, searchParams);
   const ready = slugs.length >= 2;
   return <aside className="shortlist-dock" aria-label="Shortlist">
     <ul className="shortlist-chips">
@@ -140,7 +143,7 @@ export function ShortlistDock() {
         {full && <span>Full. Remove one to add another</span>}
       </p>
       {ready
-        ? <Link className="btn shortlist-compare" href={comparisonHref(slugs)}>Compare {slugs.length}</Link>
+        ? <Link className="btn shortlist-compare" href={comparisonHref(slugs, from)}>Compare {slugs.length}</Link>
         : <span className="btn shortlist-compare" aria-disabled="true">Compare</span>}
     </div>
   </aside>;

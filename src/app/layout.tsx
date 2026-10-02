@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bagel_Fat_One, Courier_Prime, Figtree } from "next/font/google";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { AuthError } from "@/lib/auth";
 import { pageRole } from "@/lib/page-role";
 import { Brand } from "@/web/brand";
@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <SignedInNavigation />
           </header>
           <main id="main-content" className="wrap">{children}</main>
-          <ShortlistDock />
+          <Suspense fallback={null}><ShortlistDock /></Suspense>
         </ShortlistProvider>
       </body>
     </html>
