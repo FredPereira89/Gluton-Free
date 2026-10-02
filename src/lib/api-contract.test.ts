@@ -52,7 +52,7 @@ describe("API registry and OpenAPI", () => {
     for (const route of Object.values(routes)) expect(["none", "owner", "invitee"], route.path).toContain(route.auth);
     expect(Object.values(routes).filter((route) => route.auth === "none").map((route) => route.path)).toEqual(["/api/v1/health"]);
     expect(Object.values(routes).filter((route) => (route.auth as AuthLevel) === "invitee").map((route) => route.path)).toEqual([
-      "/api/v1/restaurants", "/api/v1/directory", "/api/v1/search", "/api/v1/restaurants/{slug}",
+      "/api/v1/restaurants", "/api/v1/directory", "/api/v1/search", "/api/v1/feedback", "/api/v1/restaurants/{slug}",
       "/api/v1/restaurants/{slug}/verdict-feedback", "/api/v1/restaurants/{slug}/verdict-feedback", "/api/v1/restaurants/{slug}/verdicts",
     ]);
     expect(requiredAuthLevel("GET", "/feedback")).toBe("owner");

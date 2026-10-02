@@ -66,9 +66,7 @@ function ResultContent({ result }: { result: Result }) {
   </>;
 }
 
-export default function SearchHome({ canAddRestaurant, canRequestRestaurant, initialQuery = "" }: {
-  canAddRestaurant: boolean; canRequestRestaurant: boolean; initialQuery?: string;
-}) {
+export default function SearchHome({ canAddRestaurant, initialQuery = "" }: { canAddRestaurant: boolean; initialQuery?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(initialQuery);
@@ -238,7 +236,7 @@ export default function SearchHome({ canAddRestaurant, canRequestRestaurant, ini
         : error ? "Search is unavailable. Try again."
         : results.message ?? (query.trim() && !results.recognised && !results.known.length && !results.candidates.length ? "No Restaurants found." : "")}
     </div>
-    {canRequestRestaurant && noResults && <MissingRestaurantRequest key={query.trim()} query={query.trim()} />}
+    {!canAddRestaurant && noResults && <MissingRestaurantRequest key={query.trim()} query={query.trim()} />}
     {canAddRestaurant && !!query.trim() && <button type="button" className="btn" disabled={adding || loading} onClick={() => void addRestaurant()}>
       {adding ? "Searching Google Maps…" : "Add a Restaurant"}
     </button>}

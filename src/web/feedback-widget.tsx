@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { feedbackCreatedResponseSchema, type GeneralFeedbackSubmission } from "@/lib/api-contract";
 
@@ -27,7 +26,6 @@ export function FeedbackWidget(props: FeedbackWidgetProps) {
   const kind = props.kind ?? "general";
   const buttonLabel = props.buttonLabel ?? "Feedback";
   const id = useId();
-  const pathname = usePathname() ?? "/";
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +39,10 @@ export function FeedbackWidget(props: FeedbackWidgetProps) {
     setError(null);
     setSent(false);
     try {
+      const pagePath = window.location.pathname;
       const input: GeneralFeedbackSubmission = props.kind === "restaurant_issue"
-        ? { kind: "restaurant_issue", pagePath: pathname, restaurantSlug: props.restaurantSlug, message: text }
-        : { kind: "general", pagePath: pathname, message: text };
+        ? { kind: "restaurant_issue", pagePath, restaurantSlug: props.restaurantSlug, message: text }
+        : { kind: "general", pagePath, message: text };
       await sendFeedback(input);
       setMessage("");
       setSent(true);
@@ -74,7 +73,6 @@ export function FeedbackWidget(props: FeedbackWidgetProps) {
 }
 
 export function MissingRestaurantRequest({ query }: { query: string }) {
-  const pathname = usePathname() ?? "/";
   const [saving, setSaving] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +82,7 @@ export function MissingRestaurantRequest({ query }: { query: string }) {
     setSaving(true);
     setError(null);
     try {
-      await sendFeedback({ kind: "missing_restaurant", pagePath: pathname, message: query.trim() });
+      await sendFeedback({ kind: "missing_restaurant", pagePath: window.location.pathname, message: query.trim() });
       setSent(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not send the request. Try again.");
