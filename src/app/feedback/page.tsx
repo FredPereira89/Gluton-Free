@@ -18,11 +18,11 @@ export default async function VerdictFeedbackInboxPage() {
         <h2 id="verdict-feedback-heading">Verdict feedback</h2>
         <p className="small muted">Invitee feedback, grouped by Restaurant and the Tier they answered about.</p>
         {groups.length === 0 ? (
-          <p className="feedback-empty">No Verdict feedback yet.</p>
+          <p className="feedback-empty">No Verdict feedback yet. Invitees can leave it from any report.</p>
         ) : groups.map((group) => <FeedbackGroup key={`${group.restaurantSlug}-${group.tier}`} group={group} />)}
       </section>
       <GeneralFeedback entries={feedback} />
-      <Link href="/settings">Settings</Link>
+      <Link className="btn btn-secondary" href="/settings">Settings</Link>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { SPOT_CHECK_BARS, SPOT_CHECK_TARGETS, spotCheckRate, spotCheckState, type SpotCheckItem, type SpotCheckKind } from "@/lib/baseline-spot-check";
+import { ExternalIcon } from "@/web/atoms";
 import { SpotCheckActions, StartSpotCheck } from "@/web/baseline-spot-checks";
 
 export const metadata: Metadata = { title: "Baseline spot checks · Gluton-Free", robots: { index: false, follow: false } };
@@ -24,7 +25,7 @@ function Check({ item }: { item: SpotCheckItem }) {
           <strong>{item.name}</strong>
           <p className="small muted">{item.address ?? "Address unavailable"}</p>
         </div>
-        <span className="small">{item.agreed === null ? "Pending" : item.agreed ? "Confirmed" : "Rejected"}</span>
+        <span className="chip">{item.agreed === null ? "Pending" : item.agreed ? "Confirmed" : "Rejected"}</span>
       </div>
       {item.kind === "format" ? (
         <>
@@ -35,8 +36,8 @@ function Check({ item }: { item: SpotCheckItem }) {
       ) : <p className="small muted">Compare the Google and Tripadvisor Listings for the same Restaurant.</p>}
       <div className="spot-links">
         <Link href={`/r/${encodeURIComponent(item.slug)}`}>Restaurant</Link>
-        {googleUrl && <a href={googleUrl} target="_blank" rel="noopener noreferrer">Google Listing ↗</a>}
-        {tripadvisorUrl && <a href={tripadvisorUrl} target="_blank" rel="noopener noreferrer">Tripadvisor Listing ↗</a>}
+        {googleUrl && <a href={googleUrl} target="_blank" rel="noopener noreferrer">Google Listing<ExternalIcon /></a>}
+        {tripadvisorUrl && <a href={tripadvisorUrl} target="_blank" rel="noopener noreferrer">Tripadvisor Listing<ExternalIcon /></a>}
       </div>
       <SpotCheckActions id={item.id} />
     </li>
