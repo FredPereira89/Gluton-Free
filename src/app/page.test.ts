@@ -55,7 +55,7 @@ describe("home page", () => {
     const html = renderToStaticMarkup(await HomePage());
 
     expect(html).toContain("Signed-in app");
-    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: true, initialQuery: "" });
+    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: true, initialQuery: "", trackUsage: false });
   });
 
   it("shows the existing app at / to an Invitee without Owner controls", async () => {
@@ -64,7 +64,7 @@ describe("home page", () => {
     const html = renderToStaticMarkup(await HomePage());
 
     expect(html).toContain("Signed-in app");
-    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: false, initialQuery: "" });
+    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: false, initialQuery: "", trackUsage: true });
   });
 
   it("shows the directory under the search bar to an Invitee, as read from the URL", async () => {
@@ -74,7 +74,7 @@ describe("home page", () => {
 
     expect(html).toContain("Directory");
     expect(mockLoadDirectory).toHaveBeenCalledWith(expect.objectContaining({ q: "tasca", sort: "value", tier: ["good", "must_go"], nee: true, page: 1 }));
-    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: false, initialQuery: "tasca" });
+    expect(mockSearchHome).toHaveBeenCalledWith({ canAddRestaurant: false, initialQuery: "tasca", trackUsage: true });
     expect(mockDirectory).toHaveBeenCalledWith(expect.objectContaining({ query: expect.objectContaining({ q: "tasca" }) }));
   });
 

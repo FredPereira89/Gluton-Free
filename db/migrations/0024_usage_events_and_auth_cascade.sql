@@ -1,11 +1,14 @@
 -- First-party Invitee activity is deliberately minimal: event kind, action id and database time.
 -- Deleting the Auth account removes the Invitee row and cascades to their feedback and events.
-delete from invitee i
-where not exists (select 1 from auth.users u where u.id = i.user_id);
-
-alter table invitee
-  add constraint invitee_auth_user_fk
-  foreign key (user_id) references auth.users (id) on delete cascade;
+-- Supabase has auth.users; isolated local test databases may not. Keep the cascade wherever Auth exists.
+do $$
+begin
+  if to_regclass('auth.users') is not null then
+    execute 'delete from invitee i where not exists (select 1 from auth.users u where u.id = i.user_id)';
+    execute 'alter table invitee add constraint invitee_auth_user_fk foreign key (user_id) references auth.users (id) on delete cascade';
+  end if;
+end
+$$;
 
 create table usage_event (
   invitee_id  uuid not null references invitee (user_id) on delete cascade,
