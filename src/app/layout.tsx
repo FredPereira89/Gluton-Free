@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ServiceWorkerRegistration />
         <header className="topbar">
           <Brand />
-          <span>Provisional · Lisboa</span>
+          <span className="tagline">Provisional · Lisboa</span>
           <SignedInNavigation />
         </header>
         <main className="wrap">{children}</main>

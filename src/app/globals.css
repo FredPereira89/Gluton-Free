@@ -153,6 +153,7 @@ table.src th.num{text-align:right}
 .A .hero .book{width:100%}
 @media(min-width:560px){.A .hero .book{width:fit-content}}
 .A .name p{color:var(--muted);font-size:15px;margin-top:4px}
+.A .name p>span{white-space:nowrap}
 .A .explain{font-size:17px;line-height:1.5;max-width:62ch}
 .A .sec{padding:var(--s-5) 4px;border-top:2px dotted var(--line);display:grid;gap:var(--s-3)}
 .A .sec h2{font-size:18px;font-weight:700}
@@ -198,9 +199,12 @@ body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
 .wrap:has(.landing-page){max-width:960px}
 .wrap:has(.directory){max-width:1120px}
 body:has(.directory) .topbar{max-width:1120px}
+/* On a phone the tagline would push Feedback and Settings onto a second row. */
+@media(max-width:480px){.topbar .tagline{display:none}}
 .public-page a{font-weight:600}
 .landing-page{display:grid;gap:clamp(26px,5vw,52px);padding:8px 0 28px}
 .landing-header,.privacy-header{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.privacy-header a,.privacy-back a{display:inline-flex;align-items:center;min-height:44px}
 .landing-sign-in{margin:0;padding:8px 16px;font-size:14px}
 .landing-hero{display:grid;gap:18px;justify-items:start;padding:clamp(28px,6vw,62px);background:var(--surface);border-radius:var(--r-lobe) var(--r-lobe) var(--r-lobe) var(--r-sm);box-shadow:var(--shadow)}
 .landing-hero h1{max-width:14ch;font-size:clamp(36px,7vw,64px);font-weight:800;letter-spacing:-.055em;line-height:1.02}
@@ -248,7 +252,8 @@ body:has(.directory) .topbar{max-width:1120px}
 .index a.row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border-radius:10px;box-shadow:var(--shadow);padding:14px 16px;text-decoration:none;color:var(--ink)}
 .index a.row b{font-size:17px}
 .index .nee{font-size:13px;padding:4px 8px;border-width:1.5px}
-.index .next-page{justify-self:center;padding:9px 14px;font-weight:700}
+.index .next-page{justify-self:center;display:inline-flex;align-items:center;min-height:44px;padding:9px 14px;font-weight:700}
+.index>a.small{display:inline-flex;align-items:center;min-height:44px;width:fit-content}
 .search-home{gap:14px}
 .search-home input[type="search"]{width:100%;border:1px solid var(--line);border-radius:9px;padding:12px 14px;background:var(--surface);color:var(--ink);font:inherit;font-size:17px}
 .search-home label{margin-bottom:-10px}
@@ -260,7 +265,6 @@ body:has(.directory) .topbar{max-width:1120px}
 .search-warning{font-size:12.5px;color:var(--warn);background:var(--warn-bg);border-radius:5px;padding:4px 8px;justify-self:start}
 .preview-panel{display:grid;gap:10px;background:var(--sunk);border-radius:10px;padding:14px 16px;margin-top:-3px}
 .preview-listing{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.preview-panel .btn:disabled{opacity:.5;cursor:not-allowed}
 .history .next-page{align-self:center}
 .footnote{font-size:12px;color:var(--faint);max-width:62ch}
 
@@ -308,7 +312,7 @@ body:has(.directory) .topbar{max-width:1120px}
 .source-undo{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
 .source-undo .btn{padding:4px 8px;font-size:12px}
 .btn.btn-secondary{background:var(--sunk);color:var(--ink);border:2px solid var(--line)}
-.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:disabled,.btn.btn-secondary:disabled{background:var(--sunk);color:var(--muted);border-color:var(--line);opacity:1;cursor:not-allowed}
 .spot-checks{display:grid;gap:var(--s-4);max-width:720px;margin:20px auto 0}
 .spot-checks h1{font-size:28px;font-weight:800;letter-spacing:-.03em}
 .spot-group{display:grid;gap:var(--s-3);margin-top:var(--s-4)}
@@ -492,10 +496,13 @@ body:has(.directory) .topbar{max-width:1120px}
 /* Welcome card and Tier legend (issue #119) */
 .welcome-card{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:12px 16px;margin-bottom:14px}
 .welcome-card ul{display:grid;gap:2px;margin:0;padding:0;list-style:none;font-size:14px;font-weight:600}
+@media(min-width:720px){.welcome-card ul{display:flex;flex-wrap:wrap;gap:4px 24px}}
 .tier-legend{font-size:13.5px}
-.tier-legend summary{cursor:pointer;color:var(--muted);font-weight:600;width:fit-content;padding-block:10px}
+.tier-legend summary{cursor:pointer;color:var(--muted);font-weight:600;width:fit-content;min-height:44px;display:flex;align-items:center}
 .tier-legend .legend-note{margin:8px 0 0;color:var(--muted)}
 .touch{min-height:44px;display:flex;align-items:center}
+.touch a,summary.small,.quote figcaption a{display:inline-flex;align-items:center;min-height:44px}
+summary.small{cursor:pointer}
 .tier-legend dl{display:grid;gap:6px;margin:8px 0 0}
 .tier-legend dl div{display:grid;grid-template-columns:minmax(98px,max-content) 1fr;gap:4px 12px}
 .tier-legend dt{font-weight:700}
@@ -505,7 +512,8 @@ body:has(.directory) .topbar{max-width:1120px}
 @media(max-width:720px){
   table.src,table.src tbody{display:block}
   table.src thead{display:none}
-  table.src tr{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:14px 16px;margin-bottom:10px;background:var(--surface);border-radius:var(--r-card)}
+  .tbl-wrap{overflow-x:visible}
+  table.src tr{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:6px 12px;padding:14px 16px;margin-bottom:10px;background:var(--surface);border-radius:var(--r-card)}
   table.src td{display:block;padding:0;border:0}
   table.src td:first-child{grid-column:1/-1}
   table.src td[data-label]::before{content:attr(data-label);display:block;font-size:13px;font-weight:700;color:var(--muted)}

@@ -76,7 +76,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <span key={s.code}>
             {" · "}
             <a href={s.url} rel="noreferrer nofollow" target="_blank">
-              {s.name} <ExternalIcon />
+              {s.name}&nbsp;<ExternalIcon />
             </a>
           </span>
         ))}

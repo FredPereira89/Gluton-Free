@@ -58,7 +58,7 @@ export function Quote(q: QuoteProps) {
         {error && <span role="alert">Translation unavailable. Try again.</span>}
         {q.sourceUrl && (
           <a className="small" href={q.sourceUrl} rel="noreferrer nofollow" target="_blank" title={`Opens the Restaurant’s page on ${q.sourceName} (never the individual Review)`}>
-            on {q.sourceName} <ExternalIcon />
+            <span>on {q.sourceName}</span>&nbsp;<ExternalIcon />
           </a>
         )}
       </figcaption>
