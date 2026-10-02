@@ -4,22 +4,63 @@ import { connection } from "next/server";
 import { TIER_LABEL } from "@/domain/aspects";
 import { VERDICT_FEEDBACK_LABELS } from "@/domain/verdict-feedback";
 import { listVerdictFeedbackInbox, type VerdictFeedbackInboxGroup } from "@/lib/verdict-feedback";
+import { listGeneralFeedbackInbox, type GeneralFeedbackInboxItem } from "@/lib/general-feedback";
 
 export const metadata: Metadata = { title: "Verdict feedback · Gluton-Free" };
 
 export default async function VerdictFeedbackInboxPage() {
   await connection();
-  const groups = await listVerdictFeedbackInbox();
+  const [groups, feedback] = await Promise.all([listVerdictFeedbackInbox(), listGeneralFeedbackInbox()]);
   return (
     <div className="feedback-inbox">
-      <h1>Verdict feedback</h1>
-      <p className="small muted">Invitee feedback, grouped by Restaurant and the Tier they answered about.</p>
-      {groups.length === 0 ? (
-        <p className="feedback-empty">No Verdict feedback yet.</p>
-      ) : groups.map((group) => <FeedbackGroup key={`${group.restaurantSlug}-${group.tier}`} group={group} />)}
+      <h1>Feedback inbox</h1>
+      <section className="feedback-verdict" aria-labelledby="verdict-feedback-heading">
+        <h2 id="verdict-feedback-heading">Verdict feedback</h2>
+        <p className="small muted">Invitee feedback, grouped by Restaurant and the Tier they answered about.</p>
+        {groups.length === 0 ? (
+          <p className="feedback-empty">No Verdict feedback yet.</p>
+        ) : groups.map((group) => <FeedbackGroup key={`${group.restaurantSlug}-${group.tier}`} group={group} />)}
+      </section>
+      <GeneralFeedback entries={feedback} />
       <Link href="/settings">Settings</Link>
     </div>
   );
+}
+
+function GeneralFeedback({ entries }: { entries: GeneralFeedbackInboxItem[] }) {
+  return (
+    <section className="feedback-general" aria-labelledby="other-feedback-heading">
+      <h2 id="other-feedback-heading">Feedback and requests</h2>
+      <p className="small muted">General feedback, missing Restaurant requests, and Restaurant reports.</p>
+      {entries.length === 0 ? <p className="feedback-empty">No other feedback yet.</p> : (
+        <ul className="feedback-entries">
+          {entries.map((entry) => (
+            <li key={entry.id}>
+              <div className="feedback-entry-heading">
+                <strong>{entry.senderRole === "owner" ? "Owner" : entry.email ?? `Invitee ${entry.userId.slice(0, 8)}`}</strong>
+                <time dateTime={entry.submittedAt}>{new Intl.DateTimeFormat("en-GB", {
+                  dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Lisbon",
+                }).format(new Date(entry.submittedAt))}</time>
+              </div>
+              <p className="small muted">{feedbackKindLabel(entry.kind)} · From {entry.pagePath}</p>
+              {entry.restaurantSlug && entry.restaurantName && (
+                <p className="small"><Link href={`/r/${encodeURIComponent(entry.restaurantSlug)}`}>{entry.restaurantName}</Link></p>
+              )}
+              <p className="feedback-note">{entry.message}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function feedbackKindLabel(kind: GeneralFeedbackInboxItem["kind"]): string {
+  switch (kind) {
+    case "general": return "General feedback";
+    case "missing_restaurant": return "Missing Restaurant request";
+    case "restaurant_issue": return "Restaurant report";
+  }
 }
 
 function FeedbackGroup({ group }: { group: VerdictFeedbackInboxGroup }) {

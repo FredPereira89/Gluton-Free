@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { PreviewLookupResponse, SearchResponse } from "@/lib/api-contract";
+import { MissingRestaurantRequest } from "@/web/feedback-widget";
 
 const warnings = {
   same_name: "Several Restaurants share this name. Check the address.",
@@ -65,11 +66,14 @@ function ResultContent({ result }: { result: Result }) {
   </>;
 }
 
-export default function SearchHome({ canAddRestaurant, initialQuery = "" }: { canAddRestaurant: boolean; initialQuery?: string }) {
+export default function SearchHome({ canAddRestaurant, canRequestRestaurant, initialQuery = "" }: {
+  canAddRestaurant: boolean; canRequestRestaurant: boolean; initialQuery?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResponse>(emptyResults);
+  const [searchedQuery, setSearchedQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [spendCapResetAt, setSpendCapResetAt] = useState<string | null>(null);
@@ -193,7 +197,10 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "" }: { ca
         const response = await fetch(`/api/v1/search?${params}`, { signal: controller.signal });
         if (!response.ok) throw new Error("Search failed");
         const data = await response.json() as SearchResponse;
-        if (active) setResults(data);
+        if (active) {
+          setResults(data);
+          setSearchedQuery(q);
+        }
       } catch {
         if (active) setError(true);
       } finally {
@@ -214,12 +221,15 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "" }: { ca
     </div>;
   }
 
+  const noResults = !!query.trim() && searchedQuery === query.trim() && !loading && !error && !adding && !addError && !spendCapResetAt
+    && !results.recognised && !results.known.length && !results.candidates.length;
+
   return <section className="index search-home">
     <h1>Find a Restaurant</h1>
     <p className="muted">Search by name, paste a Google Maps, Tripadvisor or TheFork link, or enter a Google place ID or CID.</p>
     <label htmlFor="restaurant-search" className="eyebrow">Restaurant name or link</label>
     <input id="restaurant-search" type="search" autoComplete="off" value={query}
-      onChange={(event) => setQuery(event.target.value)} placeholder="Name, link, Google place ID or CID" />
+      onChange={(event) => { setSearchedQuery(""); setQuery(event.target.value); }} placeholder="Name, link, Google place ID or CID" />
     <div role="status" aria-live="polite" className="small muted">
       {loading ? "Searching…"
         : spendCapResetAt ? `Today's search budget is spent. It resets at ${formatResetTime(spendCapResetAt)}.`
@@ -228,6 +238,7 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "" }: { ca
         : error ? "Search is unavailable. Try again."
         : results.message ?? (query.trim() && !results.recognised && !results.known.length && !results.candidates.length ? "No Restaurants found." : "")}
     </div>
+    {canRequestRestaurant && noResults && <MissingRestaurantRequest key={query.trim()} query={query.trim()} />}
     {canAddRestaurant && !!query.trim() && <button type="button" className="btn" disabled={adding || loading} onClick={() => void addRestaurant()}>
       {adding ? "Searching Google Maps…" : "Add a Restaurant"}
     </button>}

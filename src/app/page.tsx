@@ -91,7 +91,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   const welcomed = (await cookies()).get(WELCOME_DISMISSED_COOKIE) !== undefined;
   return <>
     {!welcomed && <WelcomeCard />}
-    <SearchHome canAddRestaurant={role === "owner"} initialQuery={query.q} />
+    <SearchHome canAddRestaurant={role === "owner"} canRequestRestaurant={role === "invitee"} initialQuery={query.q} />
     <Directory query={query} result={result} />
   </>;
 }
