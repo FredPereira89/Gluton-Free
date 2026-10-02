@@ -96,9 +96,11 @@ describe("Invitee view (issue #109)", () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(ownerBundle());
     const html = await render();
     for (const owner of [
-      "<form", "<input", "<select", "Save Restaurant details", "Declare Change point", "Delete ", "Translate", "Undo",
+      "<input", "<select", "Save Restaurant details", "Declare Change point", "Delete ", "Translate", "Undo",
       "Owner questions", "Retry Google", "new Reviews being read", "TheFork", "Add it by hand", "Personal only", "Public OK",
     ]) expect(html, owner).not.toContain(owner);
+    expect(html).toContain("What seems wrong?");
+    expect(html).toContain("Send feedback");
     expect(html).not.toMatch(/Current.*job/);
   });
 

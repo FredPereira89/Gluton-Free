@@ -289,6 +289,17 @@ body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
 .verdict-feedback-choices label,.verdict-feedback-eaten{display:flex;align-items:center;gap:7px;padding:8px 10px;background:var(--sunk);border:1px solid var(--line);border-radius:6px;cursor:pointer}
 .verdict-feedback-eaten{width:fit-content}
 .verdict-feedback input{accent-color:var(--accent)}
+.feedback-widget{position:relative;width:fit-content}
+.feedback-widget>summary{list-style:none;cursor:pointer;font-size:13px;padding:8px 10px}
+.feedback-widget>summary::-webkit-details-marker{display:none}
+.topbar .feedback-widget{margin-left:auto}
+.feedback-widget-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:20;width:min(320px,calc(100vw - 32px));display:grid;gap:10px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.feedback-widget-panel .field{display:grid;gap:6px}
+.A .feedback-widget-panel{position:static;width:min(100%,420px);margin-top:10px}
+.missing-restaurant-request{display:grid;gap:6px;justify-items:start}
+.feedback-verdict{display:grid;gap:10px}
+.feedback-general{display:grid;gap:10px}
+.feedback-inbox>section>h2{font-size:20px;font-weight:750}
 .feedback-inbox{max-width:720px;margin:20px auto;display:grid;gap:14px}
 .feedback-inbox h1{font-size:26px;font-weight:800}
 .feedback-group{display:grid;gap:10px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}

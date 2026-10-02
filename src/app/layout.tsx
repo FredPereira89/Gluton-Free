@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Schibsted_Grotesk } from "next/font/google";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AuthError } from "@/lib/auth";
+import { pageRole } from "@/lib/page-role";
+import { FeedbackWidget } from "@/web/feedback-widget";
 import { ServiceWorkerRegistration } from "@/web/pwa-settings";
 import "./globals.css";
 
@@ -19,6 +22,16 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0E6170" };
 
+async function SignedInFeedback() {
+  try {
+    await pageRole();
+    return <FeedbackWidget />;
+  } catch (error) {
+    if (error instanceof AuthError) return null;
+    throw error;
+  }
+}
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
@@ -27,6 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <header className="topbar">
           <Link href="/">Gluton-Free</Link>
           <span>Provisional · Lisboa</span>
+          <SignedInFeedback />
           <Link href="/settings">Settings</Link>
         </header>
         <main className="wrap">{children}</main>

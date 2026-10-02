@@ -15,7 +15,7 @@ export default async function SettingsPage() {
       <PushSettings vapidPublicKey={configuredVapidPublicKey()} />
       <InviteLinksAdmin links={links} />
       <InviteesAdmin invitees={invitees} />
-      <Link href="/feedback">Verdict feedback inbox</Link>
+      <Link href="/feedback">Feedback inbox</Link>
       <Link href="/baseline-checks">Baseline spot checks</Link>
       <form action="/api/auth/sign-out" method="post">
         <button className="btn" type="submit">

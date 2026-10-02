@@ -201,6 +201,20 @@ export const verdictFeedbackSubmissionSchema = z.strictObject({
 });
 export type VerdictFeedbackSubmission = z.infer<typeof verdictFeedbackSubmissionSchema>;
 
+const feedbackPagePathSchema = z.string().trim().min(1).max(512)
+  .refine((value) => value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !/[\u0000-\u001f\u007f]/.test(value));
+const feedbackMessageSchema = z.string().trim().min(1).max(2000);
+export const generalFeedbackSubmissionSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("general"), pagePath: feedbackPagePathSchema, message: feedbackMessageSchema }),
+  z.strictObject({ kind: z.literal("missing_restaurant"), pagePath: feedbackPagePathSchema, message: z.string().trim().min(1).max(2048) }),
+  z.strictObject({
+    kind: z.literal("restaurant_issue"), pagePath: feedbackPagePathSchema,
+    restaurantSlug: z.string().trim().min(1).max(200), message: feedbackMessageSchema,
+  }),
+]);
+export type GeneralFeedbackSubmission = z.infer<typeof generalFeedbackSubmissionSchema>;
+export const feedbackCreatedResponseSchema = z.strictObject({ saved: z.literal(true) });
+
 export const paginationQuerySchema = z.strictObject({
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(20),
@@ -463,6 +477,11 @@ export const routes = {
     method: "POST", path: "/api/v1/search/add", auth: "owner",
     request: { body: searchAddBodySchema },
     responses: { 200: searchResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 429: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  submitFeedback: {
+    method: "POST", path: "/api/v1/feedback", auth: "invitee",
+    request: { body: generalFeedbackSubmissionSchema },
+    responses: { 201: feedbackCreatedResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   verdict: {
     method: "GET",

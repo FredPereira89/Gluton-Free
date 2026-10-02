@@ -33,6 +33,7 @@ import { ListingUndo } from "@/web/listing-undo";
 import { RestaurantFactsEditor } from "@/web/restaurant-facts";
 import { ChangePoints } from "@/web/change-points";
 import { VerdictFeedback } from "@/web/verdict-feedback";
+import { FeedbackWidget } from "@/web/feedback-widget";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -174,6 +175,9 @@ export default async function VerdictPageRoute({ params }: Props) {
             </ul>
           </div>
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
+          {role === "invitee" && r.redFlags.length > 0 && (
+            <FeedbackWidget kind="restaurant_issue" restaurantSlug={R.slug} buttonLabel="Something wrong? Tell us" />
+          )}
           {historyLink}
         </section>
         {owner && v.explanation && (
@@ -233,6 +237,9 @@ export default async function VerdictPageRoute({ params }: Props) {
         </div>
         <ReportFacts facts={page.reportFacts} />
         {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
+        {role === "invitee" && (forced || r.tier === "avoid" || r.redFlags.length > 0) && (
+          <FeedbackWidget kind="restaurant_issue" restaurantSlug={R.slug} buttonLabel="Something wrong? Tell us" />
+        )}
         {historyLink}
       </section>
 
