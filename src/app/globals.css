@@ -383,7 +383,7 @@ body:has(.directory) .topbar{max-width:1120px}
 @media(max-width:720px){
   .dir-filter-button{display:inline-flex}
   .dir-filters{display:none}
-  .dir-filters.open{display:grid;grid-template-columns:1fr;position:fixed;inset:auto 0 0 0;z-index:30;max-height:82vh;overflow-y:auto;border-radius:var(--r-lobe) var(--r-lobe) 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.28);padding:0 16px calc(16px + env(safe-area-inset-bottom,0px))}
+  .dir-filters.open{display:grid;grid-template-columns:1fr;position:fixed;inset:auto 0 0 0;z-index:30;max-height:82vh;overflow-y:auto;border-radius:var(--r-lobe) var(--r-lobe) 0 0;border:2px solid var(--ink);border-bottom:0;box-shadow:none;padding:0 16px calc(16px + env(safe-area-inset-bottom,0px))}
   .dir-sheet-head{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);padding:14px 0 10px;z-index:1}
   .dir-areas{max-height:none;overflow:visible}
 }
