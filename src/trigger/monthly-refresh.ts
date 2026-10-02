@@ -1,9 +1,9 @@
 import { schedules, wait } from "@trigger.dev/sdk";
 import { closeDb } from "@/lib/db";
+import { MONTHLY_REFRESH_START } from "@/lib/launch-gate";
 import { runMonthlyRefresh } from "@/pipeline/monthly-refresh";
 
-// Keep the monthly schedule, but begin refresh work in November 2026.
-const MONTHLY_REFRESH_START = new Date("2026-11-01T00:00:00.000Z");
+// Keep the monthly schedule, but begin refresh work in November 2026 (MONTHLY_REFRESH_START).
 
 export const monthlyRefreshTask = schedules.task({
   id: "monthly-restaurant-refresh",
