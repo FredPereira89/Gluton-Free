@@ -55,34 +55,36 @@ function ownerBundle(): RestaurantBundle {
 }
 
 describe("projectInviteeBundle", () => {
-  it("returns only what the Invitee shape allows: no Sources table, Owner questions, active job, unavailable Sources or proposed marker", () => {
+  it("drops only the Owner's operations: Owner questions, active job and unavailable Sources", () => {
     const projected = projectInviteeBundle(ownerBundle());
     expect(inviteeBundleSchema.parse(projected)).toEqual(projected);
-    for (const key of ["sources", "ownerQuestions", "activeJob", "unavailableSources"]) expect(projected, key).not.toHaveProperty(key);
-    expect(projected.restaurant).not.toHaveProperty("formatProvenance");
-    expect(projected.restaurant).toMatchObject({ slug: "o-velho-eurico", name: "O Velho Eurico", format: "tasca" });
+    for (const key of ["ownerQuestions", "activeJob", "unavailableSources"]) expect(projected, key).not.toHaveProperty(key);
+    expect(projected.restaurant).toMatchObject({ slug: "o-velho-eurico", name: "O Velho Eurico", format: "tasca", formatProvenance: "llm" });
   });
 
-  it("carries no Review text from a personal-only Source: no quote, no translation, no incident evidence", () => {
-    const json = JSON.stringify(projectInviteeBundle(ownerBundle()));
-    expect(json).not.toContain("SCRUBBED personal-only");
+  it("gives an Invitee the same Sources table as the Owner", () => {
+    const bundle = ownerBundle();
+    expect(projectInviteeBundle(bundle).sources).toEqual(bundle.sources);
   });
 
-  it("fails closed: a quote is kept only when its Source is recorded as public-OK, whatever the quote itself claims", () => {
-    const { verdict } = projectInviteeBundle(ownerBundle());
-    expect(verdict!.blocks.quotes.map((q) => q.reviewId)).toEqual([22]);
-    expect(verdict!.blocks.quotes[0]).toMatchObject({ text: PUBLIC_QUOTE, access: "public_ok" });
+  it("gives an Invitee every quote and translation the Owner sees, personal-only Sources included (ADR 0008, amended)", () => {
+    const bundle = ownerBundle();
+    const { verdict } = projectInviteeBundle(bundle);
+    expect(verdict!.blocks.quotes).toEqual(bundle.verdict!.blocks.quotes);
+    const json = JSON.stringify(verdict);
+    for (const text of [PERSONAL_QUOTE, PERSONAL_TRANSLATION, PUBLIC_QUOTE]) expect(json).toContain(text);
   });
 
-  it("keeps a red flag's counts and public-OK evidence, and names Sources so incidents can be attributed", () => {
+  it("keeps a red flag's counts and every incident's evidence", () => {
+    const bundle = ownerBundle();
+    const flag = projectInviteeBundle(bundle).verdict!.blocks.rollup.redFlags[0]!;
+    expect(flag).toEqual(bundle.verdict!.blocks.rollup.redFlags[0]);
+    expect(flag.incidents!.map((i) => i.evidence)).toEqual([PERSONAL_EVIDENCE, PUBLIC_EVIDENCE]);
+  });
+
+  it("fails closed on new fields: the strict Invitee schema rejects anything not projected on purpose", () => {
     const projected = projectInviteeBundle(ownerBundle());
-    const flag = projected.verdict!.blocks.rollup.redFlags[0]!;
-    expect(flag).toMatchObject({ group: "health", incidents12m: 2, forcesAvoid: false, types: ["hygiene"] });
-    expect(flag.incidents).toEqual([
-      { reviewId: 11, type: "hygiene", source: "google", publishedAt: "2026-08-10T00:00:00.000Z", stars: 1 },
-      { reviewId: 12, type: "hygiene", source: "tripadvisor", publishedAt: "2026-08-10T00:00:00.000Z", stars: 1, evidence: PUBLIC_EVIDENCE },
-    ]);
-    expect(projected.sourceNames).toEqual({ google: "Google", tripadvisor: "Tripadvisor" });
+    expect(() => inviteeBundleSchema.parse({ ...projected, ownerNote: "x" })).toThrow();
   });
 
   it("leaves the read-only facts in place and the Owner's bundle untouched", () => {

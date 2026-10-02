@@ -247,7 +247,7 @@ describe("handler responses", () => {
     expect(await repeated.text()).toBe("");
   });
 
-  it("serves an Invitee the projection: no Sources table, Owner questions, active job or proposed marker, and no personal-only Review text", async () => {
+  it("serves an Invitee the same report as the Owner: Sources, proposed marker and quotes included, but no Owner questions, active job or unavailable Sources", async () => {
     const quote = (reviewId: number, text: string, source: string) => ({ reviewId, aspect: "food" as const, polarity: 1 as const, text, textEn: null, lang: "pt", stars: 5, source, month: "2026-08" });
     vi.mocked(loadRestaurantBundle).mockResolvedValue({
       ...bundleFixture,
@@ -260,10 +260,11 @@ describe("handler responses", () => {
     const response = await restaurantBundle(new Request("https://app.example/api/v1/restaurants/o-velho-eurico"), { params: Promise.resolve({ slug: "o-velho-eurico" }) });
     expect(response.status).toBe(200);
     const text = await response.text();
-    expect(text).not.toContain("SCRUBBED");
+    expect(text).toContain("SCRUBBED personal-only quote");
     const body = JSON.parse(text);
-    for (const key of ["sources", "ownerQuestions", "activeJob", "unavailableSources"]) expect(body, key).not.toHaveProperty(key);
-    expect(body.restaurant).not.toHaveProperty("formatProvenance");
+    for (const key of ["ownerQuestions", "activeJob", "unavailableSources"]) expect(body, key).not.toHaveProperty(key);
+    expect(body.sources).toEqual(JSON.parse(JSON.stringify(bundleFixture.sources)));
+    expect(body.restaurant.formatProvenance).toBe("llm");
     expect(body.restaurant.name).toBe("O Velho Eurico");
     expect(body.reportFacts).toEqual(bundleFixture.reportFacts);
     expect(vi.mocked(requireCaller).mock.calls.at(-1)![1]).toBe("invitee");

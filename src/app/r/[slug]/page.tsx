@@ -1,6 +1,7 @@
 // The Verdict page: decision-first. A diner reads the hero (Tier, one plain reason, Price tier, Format,
 // address, booking link), then strengths and warnings, then standings in words. The reasoning sits in
-// a collapsed "How we judged this"; the Owner also gets the quotes, Sources table and tools below it. Invitees see no θ, percentile numbers, SD or Peer-snapshot language.
+// a collapsed "How we judged this", then the quotes and Sources table. Owner and Invitee read the same report; the Owner alone gets the
+// editing tools and questions. Neither sees θ, percentile numbers, SD or Peer-snapshot language.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -34,14 +35,11 @@ import { VerdictFeedback } from "@/web/verdict-feedback";
 
 type Props = { params: Promise<{ slug: string }> };
 
-// Both the Owner's bundle and the Invitee projection render through this one page. What only the
-// Owner has (quotes, Sources table, tools, jobs, questions) is read from `owner`, which is null for an Invitee.
-type InviteeVerdict = NonNullable<InviteeBundle["verdict"]>;
-type ReportVerdict = Omit<InviteeVerdict, "blocks"> & {
-  blocks: { rollup: InviteeVerdict["blocks"]["rollup"]; quotes: (Omit<InviteeVerdict["blocks"]["quotes"][number], "access"> & { access?: "public_ok" | "personal_only" })[] };
-};
+// Both the Owner's bundle and the Invitee projection render through this one page, with the same report.
+// What only the Owner has (tools, jobs, questions) is read from `owner`, which is null for an Invitee.
+type ReportVerdict = NonNullable<InviteeBundle["verdict"]>;
 type RedFlagGroup = ReportVerdict["blocks"]["rollup"]["redFlags"][number];
-type SourceLink = { name: string; url: string | null; access?: "public_ok" | "personal_only" };
+type SourceLink = { name: string; url: string; access: "public_ok" | "personal_only" };
 
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -61,10 +59,8 @@ export default async function VerdictPageRoute({ params }: Props) {
   const v: ReportVerdict | null = page.verdict;
   const marker = owner ? null : <InviteeView />;
   const ctx = { format: R.format, city: R.city };
-  const crowd = owner?.sources.filter((s) => s.kind === "crowd") ?? [];
-  const sourceByCode = new Map<string, SourceLink>(owner
-    ? owner.sources.map((s) => [s.code, s])
-    : Object.entries((page as InviteeBundle).sourceNames).map(([code, name]) => [code, { name, url: null }]));
+  const crowd = page.sources.filter((s) => s.kind === "crowd");
+  const sourceByCode = new Map<string, SourceLink>(page.sources.map((s) => [s.code, s]));
   const activeJob = owner?.activeJob ?? null;
 
   const head = (
@@ -89,7 +85,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   );
   const baseChips = (
     <>
-      <span className="chip">{formatLabel(R.format)}{owner?.restaurant.formatProvenance === "llm" ? " (proposed)" : ""}</span>
+      <span className="chip">{formatLabel(R.format)}{R.formatProvenance === "llm" ? " (proposed)" : ""}</span>
       {R.priceTier && <span className="chip">{R.priceTier}</span>}
     </>
   );
@@ -117,7 +113,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
         {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
-        {owner && <Sources page={owner} />}
+        <Sources page={page} owner={owner} />
         {activeJob?.kind === "lookup" && <LookupProgress jobId={activeJob.id} />}
         <BundleExtras page={page} owner={owner} />
       </div>
@@ -135,7 +131,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   const perSource = r.counts.perSource;
   const ownerSections = (
     <>
-      {owner && v.blocks.quotes.length > 0 && (
+      {v.blocks.quotes.length > 0 && (
         <section className="sec">
           <h2>In their words</h2>
           <div className="quotes">
@@ -145,13 +141,13 @@ export default async function VerdictPageRoute({ params }: Props) {
                 text={q.text} textEn={q.textEn} lang={q.lang} stars={q.stars}
                 sourceName={s?.name ?? q.source} sourceUrl={s?.url ?? null}
                 month={monthLabel(q.month)} aspectLabel={ASPECT_LABEL[q.aspect]}
-                negative={q.polarity < 0} access={q.access ?? s?.access} />;
+                negative={q.polarity < 0} access={q.access ?? s?.access} readOnly={!owner} />;
             })}
           </div>
         </section>
       )}
       {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
-      {owner && <Sources page={owner} perSource={perSource} sourceReadings={r.sourceReadings} />}
+      <Sources page={page} owner={owner} perSource={perSource} sourceReadings={r.sourceReadings} />
       <BundleExtras page={page} owner={owner} />
     </>
   );
@@ -176,7 +172,7 @@ export default async function VerdictPageRoute({ params }: Props) {
               {missingEvidence(nee).map((line) => <li key={line}>{line}</li>)}
             </ul>
           </div>
-          {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} owner={!!owner} />)}
+          {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
           {historyLink}
         </section>
         {owner && v.explanation && (
@@ -234,7 +230,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <TrendChip trend={r.provisional ? null : trendOf(r.series, r.confidence.level, new Date())} />
         </div>
         <ReportFacts facts={page.reportFacts} />
-        {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} owner={!!owner} />)}
+        {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         {historyLink}
       </section>
 
@@ -354,7 +350,7 @@ function ThemeBars({ items, max, negative }: { items: ThemeBarItem[]; max: numbe
   );
 }
 
-function RedFlagCallout({ group: g, sources, owner }: { group: RedFlagGroup; sources: Map<string, SourceLink>; owner: boolean }) {
+function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: Map<string, SourceLink> }) {
   return (
     <aside className={`flag ${g.forcesAvoid ? "" : "minor"}`} aria-label={`${g.group === "health" ? "Health" : "Money"} red flag`}>
       <span className="ico" aria-hidden="true">!</span>
@@ -362,9 +358,9 @@ function RedFlagCallout({ group: g, sources, owner }: { group: RedFlagGroup; sou
         <b>{redFlagLine(g)}</b>
         <p className="small">
           {g.newestAt ? `Most recent: ${monthLabel(g.newestAt.slice(0, 7))}.` : ""}
-          {owner && ` ${g.forcesAvoid ? "Recurring recent incidents force Avoid." : "Does not force Avoid; blocks Life Changing."}`}
+          {` ${g.forcesAvoid ? "Recurring recent incidents force Avoid." : "Does not force Avoid; blocks Life Changing."}`}
         </p>
-        {owner && (g.incidents ?? []).map((incident) => {
+        {(g.incidents ?? []).map((incident) => {
           const source = sources.get(incident.source);
           return (
             <figure className="flag-quote" key={incident.reviewId}>
@@ -384,7 +380,7 @@ function RedFlagCallout({ group: g, sources, owner }: { group: RedFlagGroup; sou
 
 type SourceWindow = { text: number; windowStart: string | null };
 
-function Sources({ page, perSource, sourceReadings }: { page: RestaurantBundle; perSource?: Record<string, SourceWindow>; sourceReadings?: SourceReading[] }) {
+function Sources({ page, owner, perSource, sourceReadings }: { page: InviteeBundle; owner: RestaurantBundle | null; perSource?: Record<string, SourceWindow>; sourceReadings?: SourceReading[] }) {
   return (
     <section className="sec">
       <h2>Sources</h2>
@@ -416,9 +412,9 @@ function Sources({ page, perSource, sourceReadings }: { page: RestaurantBundle; 
                       {s.name} ↗
                     </a>
                     <div className="small muted">{s.kind === "crowd" ? "Crowd Source" : "Editorial Source"}{reading?.quiet && " · quiet"}</div>
-                    {s.matchProvenance === "auto_accepted" && (
+                    {owner && s.matchProvenance === "auto_accepted" && (
                       <div className="source-undo">
-                        <ListingUndo slug={page.restaurant.slug} source={s.code} disabled={page.activeJob !== null} />
+                        <ListingUndo slug={page.restaurant.slug} source={s.code} disabled={owner.activeJob !== null} />
                       </div>
                     )}
                   </td>
@@ -445,28 +441,32 @@ function Sources({ page, perSource, sourceReadings }: { page: RestaurantBundle; 
   );
 }
 
-function BundleExtras({ page, owner }: { page: RestaurantBundle | InviteeBundle; owner: RestaurantBundle | null }) {
-  if (!owner) return null;
-  return (
-    <section className="sec">
-      <h2>{owner ? "Restaurant details" : "Changes at this restaurant"}</h2>
-      {owner && <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
-        priceTier={page.restaurant.priceTier} busy={owner.activeJob !== null} />}
-      {owner?.activeJob && (
-        <p>Current {owner.activeJob.kind} job: {owner.activeJob.status}{owner.activeJob.step ? ` · ${owner.activeJob.step}` : ""}.</p>
-      )}
-      {owner ? (
-        <div>
-          <h2>Change points</h2>
-          <ChangePoints slug={page.restaurant.slug} items={page.changePoints} disabled={owner.activeJob !== null} />
-        </div>
-      ) : (
+function BundleExtras({ page, owner }: { page: InviteeBundle; owner: RestaurantBundle | null }) {
+  if (!owner) {
+    if (page.changePoints.length === 0) return null;
+    return (
+      <section className="sec">
+        <h2>Changes at this restaurant</h2>
         <div className="ev-list">
           {page.changePoints.map((point) => <div key={point.id}>{point.occurredOn}: {point.description}</div>)}
           <p className="small muted">Only reviews since the newest change count.</p>
         </div>
+      </section>
+    );
+  }
+  return (
+    <section className="sec">
+      <h2>Restaurant details</h2>
+      <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
+        priceTier={page.restaurant.priceTier} busy={owner.activeJob !== null} />
+      {owner.activeJob && (
+        <p>Current {owner.activeJob.kind} job: {owner.activeJob.status}{owner.activeJob.step ? ` · ${owner.activeJob.step}` : ""}.</p>
       )}
-      {owner && owner.ownerQuestions.length > 0 && (
+      <div>
+        <h2>Change points</h2>
+        <ChangePoints slug={page.restaurant.slug} items={page.changePoints} disabled={owner.activeJob !== null} />
+      </div>
+      {owner.ownerQuestions.length > 0 && (
         <div>
           <h2>Owner questions</h2>
           <OwnerQuestions slug={page.restaurant.slug} questions={owner.ownerQuestions} />
