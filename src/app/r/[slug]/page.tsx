@@ -34,6 +34,7 @@ import { RestaurantFactsEditor } from "@/web/restaurant-facts";
 import { ChangePoints } from "@/web/change-points";
 import { VerdictFeedback } from "@/web/verdict-feedback";
 import { FeedbackWidget } from "@/web/feedback-widget";
+import { UsageEventOnMount, UsageTrackedLink } from "@/web/usage-tracking";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -59,7 +60,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   const page: RestaurantBundle | InviteeBundle = owner ?? projectInviteeBundle(loaded);
   const { restaurant: R } = page;
   const v: ReportVerdict | null = page.verdict;
-  const marker = owner ? null : <InviteeView />;
+  const marker = owner ? null : <><InviteeView /><UsageEventOnMount type="report_opened" actionKey={R.slug} /></>;
   const ctx = { format: R.format, city: R.city };
   const crowd = page.sources.filter((s) => s.kind === "crowd");
   const sourceByCode = new Map<string, SourceLink>(page.sources.map((s) => [s.code, s]));
@@ -80,7 +81,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         ))}
         {R.booking && <>
           {" · "}
-          <a href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label} ↗</a>
+          <UsageTrackedLink track={role === "invitee"} href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label} ↗</UsageTrackedLink>
         </>}
       </p>
     </div>

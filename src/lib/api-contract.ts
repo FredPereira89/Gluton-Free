@@ -215,6 +215,16 @@ export const generalFeedbackSubmissionSchema = z.discriminatedUnion("kind", [
 export type GeneralFeedbackSubmission = z.infer<typeof generalFeedbackSubmissionSchema>;
 export const feedbackCreatedResponseSchema = z.strictObject({ saved: z.literal(true) });
 
+export const USAGE_EVENT_TYPES = ["search", "filter", "sort", "report_opened", "booking_link_clicked"] as const;
+export const usageEventTypeSchema = z.enum(USAGE_EVENT_TYPES);
+export type UsageEventType = z.infer<typeof usageEventTypeSchema>;
+export const usageEventSubmissionSchema = z.strictObject({
+  eventKey: z.uuid(),
+  type: usageEventTypeSchema,
+});
+export const usageEventCreatedResponseSchema = z.strictObject({ recorded: z.literal(true) });
+export const deleteMyDataResponseSchema = z.strictObject({ deleted: z.literal(true) });
+
 export const paginationQuerySchema = z.strictObject({
   cursor: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(20),
@@ -482,6 +492,16 @@ export const routes = {
     method: "POST", path: "/api/v1/feedback", auth: "invitee",
     request: { body: generalFeedbackSubmissionSchema },
     responses: { 201: feedbackCreatedResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 404: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  recordUsageEvent: {
+    method: "POST", path: "/api/v1/usage-events", auth: "invitee",
+    request: { body: usageEventSubmissionSchema },
+    responses: { 201: usageEventCreatedResponseSchema, 400: problemSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
+  },
+  deleteMyData: {
+    method: "DELETE", path: "/api/v1/account", auth: "invitee",
+    request: {},
+    responses: { 200: deleteMyDataResponseSchema, 401: problemSchema, 403: problemSchema, 500: problemSchema, 503: problemSchema },
   },
   verdict: {
     method: "GET",

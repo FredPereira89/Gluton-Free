@@ -165,7 +165,7 @@ body{margin:0;padding:16px 16px 64px}
 .wrap{max-width:720px;margin:0 auto}
 .topbar{max-width:720px;margin:0 auto 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
 .topbar a{color:var(--ink);font-weight:700;text-decoration:none;letter-spacing:-.01em}
-/* Public pages (sign-in, invite, welcome) are for people who cannot open the Owner pages the bar links to. */
+/* Public pages (sign-in, invite, welcome) are for people who cannot open the signed-in pages the bar links to. */
 body:has(.signin) .topbar{display:none}
 body:has(.public-page) .topbar{display:none}
 /* Invitees read the report pages but cannot open Settings. */
@@ -200,6 +200,16 @@ body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
 .privacy-list{display:grid;gap:12px;margin:0;padding-left:21px;line-height:1.55}
 .privacy-list li::marker{color:var(--accent)}
 .privacy-back{margin-top:4px}
+.account-page{max-width:720px;margin:24px auto;display:grid;gap:20px}
+.account-page h1{font-size:clamp(28px,5vw,38px);font-weight:800;letter-spacing:-.04em}
+.account-page section{display:grid;gap:12px;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.account-page h2{font-size:19px;font-weight:750}
+.delete-my-data{display:grid;gap:14px;max-width:560px}
+.delete-my-data label{display:flex;align-items:flex-start;gap:9px;line-height:1.5}
+.delete-my-data input{margin-top:4px;accent-color:var(--accent)}
+.usage-event-counts{display:grid;gap:8px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:9px}
+.usage-event-counts h2{font-size:17px;font-weight:700}
+.usage-event-counts ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 16px;color:var(--muted);font-size:13px}
 @media(max-width:560px){
   .landing-header{align-items:flex-start}
   .landing-sign-in{padding:7px 9px}

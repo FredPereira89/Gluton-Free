@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { PreviewLookupResponse, SearchResponse } from "@/lib/api-contract";
 import { MissingRestaurantRequest } from "@/web/feedback-widget";
+import { trackUsageEvent } from "@/web/usage-tracking";
 
 const warnings = {
   same_name: "Several Restaurants share this name. Check the address.",
@@ -66,7 +67,7 @@ function ResultContent({ result }: { result: Result }) {
   </>;
 }
 
-export default function SearchHome({ canAddRestaurant, initialQuery = "" }: { canAddRestaurant: boolean; initialQuery?: string }) {
+export default function SearchHome({ canAddRestaurant, initialQuery = "", trackUsage = false }: { canAddRestaurant: boolean; initialQuery?: string; trackUsage?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(initialQuery);
@@ -97,9 +98,10 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "" }: { ca
       pushedQuery.current = q;
       const search = params.toString();
       router.replace(search ? `/?${search}` : "/", { scroll: false });
+      if (q && trackUsage) trackUsageEvent("search");
     }, 350);
     return () => clearTimeout(timer);
-  }, [query, searchParams, router]);
+  }, [query, searchParams, router, trackUsage]);
 
   // A search text that changed some other way, such as "Clear filters", replaces what is typed.
   useEffect(() => {

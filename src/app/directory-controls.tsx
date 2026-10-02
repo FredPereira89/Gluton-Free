@@ -7,6 +7,7 @@ import { TIERS, TIER_LABEL } from "@/domain/aspects";
 import { FORMAT_FAMILIES } from "@/domain/format-labels";
 import { DIRECTORY_SORTS, PRICE_TIERS, type DirectoryQuery } from "@/lib/api-contract";
 import { directoryHref } from "@/lib/directory-url";
+import { trackUsageEvent } from "@/web/usage-tracking";
 
 const SORT_LABEL: Record<(typeof DIRECTORY_SORTS)[number], string> = {
   tier: "Tier, then Confidence",
@@ -22,7 +23,7 @@ function toggled<T>(values: readonly T[], value: T): T[] {
   return values.includes(value) ? values.filter((each) => each !== value) : [...values, value];
 }
 
-export default function DirectoryControls({ query, neighbourhoods }: { query: DirectoryQuery; neighbourhoods: { name: string; count: number }[] }) {
+export default function DirectoryControls({ query, neighbourhoods, trackUsage = false }: { query: DirectoryQuery; neighbourhoods: { name: string; count: number }[]; trackUsage?: boolean }) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const activeFilters = query.tier.length + query.family.length + query.price.length + query.area.length + query.diet.length + (query.nee ? 1 : 0);
@@ -36,11 +37,12 @@ export default function DirectoryControls({ query, neighbourhoods }: { query: Di
   }, [sheetOpen]);
 
   // Every change goes into the URL, back on the first page; the server renders the new view.
-  function go(next: Partial<DirectoryQuery>) {
+  function go(next: Partial<DirectoryQuery>, eventType?: "filter" | "sort") {
+    if (eventType && trackUsage) trackUsageEvent(eventType);
     router.replace(directoryHref({ ...query, ...next }, { resetPage: true }), { scroll: false });
   }
   function pick<K extends ListFilter>(name: K, value: DirectoryQuery[K][number]) {
-    go({ [name]: toggled<unknown>(query[name], value) } as Partial<DirectoryQuery>);
+    go({ [name]: toggled<unknown>(query[name], value) } as Partial<DirectoryQuery>, "filter");
   }
   function group<K extends ListFilter>(name: K, legend: string, options: { value: DirectoryQuery[K][number]; label: string; count?: number }[]) {
     return <fieldset className="dir-group" key={name}>
@@ -59,7 +61,10 @@ export default function DirectoryControls({ query, neighbourhoods }: { query: Di
     <div className="dir-bar">
       <label className="dir-sort">
         <span className="eyebrow">Sort by</span>
-        <select value={query.sort} onChange={(event) => go({ sort: event.target.value as DirectoryQuery["sort"] })}>
+        <select value={query.sort} onChange={(event) => {
+          const sort = event.target.value as DirectoryQuery["sort"];
+          if (sort !== query.sort) go({ sort }, "sort");
+        }}>
           {DIRECTORY_SORTS.map((sort) => <option key={sort} value={sort}>{SORT_LABEL[sort]}</option>)}
         </select>
       </label>
@@ -78,7 +83,7 @@ export default function DirectoryControls({ query, neighbourhoods }: { query: Di
       {group("price", "Price", PRICE_TIERS.map((price) => ({ value: price, label: price })))}
       {group("area", "Neighbourhood", neighbourhoods.map(({ name, count }) => ({ value: name, label: name, count })))}
       <label className="dir-option dir-nee">
-        <input type="checkbox" checked={query.nee} onChange={() => go({ nee: !query.nee })} />
+        <input type="checkbox" checked={query.nee} onChange={() => go({ nee: !query.nee }, "filter")} />
         <span>Show Restaurants with Not enough evidence</span>
       </label>
     </div>

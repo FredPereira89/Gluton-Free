@@ -10,9 +10,9 @@ const compiled = Object.values(routes).map((route) => ({
   pattern: new RegExp(`^${route.path.split(/\{[^}]+\}/).map(escape).join("[^/]+")}/?$`),
 }));
 
-// Pages are not in the registry. These three are the ones an Invitee reads (ADR 0008); each page
+// Pages are not in the registry. These are the pages an Invitee may open (ADR 0008); each page
 // hides the Owner's tools from them.
-const inviteePages = [/^\/restaurants\/?$/, /^\/r\/[^/]+\/?$/, /^\/r\/[^/]+\/history\/?$/];
+const inviteePages = [/^\/restaurants\/?$/, /^\/r\/[^/]+\/?$/, /^\/r\/[^/]+\/history\/?$/, /^\/account\/?$/];
 
 export function requiredAuthLevel(method: string, pathname: string): AuthLevel {
   const match = compiled.find((route) => route.method === method.toUpperCase() && route.pattern.test(pathname));
