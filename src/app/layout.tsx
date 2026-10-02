@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Courier_Prime, Schibsted_Grotesk } from "next/font/google";
+import { Bricolage_Grotesque, Courier_Prime, Fraunces, Schibsted_Grotesk } from "next/font/google";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AuthError } from "@/lib/auth";
@@ -12,6 +12,8 @@ import "./globals.css";
 const sans = Schibsted_Grotesk({ subsets: ["latin", "latin-ext"], variable: "--font-sans", display: "swap" });
 const display = Bricolage_Grotesque({ subsets: ["latin", "latin-ext"], variable: "--font-display", display: "swap" });
 // Courier Prime is for ledger data only: prices, counts, dates and the Evidence figures.
+// Fraunces italic is the printed voice: course titles, reasons, the masthead. Never body copy.
+const serif = Fraunces({ subsets: ["latin", "latin-ext"], style: ["italic"], variable: "--font-serif", display: "swap" });
 const mono = Courier_Prime({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
@@ -40,7 +42,7 @@ async function SignedInNavigation() {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable} ${serif.variable}`}>
       <body>
         <ServiceWorkerRegistration />
         <header className="topbar">

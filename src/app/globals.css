@@ -2,7 +2,7 @@
 /* Ementa do Dia: table-paper white printed in one blue ink. A Restaurant is a line on the menu: name, dotted leader, Verdict. The Tier reads from its label and its pips, never from hue alone. */
 :root{
   color-scheme:light;
-  --ground:#F5EFE0; --surface:#FFFCF4; --sunk:#ECE4CE; --ink:#141B3A; --muted:#424968; --faint:#525877; --line:#D6CDB6; --edge:#6F7592;
+  --ground:#F5EFE0; --surface:#FFF9EA; --sunk:#ECE4CE; --ink:#141B3A; --muted:#424968; --faint:#525877; --line:#D6CDB6; --edge:#6F7592;
   --brand:#1C3D9B; --on-brand:#FFFFFF; --coral:#D9402B; --sun:#FFE27A;
   --accent:#1C3D9B; --accent-soft:#E7ECF9; --focus:#1C3D9B;
   --t-avoid:#B5301D; --t-ok:#4D5578; --t-good:#1F6F43; --t-must:#14502F; --t-life:#8A5200;
@@ -638,3 +638,44 @@ summary.small{cursor:pointer}
   .dir-group legend{font-weight:800}
   .dir-group + .dir-group{padding-top:16px;border-top:2px dotted var(--edge)}
 }
+/* ---------- Round 3: the printed menu (issue #121) ---------- */
+/* One serif voice (Fraunces italic) for what a printed menu sets in italic: the nameplate, course titles, reasons. Paper grain on the ground only, never behind text on a card. */
+:root{--serif:var(--font-serif),Fraunces,Georgia,"Times New Roman",serif;--grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .36 0 0 0 0 .27 0 0 0 0 .12 0 0 0 .9 -.28'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+body{background-image:var(--grain)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) body{background-image:none}}
+:root[data-theme="dark"] body{background-image:none}
+.masthead{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;margin:5px 5px 16px;padding:13px 18px;background:var(--brand);color:var(--on-brand);border-radius:var(--r-card);box-shadow:inset 0 0 0 3px var(--brand),inset 0 0 0 4px color-mix(in srgb,var(--on-brand) 55%,var(--brand)),var(--shadow);font-family:var(--serif);font-style:italic}
+.masthead-name{font-size:clamp(22px,6.2vw,34px);font-weight:600;line-height:1;text-align:center;white-space:nowrap}
+.masthead-side{font-size:14px;line-height:1.2}
+.masthead-side:first-child{justify-self:start}
+.masthead-side:last-child{justify-self:end;text-align:right}
+.landing-page .masthead{margin-bottom:5px}
+.landing-top{align-items:start}
+.landing-copy{align-self:start}
+.landing-top h1 .hl-eat{box-shadow:inset 0 -.26em 0 var(--sun)}
+.sample-line{grid-template-columns:minmax(min-content,auto) minmax(28px,1fr) auto}
+.sample-report h3{white-space:normal;font-size:clamp(19px,5vw,23px)}
+.sample-report-kind{font-family:var(--serif);font-style:italic;font-size:16px}
+.stamp{width:104px;height:104px;margin:-14px -8px -18px 0;font-size:12.5px}
+.ementa{position:relative}
+.ementa::after{content:"";position:absolute;inset:3px;border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:3px;pointer-events:none}
+.ementa-course{grid-template-columns:auto auto minmax(12px,1fr);column-gap:10px;padding:12px 16px 10px;font-family:var(--serif);font-style:italic;font-size:21px;font-weight:500;line-height:1.1;letter-spacing:0;text-transform:none}
+.ementa-course::before{content:"";width:8px;height:8px;background:var(--brand);transform:rotate(45deg)}
+.ementa-course i{height:4px;border-block:1px solid var(--brand);opacity:.5}
+.line-reason{font-family:var(--serif);font-style:italic;font-size:17px;line-height:1.4}
+.line-dish{font-family:var(--sans);font-style:normal;font-size:15px}
+.dir-row[data-tier="life_changing"],.dir-row[data-tier="must_go"]{padding-top:20px}
+.dir-row[data-tier="life_changing"] .line-name{font-size:clamp(25px,7vw,32px);font-weight:800;letter-spacing:-.02em}
+.dir-row[data-tier="must_go"] .line-name{font-size:clamp(23px,6.4vw,28px);font-weight:800;letter-spacing:-.02em}
+.dir-row[data-tier="ok"] .line-name,.dir-row[data-tier="avoid"] .line-name,.dir-row[data-tier="nee"] .line-name{font-size:clamp(18px,4.8vw,21px);font-weight:600}
+@media(max-width:520px){
+  .line-top{grid-template-columns:minmax(10px,1fr) auto;row-gap:8px;align-items:center}
+  .line-top .line-name{grid-column:1/-1}
+  .sample-line{grid-template-columns:minmax(10px,1fr) auto;row-gap:8px;align-items:center}
+  .sample-line h3{grid-column:1/-1}
+  .masthead{padding:12px 14px;gap:8px}
+  .masthead-side{font-size:13px}
+}
+.public-page .landing-footer a{padding-block:14px}
+.A .sec a[target="_blank"]{padding-block:13px}
+.verdict-feedback input[type="checkbox"]{width:24px;height:24px}

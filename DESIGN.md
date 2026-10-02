@@ -3,7 +3,7 @@ name: Gluton-Free
 description: A Lisbon Restaurant Verdict guide set as an ementa, the paper menu of a tasca, printed in one blue ink on table-paper white.
 colors:
   ground: "#F5EFE0"
-  surface: "#FFFCF4"
+  surface: "#FFF9EA"
   sunk: "#ECE4CE"
   ink: "#141B3A"
   muted: "#424968"
@@ -232,6 +232,7 @@ Surfaces are flat paper framed by blue double rules; the page is quiet, the Verd
 
 **Key Characteristics:**
 - One ink: blue carries brand, links, actions, rules and focus. Tomato appears only on the stamp and red flags; menu green only on Good-side Tiers and positives.
+- Logo mark: a solid blue "G" whose counter holds a menu: two rules and a dotted Verdict row ending in one pip, drawn in Ementa Blue. The header keeps the transparent mark on its cream tile; app icons use the same mark on Table-paper white. The wordmark remains live text.
 - Double-rule frames (2px rule plus a second 2px rule 3px outside) mark the ementa, the Report hero, the sample report, state pages and the filter sheet.
 - Dotted rules (2px, `edge`) divide sections and join name to Verdict.
 - Round pips and dots carry meaning (Tier 1-5, Confidence 1-3) alongside words.
@@ -255,7 +256,7 @@ Table-paper white and blue-black ink, one saturated blue for everything interact
 Note: `--coral` #D9402B is declared in the build but no rule uses it; the tomato actually shipped is #B5301D. Treat #D9402B as unused.
 
 ### Neutral
-- **Table Paper** (#F5EFE0): page ground. **Card Cream** (#FFFCF4): ementa, hero, cards, sheet. **Sunk** (#ECE4CE): wells, chips, hover row. **Band** (#E4DBC3): rails, meters, skeleton blocks.
+- **Table Paper** (#F5EFE0): page ground. **Card Cream** (#FFF9EA): ementa, hero, cards, sheet. **Sunk** (#ECE4CE): wells, chips, hover row. **Band** (#E4DBC3): rails, meters, skeleton blocks.
 - **Blue-Black Ink** (#141B3A): all text on fills; **Muted** (#424968), **Faint** (#525877); **Line** (#D6CDB6) hairlines; **Edge** (#6F7592) dotted rules, input and chip borders.
 - **OK Slate** (`tier-ok` #4D5578 on #E9EBF3): OK Tier, Steady trend, and the family's neutral.
 
@@ -282,7 +283,7 @@ Note: `--coral` #D9402B is declared in the build but no rule uses it; the tomato
 **Body Font:** Schibsted Grotesk (via next/font, system sans fallback)
 **Ledger Font:** Courier Prime (400, 700), for ledger data only: price, counts, dates, percentiles, axis ticks, language tags, Evidence figures
 
-**Character:** Bricolage is heavy and slightly quirky for names, Verdicts and headings; Schibsted reads plainly; Courier Prime is the till receipt, used only where a figure must align.
+**Character:** Bricolage is heavy and slightly quirky for names, Verdicts and headings; Schibsted reads plainly; Courier Prime is the till receipt, used only where a figure must align. Fraunces italic is the printed voice: the masthead, Tier course headings, Verdict reasons and the sample Restaurant kind, never UI chrome, numbers or body copy.
 
 ### Hierarchy
 - **Display** (800, clamp(46px, 13.4vw, 76px), 0.95, -0.035em, `brand` colour, max 13ch): landing headline only.
@@ -401,7 +402,7 @@ Drawn SVG icons from `src/web/icons.tsx` and `atoms.tsx`: 24px viewBox, 2.25 str
 - **Do** keep text at 12px or above.
 
 ### Don't:
-- **Don't** use gradients in surfaces or fills, or any shadow beyond the paper lift.
+- **Don't** use gradients in surfaces or fills, or any shadow beyond the paper lift. The one exception is the paper grain, a faint noise tile on the page ground only (off in dark mode), never on cards or fills.
 - **Don't** call a Verdict a score, rating or grade, or show a star or score pill as the Verdict.
 - **Don't** signal Tier or Confidence by hue alone.
 - **Don't** use a dashed outline on a Tier or status atom except for provisional Tier or Not enough evidence.
@@ -416,8 +417,10 @@ Drawn SVG icons from `src/web/icons.tsx` and `atoms.tsx`: 24px viewBox, 2.25 str
 Beta surfaces on this system: landing, privacy, Directory, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. The Directory row has no reason line or standout dish (needs a DirectoryItem contract change). Portuguese UI is out of scope.
 
 ## Polish additions (2026-10-02)
-- **Warm paper.** Ground #F5EFE0, Card Cream #FFFCF4, Sunk #ECE4CE, Line #D6CDB6, Band #E4DBC3; the paper lift is tinted warm (`rgba(70,50,15,.10)`, `rgba(50,35,10,.38)`). Dark twins unchanged. `themeColor` in `layout.tsx` and `manifest.ts` match the ground.
+- **Logo mark.** Rounded open menu frame, two menu rules and a dotted Verdict line ending in one pip, in Ementa Blue on transparency. Built-in ImageGen source: `exec-c12dbbbc-24cb-4b18-9773-55dbb011fa96.png`; prompt: “A compact G-like menu mark: open menu frame, two menu rules, dotted verdict row ending in a pip; one solid Ementa Blue, transparent, no words or food clichés.” `public/logo-mark.png` is alpha-cropped and normalized to #1C3D9B. App icon rasters derive from that mark on Logo-tile cream (#F5F1E4): `public/icon-192.png`, `public/icon-512.png`, `public/icon-maskable-512.png`, `public/apple-touch-icon.png`, and `src/app/icon.png`.
+- **Warm paper.** Ground #F5EFE0, Card Cream #FFF9EA, Sunk #ECE4CE, Line #D6CDB6, Band #E4DBC3; the paper lift is tinted warm (`rgba(70,50,15,.10)`, `rgba(50,35,10,.38)`). Dark twins unchanged. `themeColor` in `layout.tsx` and `manifest.ts` match the ground.
 - **Course headings** (`li.ementa-course`, aria-hidden): when the Directory is sorted by Tier, a Sunk band with a 13px uppercase Display label in blue ink and a hairline rule heads each Tier, and "Not enough evidence" heads the NEE rows. Not shown for other sorts.
 - **Ornament.** A double hairline rule under the Directory and "How a Verdict reads" titles; a blue CSS diamond on each Report section's dotted rule (the rule is broken by a ground-coloured gap).
 - **Landing.** Two rotated paper sheets sit behind the sample card; the primary button carries a double ring; "How a Verdict reads" lists the five Tiers as ementa lines (meaning, leader, Tier), highest first, beside the title at 900px and up.
 - **Sidebar.** At 1000px and up the filter panel gets a 3px blue top rule and the paper lift. The Directory row grid is `max-content minmax(0,1fr)`, so the meta line never overlaps the foot.
+- **Round 3: the printed menu.** Supersedes the course-heading and Tier-weight details above. (1) **Fraunces italic** (next/font, `--font-serif`) is the one serif accent: masthead, course headings (21px, sentence case, blue diamond), Directory reasons (17px; the Standout dish follows in Schibsted 15px) and the sample kind line. (2) **Masthead** (`src/web/masthead.tsx`): a solid brand-blue band with an inset double rule, "Lisbon" | "Ementa do Dia" | month and year (Europe/Lisbon), on the landing and the signed-in home; 13px sides on phones. (3) **Paper grain** on the page ground only, off in dark. (4) **Tier-scaled rows**: `.dir-row[data-tier]` sets name size and weight (Life Changing 25 to 32px, Must Go 23 to 28px at 800; OK, Avoid and Not enough evidence 18 to 21px at 600), and the top two Tiers get extra top padding. (5) **Phone rows** (up to 520px): the name takes its own line, then the leader and Tier; the landing sample line does the same. (6) The ementa gains an inner 1px hairline inside the double rule; the stamp is 104px; the "eat" highlight is Sun yellow. (7) Tap targets: footer, Source links and the TheFork URL field meet 44px; the TheFork input shares the `.field` styles.

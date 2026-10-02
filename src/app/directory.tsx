@@ -21,7 +21,7 @@ function Course({ item }: { item: DirectoryItem }) {
 function Row({ item, trackUsage }: { item: DirectoryItem; trackUsage: boolean }) {
   // A Restaurant is one line of the ementa: name, a dotted leader, then its Verdict. Format, Price and Area sit under the name as one quiet line.
   const meta = [item.format, item.priceTier, item.neighbourhood].filter(Boolean).join(" · ");
-  return <li className="dir-row">
+  return <li className="dir-row" data-tier={item.tier ?? "nee"}>
     <div className="line-top">
       <h3 className="line-name"><Link href={`/r/${encodeURIComponent(item.slug)}`}>{item.name}</Link></h3>
       <i className="leader" aria-hidden="true" />

@@ -6,6 +6,7 @@ import { directoryQueryFromPage } from "@/lib/directory-url";
 import { TIERS, TIER_MEANING } from "@/domain/aspects";
 import { WELCOME_DISMISSED_COOKIE } from "@/domain/welcome";
 import { Brand } from "@/web/brand";
+import { Masthead } from "@/web/masthead";
 import { ConfChip, TierBadge } from "@/web/atoms";
 import { loadDirectory } from "@/web/data";
 import { WelcomeCard } from "@/web/welcome-card";
@@ -26,13 +27,14 @@ function LandingPage() {
         <Link className="btn btn-secondary landing-sign-in" href="/sign-in">Sign in</Link>
       </header>
 
+      <Masthead />
+
       <section className="landing-top" aria-labelledby="landing-title">
         <div className="landing-copy">
           <h1 id="landing-title">Know where to <span className="hl-eat">eat</span> in Lisbon.</h1>
           <p className="landing-intro">
-            Gluton-Free is a Lisbon Restaurant Verdict guide. It reads what diners say and gives each Restaurant
-            one clear Verdict, judged against others of its own kind, so a tasca is compared with tascas,
-            not with every restaurant in the city.
+            Gluton-Free reads what diners say and gives each Lisbon Restaurant one clear Verdict,
+            judged against others of its own kind: a tasca against tascas, not the whole city.
           </p>
         </div>
 
@@ -109,6 +111,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   const welcomed = (await cookies()).get(WELCOME_DISMISSED_COOKIE) !== undefined;
   return <>
     {!welcomed && <WelcomeCard />}
+    <Masthead />
     <SearchHome canAddRestaurant={role === "owner"} initialQuery={query.q} trackUsage={role === "invitee"} />
     <Directory query={query} result={result} trackUsage={role === "invitee"} />
   </>;
