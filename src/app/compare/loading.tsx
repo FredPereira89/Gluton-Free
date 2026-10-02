@@ -10,7 +10,7 @@ export default function Loading() {
     <div className="skeleton-page" role="status" aria-busy="true">
       <span className="sr-only">Loading the comparison</span>
       <div className="skel skel-title" aria-hidden="true" />
-      <div className="compare-grid" aria-hidden="true">
+      <div className="compare-loading-row" aria-hidden="true">
         {Array.from({ length: count }, (_, i) => <div key={i} className="skel skel-card" />)}
       </div>
     </div>
