@@ -9,13 +9,24 @@ export function LookupProgress({ jobId }: { jobId: number }) {
   const [job, setJob] = useState<JobResponse | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [retryStatus, setRetryStatus] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
   async function retry() {
     setRetrying(true);
+    setRetryError(null);
+    setRetryStatus(null);
     try {
       const response = await fetch(`/api/v1/jobs/${jobId}/retry`, { method: "POST" });
-      if (response.ok) setRetryCount((n) => n + 1);
+      if (!response.ok) {
+        const problem = await response.json().catch(() => null) as { detail?: string; title?: string } | null;
+        throw new Error(problem?.detail ?? problem?.title ?? "Could not retry this lookup. Try again.");
+      }
+      setRetryCount((n) => n + 1);
+      setRetryStatus("Retry queued. Progress will update here.");
+    } catch (cause) {
+      setRetryError(cause instanceof Error ? cause.message : "Could not retry this lookup. Try again.");
     } finally {
       setRetrying(false);
     }
@@ -51,10 +62,12 @@ export function LookupProgress({ jobId }: { jobId: number }) {
     <p className="small muted">The lookup continues if you leave this page.</p>
     {job?.etaSeconds !== null && job?.etaSeconds !== undefined && <p>About {Math.ceil(job.etaSeconds / 60)} minutes left</p>}
     {unavailable && <p className="small muted">Progress is temporarily unavailable. Retrying…</p>}
-    {job?.status === "failed" && <p role="alert" className="error">
-      Lookup failed: {job.error?.detail ?? "please try again later"}
-      {" "}<button type="button" className="btn btn-secondary" onClick={() => void retry()} disabled={retrying}>{retrying ? "Retrying…" : "Retry"}</button>
-    </p>}
+    {job?.status === "failed" && <div>
+      <p role="alert" className="error">Lookup failed: {job.error?.detail ?? "please try again later"}</p>
+      <button type="button" className="btn btn-secondary" onClick={() => void retry()} disabled={retrying}>{retrying ? "Retrying…" : "Retry"}</button>
+      {retryStatus && <p className="small muted" role="status">{retryStatus}</p>}
+      {retryError && <p className="error" role="alert">{retryError}</p>}
+    </div>}
     <ol>{(job?.steps ?? []).map((step) => <li key={step.name}>
       {step.name} <span className="small muted">{step.status}</span>
     </li>)}</ol>
@@ -67,6 +80,6 @@ export function LookupProgress({ jobId }: { jobId: number }) {
     </div>}
     {Array.isArray(job?.facts.askLater) && job.facts.askLater.length > 0 &&
       <p className="small muted">{job.facts.askLater.length} possible Listing{job.facts.askLater.length === 1 ? "" : "s"} to check later. This does not hold up the lookup.</p>}
-    {job && <p className="small muted">Vendor ${job.vendorUsd.toFixed(3)} · AI ${job.llmUsd.toFixed(3)}</p>}
+    {job && <details className="lookup-cost"><summary>Lookup cost</summary><p className="small muted">Vendor ${job.vendorUsd.toFixed(3)} · AI ${job.llmUsd.toFixed(3)}</p></details>}
   </section>;
 }

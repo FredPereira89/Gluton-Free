@@ -15,11 +15,12 @@ export function TierBadge({ tier, size = "", dashed = false }: { tier: Tier; siz
   return (
     <span className={`tier ${TIER_CLASS[tier]} ${size} ${dashed ? "dashed" : ""}`}>
       <span className="pips" aria-hidden="true">
-        {TIERS.map((t, j) => (
-          <i key={t} className={j <= idx ? "on" : ""} />
-        ))}
+      {TIERS.map((t, j) => (
+        <i key={t} className={j <= idx ? "on" : ""} />
+      ))}
       </span>
       {TIER_LABEL[tier]}
+      {dashed && <span className="sr-only">, provisional</span>}
     </span>
   );
 }

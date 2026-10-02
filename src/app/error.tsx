@@ -10,7 +10,7 @@ export default function ErrorPage({ error, retry }: { error: Error & { digest?: 
   return (
     <div className="state-page" role="alert">
       <h1>Something went wrong</h1>
-      <p className="muted">This page did not load. Nothing you entered was lost. Try again, or go back to the directory.</p>
+      <p className="muted">This page didn&apos;t load. Try again, or return to the directory.</p>
       <div className="state-actions">
         <button className="btn" type="button" onClick={() => retry()}>Try again</button>
         <Link className="btn btn-secondary" href="/">All Restaurants</Link>

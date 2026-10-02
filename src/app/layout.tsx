@@ -30,10 +30,12 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, view
 async function SignedInNavigation() {
   try {
     const role = await pageRole();
-    return <>
+    return <nav className="global-nav" aria-label="Main navigation">
       <FeedbackWidget />
+      <Link href="/">Directory</Link>
       <Link href={role === "invitee" ? "/account" : "/settings"}>{role === "invitee" ? "Your data" : "Settings"}</Link>
-    </>;
+      <form action="/api/auth/sign-out" method="post"><button type="submit">Sign out</button></form>
+    </nav>;
   } catch (error) {
     if (error instanceof AuthError) return null;
     throw error;
@@ -45,12 +47,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable} ${serif.variable}`}>
       <body>
         <ServiceWorkerRegistration />
+        <a className="skip-link" href="#main-content">Skip to content</a>
         <header className="topbar">
           <Brand />
-          <span className="tagline">Provisional · Lisboa</span>
+          <span className="tagline">Lisboa · Invitation-only beta</span>
           <SignedInNavigation />
         </header>
-        <main className="wrap">{children}</main>
+        <main id="main-content" className="wrap">{children}</main>
       </body>
     </html>
   );

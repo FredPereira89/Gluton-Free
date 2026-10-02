@@ -5,11 +5,10 @@ import { WELCOME_DISMISSED_COOKIE, welcomeDismissedCookie } from "@/domain/welco
 import { WelcomeCard } from "./welcome-card";
 
 describe("Welcome card (issue #119)", () => {
-  it("says the three lines of the welcome and offers a way to dismiss", () => {
-    const html = renderToStaticMarkup(createElement(WelcomeCard));
-    expect(html).toContain("Lisbon only, about 330 restaurants");
+  it("shows current coverage and offers a way to dismiss", () => {
+    const html = renderToStaticMarkup(createElement(WelcomeCard, { restaurantsCount: 330 }));
+    expect(html).toContain("Browse 330 Lisbon Restaurants");
     expect(html).toContain("each judged against its own kind");
-    expect(html).toContain("tell us when we&#x27;re wrong");
     expect(html).toContain("Dismiss");
   });
 

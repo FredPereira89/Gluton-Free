@@ -20,18 +20,28 @@ export default async function SettingsPage() {
   return (
     <div className="settings">
       <h1>Settings</h1>
-      <InstallPrompt />
-      <PushSettings vapidPublicKey={configuredVapidPublicKey()} />
-      <InviteLinksAdmin links={links} />
-      <InviteesAdmin invitees={invitees} />
-      <section className="usage-event-counts" aria-labelledby="usage-event-counts-title">
-        <h2 id="usage-event-counts-title">Invitee usage</h2>
-        <ul>{usageCounts.map(({ type, count }) => <li key={type}><span>{USAGE_EVENT_LABELS[type]}</span><strong>{count}</strong></li>)}</ul>
+      <section className="settings-group" aria-labelledby="device-settings-title">
+        <h2 id="device-settings-title">Device</h2>
+        <InstallPrompt />
+        <PushSettings vapidPublicKey={configuredVapidPublicKey()} />
       </section>
-      <nav className="settings-links" aria-label="Owner tools">
-        <Link className="btn btn-secondary" href="/feedback">Feedback inbox</Link>
-        <Link className="btn btn-secondary" href="/baseline-checks">Baseline spot checks</Link>
-      </nav>
+      <section className="settings-group" aria-labelledby="beta-access-title">
+        <h2 id="beta-access-title">Beta access</h2>
+        <InviteLinksAdmin links={links} />
+        <InviteesAdmin invitees={invitees} />
+      </section>
+      <section className="settings-group" aria-labelledby="owner-operations-title">
+        <h2 id="owner-operations-title">Owner operations</h2>
+        <section className="usage-event-counts" aria-labelledby="usage-event-counts-title">
+          <h3 id="usage-event-counts-title">Invitee usage</h3>
+          <ul>{usageCounts.map(({ type, count }) => <li key={type}><span>{USAGE_EVENT_LABELS[type]}</span><strong>{count}</strong></li>)}</ul>
+        </section>
+        <nav className="settings-links" aria-label="Owner tools">
+          <Link className="btn btn-secondary" href="/restaurants">Restaurant inventory</Link>
+          <Link className="btn btn-secondary" href="/feedback">Feedback inbox</Link>
+          <Link className="btn btn-secondary" href="/baseline-checks">Baseline spot checks</Link>
+        </nav>
+      </section>
       <form action="/api/auth/sign-out" method="post">
         <button className="btn btn-secondary" type="submit">
           Sign out

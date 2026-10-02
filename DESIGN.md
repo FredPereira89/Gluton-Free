@@ -228,12 +228,12 @@ Recorded from the shipped build of issue #121, round 2 ("Ementa do Dia", seed 26
 
 The guide is an ementa, the paper menu of a Lisbon tasca, printed in one colour of blue ink on table-paper white. A Restaurant is a line: name, dotted leader, Verdict. The leader carries the eye from a name to its call, so a diner compares tables by reading down one edge. The system refuses the category default of a photo card with a star score.
 
-Surfaces are flat paper framed by blue double rules; the page is quiet, the Verdict is the loudest thing on it. Recognisable with content removed: a blue double rule on paper, dotted leaders, round pips. There are no gradients in surfaces and no photographs; one soft paper lift is the only shadow.
+Surfaces are flat paper. Blue double rules frame the menu and Report hero; the page is quiet, the Verdict is the loudest thing on it. Recognisable with content removed: the framed menu, dotted leaders, round pips. There are no gradients in surfaces and no photographs; one soft paper lift is the only shadow.
 
 **Key Characteristics:**
-- One ink: blue carries brand, links, actions, rules and focus. Tomato appears only on the stamp and red flags; menu green only on Good-side Tiers and positives.
-- Logo mark: a solid blue "G" whose counter holds a menu: two rules and a dotted Verdict row ending in one pip, drawn in Ementa Blue. The header keeps the transparent mark on its cream tile; app icons use the same mark on Table-paper white. The wordmark remains live text.
-- Double-rule frames (2px rule plus a second 2px rule 3px outside) mark the ementa, the Report hero, the sample report, state pages and the filter sheet.
+- One ink: blue carries brand, links, actions, rules and focus. Tomato marks Avoid, red flags and errors; menu green marks Good-side Tiers and positives.
+- Logo mark: the original open G-and-dot mark, with the G in Ementa Blue (#1C3D9B) and the dot in brighter blue (#3A7BD5). Its warm cream counter sits on the transparent mark and the header's cream tile; app icons use the same mark on that tile. The wordmark remains live text.
+- Double-rule frames (2px rule plus a second 2px rule 3px outside) mark the ementa and the Report hero.
 - Dotted rules (2px, `edge`) divide sections and join name to Verdict.
 - Round pips and dots carry meaning (Tier 1-5, Confidence 1-3) alongside words.
 - Capsule controls, 44px minimum touch height.
@@ -241,14 +241,14 @@ Surfaces are flat paper framed by blue double rules; the page is quiet, the Verd
 
 ## Colors
 
-Table-paper white and blue-black ink, one saturated blue for everything interactive, a green-to-amber Tier family, and tomato held back for the stamp and flags.
+Table-paper white and blue-black ink, one saturated blue for everything interactive, a green-to-amber Tier family, and tomato held back for Avoid and flags.
 
 ### Primary
 - **Ementa Blue** (#1C3D9B): the one ink. Book and `.btn` fill, links, double-rule frames, focus ring, selection, the leader's drawn state, the landing headline. Dark twin #8FA9FF (accent #A6BAFF, focus #C9D5FF), with `on-brand` #0B1030.
 - **Blue Wash** (#E7ECF9): `accent-soft`. Pressed chips, checked options, banner, welcome card, diet badge tint. Dark #1F274A.
 
 ### Secondary
-- **Tomato** (#B5301D, token `flag`/`tier-avoid`): the "Not a real Verdict" stamp border and text, Flag cards, Avoid Tier, negative themes and bars, errors. Fill **Tomato Wash** #FCE6E1. Dark #FF9C8A on #3A1F1B.
+- **Tomato** (#B5301D, token `flag`/`tier-avoid`): Flag cards, Avoid Tier, negative themes and bars, errors. Fill **Tomato Wash** #FCE6E1. Dark #FF9C8A on #3A1F1B.
 - **Menu Green** (#1F6F43, `tier-good`): Good Tier, positive themes, High Confidence tint. Must-go #14502F, fills #DEF0E5 and #C5E4D1.
 - **Highlighter** (#FFE27A, `sun`): the flat inset band under the main reason and the sample reason. Dark #6A5710.
 - **Amber** (`tier-life-changing` #8A5200 on #FFEAB3; `warn` #7A5200 on #FFF0C4): Life-changing Tier, minor flags, provisional and personal-source tints, change-point marks.
@@ -267,7 +267,7 @@ Note: `--coral` #D9402B is declared in the build but no rule uses it; the tomato
 - **Status tints:** Confidence High and Trend Improving use the Good fill; Medium and provisional use the warn fill; Low and Slipping the Avoid fill; Steady the OK fill.
 
 ### Named Rules
-**The One Ink Rule.** Blue is the only interactive and brand colour. Tomato is for the stamp and red flags, green for Good-side Tiers; neither is used as decoration.
+**The One Ink Rule.** Blue is the only interactive and brand colour. Tomato is for Avoid and red flags, green for Good-side Tiers; neither is used as decoration.
 
 **The Never-Hue-Alone Rule.** Tier is carried by label plus pip count (1 to 5 filled round pips) plus fill. Confidence is carried by dot count (1 to 3) plus its word. Trend is carried by arrow plus word. Colour never stands alone.
 
@@ -287,14 +287,14 @@ Note: `--coral` #D9402B is declared in the build but no rule uses it; the tomato
 
 ### Hierarchy
 - **Display** (800, clamp(46px, 13.4vw, 76px), 0.95, -0.035em, `brand` colour, max 13ch): landing headline only.
-- **Headline** (800, clamp(32px, 8.4vw, 46px), 1.02, -0.025em): restaurant name on the Report hero.
+- **Headline** (800, clamp(32px, 8vw, 48px), 1.05, -0.025em): restaurant name on the Report hero.
 - **Directory title** (800, clamp(26px, 6vw, 34px), -0.02em): Directory heading and state-page title; privacy and account titles run clamp 28 to 38 and 30 to 42 at 800.
-- **Ementa name** (700, clamp(20px, 5.2vw, 24px), 1.15, -0.01em): a Restaurant's line in the Directory; the sample line runs 800 at clamp(20px, 5.2vw, 26px).
+- **Ementa name** (700, 22px, 1.15, -0.01em): consistent across Directory sorts; the sample line runs 700 at clamp(22px, 5.5vw, 26px).
 - **Hero Tier** (700, clamp(23px, 6.2vw, 38px)): the large Verdict on the Report hero; `.tier.lg` elsewhere is 26px; the Tier in a list is 700 at body size.
 - **Page title** (800, 28px, -0.03em): sign-in, settings, baseline checks, feedback inbox.
-- **Section title** (800, 22px, -0.01em): Report section headings, group heads.
+- **Section title** (700, 24px, -0.02em): Report section headings; Bricolage, upright. Fraunces italic is reserved for reasons, selected quotes and course headings.
 - **Title** (700, 17px to 19px, display face): sheet group legends, "How we judged this" summary, source-card name 18px.
-- **Lede** (400, 17px, 1.5): intro, sample reason, search input; the Report reason is 600 at clamp(19px, 5vw, 22px), max 62ch.
+- **Lede** (400, 17px, 1.5): intro, sample reason, search input; the Report reason is 500 at clamp(20px, 5vw, 24px), max 62ch.
 - **Body** (400, 16px, 1.5): running text, inputs.
 - **Label** (600 to 700, 14px): chips, row labels (muted), meta lines, field labels, table headers 13px.
 - **Caption** (400, 12px): footnotes, tooltips, axis, language tags. 12px is the floor.
@@ -311,13 +311,13 @@ Odd values (12.5px, 13.5px, 14.5px, 15px, 21px) are one-off refinements around t
 
 ## Layout
 
-Single centred column. `.wrap` max 720px; the landing widens to 960px; the Directory (and its wide skeleton, and the top bar above it) to 1120px. Body padding 16px at the sides. Spacing scale 4 / 8 / 12 / 16 / 24 / 32 / 48.
+Single centred column. `.wrap` max 720px; the landing widens to 960px; the Directory (and its wide skeleton, and the top bar above it) to 1120px. Body has 16px gutters and 32px bottom spacing plus the safe-area inset. Spacing scale 4 / 8 / 12 / 16 / 24 / 32 / 48.
 
-Report: hero card, then sections separated by a 2px dotted `edge` rule with 24px vertical padding. First viewport at 390px: name and area, large Verdict capsule with pips and Confidence, the main reason (highlighted), a full-width Book button (52px); from 560px Book fits its content. Landing: wordmark and Sign in, the blue headline, intro, double-rule sample card, full-width sign-in button; at 900px the copy and example sit side by side (1.05fr / .95fr) with the actions under the copy.
+Report: name, area, Verdict, Confidence, reason and warning come first; booking follows the warning and is secondary for forced Avoid. Standout dishes and Dietary fit are compact; then quotes, concise Source cards, expandable method/history, Invitee feedback and collapsed Owner tools. Back to results sits above the hero and preserves the Directory URL and scroll. Landing: the blue headline and two-sentence intro lead into the sign-in action, then the fictional example on phones; at 900px the copy and example sit side by side (1.05fr / .95fr).
 
-Directory: below 1000px it is one column: a search and one horizontally scrolling row of quick chips (fading at the right edge) plus a "Filters" chip pushed right, a capsule sort select, then the ementa. At 1000px and up a 268px sticky filter panel sits left of the ementa. Each row is a ledger line (see Components); at 1000px and up the facts and Book move to a right column. While the list refetches (`aria-busy` on the controls) the ementa dims to 55%.
+Directory: below 1000px it is one column: search, an always-visible Filters button, scrollable quick chips and removable active filters above the result count and ementa. At 1000px and up a 268px sticky filter panel sits left of the ementa. Each row uses one 22px name style, reason and standout dish; the report link is primary and booking stays secondary. While the list refetches (`aria-busy` on the controls) the ementa dims to 55%.
 
-Top bar: Brand at left, a "Provisional · Lisboa" tagline (hidden at 480px and under), feedback and Settings or "Your data" at right, over a 1px dotted `edge` rule; hidden on sign-in, invite and welcome pages. The page keeps its state in the URL.
+Top bar: Brand at left, a "Lisboa · Invitation-only beta" tagline, feedback and Settings or "Your data" at right, over a 1px dotted `edge` rule; signed-in navigation includes Directory and Sign out. The page keeps its state in the URL.
 
 ## Elevation & Depth
 
@@ -334,7 +334,7 @@ Flat paper. Depth is a rule and a tone: cream cards on Table Paper, Sunk wells i
 
 Printed and squared-off: a menu card, not a lobe. Cards, rows, flags and source cards 6px; small wells, inputs, language tags 4px; every control, chip, pip and badge a full capsule or circle (999px / 50%). Exceptions: the filter sheet's top corners 14px, the logo tile 8px, the preview panel 10px, tooltips 5px, meter segments and bars 4px, rails 2 to 3px.
 
-Frames: the **double rule** is `border:2px solid brand` plus `outline:2px solid brand; outline-offset:3px` with 5px margin so the outer rule is not clipped. Dividers: 2px dotted `edge`. Quiet cards: 1px `line`. Flags: 2px Tomato, all round, no side stripe. The stamp is a 88px circle with a 3px double Tomato border, rotated -12deg, uppercase Bricolage 12px 800 with .04em tracking.
+Frames: the **double rule** is `border:2px solid brand` plus `outline:2px solid brand; outline-offset:3px` with 5px margin so the outer rule is not clipped. Keep it on the menu and Report hero only. Dividers: 1px `line` for ordinary groups, dotted `edge` for the menu. Quiet cards: 1px `line`. Flags: 2px Tomato, all round, no side stripe. Grain stays faint and is disabled in dark mode.
 
 Pips are 9px (default), 14px (large; 12px at 480px and under in the hero), 8px on phone rows; Confidence dots 8px (7px in rows).
 
@@ -364,15 +364,15 @@ Chips are capsules on Sunk. Confidence: three round dots filled to level plus th
 Quick chips: capsules, 44px, 2px `edge` border on white, 15px 600; pressed is Blue Wash with a blue border. Sort is a capsule select. Options in groups are capsules (2px `edge`), checked state Blue Wash; "Not enough evidence" option is dashed. At 1000px and up options become plain 36px rows inside a sticky white panel with a 1px line border. Below 1000px the full filters open as a modal bottom sheet: fixed to the bottom, white, 14px top radius, 2px blue border (none at bottom), max height 86vh, scrolling, safe-area padding, sticky header with a 2px dotted rule and Bricolage 22px title, over a scrim beneath. Empty state: white card, 2px dashed `edge`.
 
 ### Report
-**Hero:** white, double-rule frame, 6px radius, 24px padding: name (Headline), muted area line, a row with the large Verdict and Confidence, the reason in Lede 600 with the highlighter band on the main phrase, an optional muted summary and theme chips, then Book. NEE heroes show the `.nee` state and the reason line instead of a Verdict.
-**Sections:** dotted-rule-topped, 22px Bricolage 800 headings. "How we judged this" is a white details card with a 2px `edge` border, 44px summary in Bricolage 19px and a blue chevron that turns (150ms, off under reduced motion).
+**Hero:** white, double-rule frame, 6px radius, 24px padding: name, area, Verdict and Confidence, reason and warning before booking. Forced Avoid booking is a secondary link. NEE heroes show the `.nee` state, missing-evidence explanation and any red flags before booking.
+**Sections:** upright 24px Bricolage 700 headings. "How we judged this" is a white details card with a 2px `edge` border and a 44px Bricolage summary.
 **Flags:** Tomato-ruled card with a round 28px icon badge; minor flags use the amber pair. A dotted rule separates the quote.
 **Quotes:** white card, 1px `line`; negative quotes take a Tomato border.
 **Scorecard and strips:** five-segment meters (green at 4-5, slate at 3, amber at 2, tomato at 1), 4px percentile rails with a dot, Courier Prime values.
-**Source cards:** one printed card per Source at every width: white, 1px `line`, 6px radius, name in Bricolage 18px 700 over a dotted rule, then two-column labelled lines (13px 700 muted labels, Courier Prime figures). Cards flow in an auto-fit grid of 300px minimum.
+**Source cards:** one semantic card per Source at every width: white, 1px `line`, 6px radius, linked name, review count and newest review. A native disclosure holds access and processing details; `<dl>` carries the labels and values.
 
 ### Landing
-Wordmark and secondary Sign in; headline in Display blue with the word "eat" under a Tomato Wash band; sample card with a double rule and paper lift: fictional Casa Imaginária ledger line (name, leader, Good Tier), "A fictional Lisbon tasca", a highlighted reason, Medium Confidence, and the rotated "Not a real Verdict" stamp; full-width blue sign-in button (56px) and a facts list with 5px `edge` dot bullets.
+Wordmark and secondary Sign in; headline in Display blue with the word "eat" under a Sun band; short intro and sign-in action precede the sample on phones. The fictional Casa Imaginária sample has a double rule and paper lift, a Good Tier, reason and Medium Confidence, with one clear fictional-example note.
 
 ### Welcome card, tier legend
 Welcome card: Blue Wash, 1px dashed blue, 6px radius. Tier legend: a details disclosure with a definition list of Tier names and meanings.
@@ -407,21 +407,20 @@ Drawn SVG icons from `src/web/icons.tsx` and `atoms.tsx`: 24px viewBox, 2.25 str
 - **Don't** signal Tier or Confidence by hue alone.
 - **Don't** use a dashed outline on a Tier or status atom except for provisional Tier or Not enough evidence.
 - **Don't** treat Not enough evidence as a Tier.
-- **Don't** use tomato or green as decoration; tomato is the stamp and red flags, green is Good-side.
+- **Don't** use tomato or green as decoration; tomato marks Avoid and red flags, green is Good-side.
 - **Don't** add a coloured side stripe to cards or flags; frame them all round.
-- **Don't** use photographs or imagery that implies a listed Restaurant; the example is fictional and stamped.
-- **Don't** put a kicker, eyebrow or uppercase caption above headings. The stamp is the only uppercase text.
+- **Don't** use photographs or imagery that implies a listed Restaurant; label the example as fictional.
+- **Don't** put a kicker, eyebrow or uppercase caption above headings.
 
 ## Scope and known gaps
 
-Beta surfaces on this system: landing, privacy, Directory, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. The Directory row has no reason line or standout dish (needs a DirectoryItem contract change). Portuguese UI is out of scope.
+Beta surfaces on this system: landing, privacy, Directory, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. The Directory shows reasons and standout dishes; the paginated Restaurant inventory is Owner-only. Portuguese UI is out of scope.
 
-## Polish additions (2026-10-02)
-- **Logo mark.** Rounded open menu frame, two menu rules and a dotted Verdict line ending in one pip, in Ementa Blue on transparency. Built-in ImageGen source: `exec-c12dbbbc-24cb-4b18-9773-55dbb011fa96.png`; prompt: “A compact G-like menu mark: open menu frame, two menu rules, dotted verdict row ending in a pip; one solid Ementa Blue, transparent, no words or food clichés.” `public/brand-mark.png` is alpha-cropped and normalized to #1C3D9B. App icon rasters derive from that mark on Logo-tile cream (#F5F1E4): `public/icon-192.png`, `public/icon-512.png`, `public/icon-maskable-512.png`, `public/apple-touch-icon.png`, and `src/app/icon.png`.
-- **Warm paper.** Ground #F5EFE0, Card Cream #FFF9EA, Sunk #ECE4CE, Line #D6CDB6, Band #E4DBC3; the paper lift is tinted warm (`rgba(70,50,15,.10)`, `rgba(50,35,10,.38)`). Dark twins unchanged. `themeColor` in `layout.tsx` and `manifest.ts` match the ground.
-- **Course headings** (`li.ementa-course`, aria-hidden): when the Directory is sorted by Tier, a Sunk band with a 13px uppercase Display label in blue ink and a hairline rule heads each Tier, and "Not enough evidence" heads the NEE rows. Not shown for other sorts.
-- **Ornament.** A double hairline rule under the Directory and "How a Verdict reads" titles; a blue CSS diamond on each Report section's dotted rule (the rule is broken by a ground-coloured gap).
-- **Landing.** Two rotated paper sheets sit behind the sample card; the primary button carries a double ring; "How a Verdict reads" lists the five Tiers as ementa lines (meaning, leader, Tier), highest first, beside the title at 900px and up.
-- **Sidebar.** At 1000px and up the filter panel gets a 3px blue top rule and the paper lift. The Directory row grid is `max-content minmax(0,1fr)`, so the meta line never overlaps the foot.
-- **Round 3: the printed menu.** Supersedes the course-heading and Tier-weight details above. (1) **Fraunces italic** (next/font, `--font-serif`) is the one serif accent: masthead, course headings (21px, sentence case, blue diamond), Directory reasons (17px; the Standout dish follows in Schibsted 15px) and the sample kind line. (2) **Masthead** (`src/web/masthead.tsx`): a solid brand-blue band with an inset double rule, "Lisbon" | "Ementa do Dia" | month and year (Europe/Lisbon), on the landing and the signed-in home; 13px sides on phones. (3) **Paper grain** on the page ground only, off in dark. (4) **Tier-scaled rows**: `.dir-row[data-tier]` sets name size and weight (Life Changing 25 to 32px, Must Go 23 to 28px at 800; OK, Avoid and Not enough evidence 18 to 21px at 600), and the top two Tiers get extra top padding. (5) **Phone rows** (up to 520px): the name takes its own line, then the leader and Tier; the landing sample line does the same. (6) The ementa gains an inner 1px hairline inside the double rule; the stamp is 104px; the "eat" highlight is Sun yellow. (7) Tap targets: footer, Source links and the TheFork URL field meet 44px; the TheFork input shares the `.field` styles.
-- **Round 4: the report as one menu entry.** The Report hero gets the ementa's inner hairline, a 36 to 60px name, the address line in Fraunces italic, and the Verdict reason as a 25 to 36px Fraunces italic pull-line between two dotted rules. Section headings are Fraunces italic (24 to 30px). Quotes are set in Fraunces italic 19px. Owner tools sit in one Sunk panel labelled "Owner tools" so the reading page and the editing forms never mix. The "How a Verdict reads" menu is a centred 720px card. The sample Restaurant line always stacks name over leader and Tier. Logo file is `public/brand-mark.png` (renamed so Next's image optimizer cache could not keep serving the old mark); PWA assets (`manifest.webmanifest`, `sw.js`, `icon-*.png`) are outside the auth proxy.
+## Current implementation (2026-10-02)
+- **Brand and paper.** The open G-and-dot mark is `public/brand-mark.png`; matching PWA rasters live in `public/`. Ground #F5EFE0, Card Cream #FFF9EA, Sunk #ECE4CE, Line #D6CDB6, Band #E4DBC3. The faint paper grain is disabled in dark mode; `themeColor` matches the ground.
+- **Landing.** A short intro and sign-in action precede the clearly labelled fictional example on phones. The Tier menu is centred; the sample line wraps cleanly.
+- **Discovery.** Normal name and neighbourhood search filter the URL-backed Directory. Stored links open a recognised listing; Owner Google Maps search is explicit. Mobile Filters are always visible, active groups are removable, and hidden Not enough evidence has a direct reveal link. The paginated Restaurant inventory is Owner-only.
+- **Navigation and account.** Reports link back to the validated Directory URL and restore its scroll position. Magic-link sign-in carries a safe return path. Invitees have Your data, Sign out and installation guidance; successful account deletion returns with a confirmation.
+- **Report.** Verdict and warnings precede booking. Dishes and Dietary fit are compact; quotes and concise Source cards lead to expandable method/history and feedback. Source processing facts, incident quotes and Owner tools remain available in disclosures.
+- **Supporting flows.** Confidence has an explanation; provisional badges announce their state. Standing history has a latest-eight view and an accessible quarterly list. Spot checks default to Pending and offer direct next-item navigation. Settings group device, beta access and Owner operations; invite creation starts collapsed.
+- **PWA.** Manifest, service worker and icons are available outside the sign-in redirect. The service worker does not cache private data.

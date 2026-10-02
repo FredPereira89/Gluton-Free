@@ -32,14 +32,18 @@ export function StartSpotCheck() {
   </>;
 }
 
-export function SpotCheckActions({ id }: { id: number }) {
+export function SpotCheckActions({ id, nextPendingId }: { id: number; nextPendingId: number | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
   async function answer(agreed: boolean) {
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setSaved(null);
     try {
       await post("/api/v1/baseline-checks/answer", { id, agreed });
+      const saved = agreed ? "confirmed" : "rejected";
+      setSaved(agreed ? "Confirmed. You can change this answer later." : "Rejected. You can change this answer later.");
+      router.replace(`/baseline-checks?view=pending&saved=${saved}${nextPendingId ? `#check-${nextPendingId}` : ""}`);
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not save answer.");
@@ -51,5 +55,6 @@ export function SpotCheckActions({ id }: { id: number }) {
     <button type="button" disabled={busy} onClick={() => void answer(true)} className="btn">Confirm</button>
     <button type="button" disabled={busy} onClick={() => void answer(false)} className="btn btn-secondary">Reject</button>
     {error && <p className="error" role="alert">{error}</p>}
+    {saved && <p className="small" role="status">{saved}</p>}
   </div>;
 }

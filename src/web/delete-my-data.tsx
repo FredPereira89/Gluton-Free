@@ -22,7 +22,7 @@ export function DeleteMyData() {
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) throw new Error(detailFrom(body) ?? "Could not delete your data. Try again.");
       routes.deleteMyData.responses[200].parse(body);
-      window.location.assign("/");
+      window.location.assign("/?account=deleted");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not delete your data. Try again.");
       setDeleting(false);
@@ -36,7 +36,7 @@ export function DeleteMyData() {
     </label>
     {error && <p className="error" role="alert">{error}</p>}
     <button className="btn btn-danger" type="submit" disabled={!confirmed || deleting}>
-      {deleting ? "Deleting…" : "Delete my data"}
+      {deleting ? "Deleting…" : "Delete account and data"}
     </button>
   </form>;
 }

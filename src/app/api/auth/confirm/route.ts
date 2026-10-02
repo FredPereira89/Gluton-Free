@@ -13,8 +13,13 @@ export async function POST(request: Request) {
   const next = safeNext(String(form.get("next") ?? "/"));
   const cookies: CookieToSet[] = [];
   const go = (path: string) => redirectWithCookies(request, path, cookies);
+  const signInError = (error: string) => {
+    const params = new URLSearchParams({ error });
+    if (next !== "/") params.set("next", next);
+    return `/sign-in?${params}`;
+  };
 
-  if (!tokenHash && !code) return go("/sign-in?error=link_expired");
+  if (!tokenHash && !code) return go(signInError("link_expired"));
   const supabase = createAuthRouteClient(request, (set) => cookies.push(...set));
   // token_hash comes from the custom email template; code from Supabase's default link (same browser only).
   const { data, error } = tokenHash
@@ -23,7 +28,7 @@ export async function POST(request: Request) {
   const user = data.user;
   if (error || !user) {
     console.error(`auth confirm failed: ${error?.message ?? "no user"}`);
-    return go("/sign-in?error=link_expired");
+    return go(signInError("link_expired"));
   }
   // The Invite link rides in the metadata set when the account was created for it (works on any device).
   const meta = user.user_metadata?.invite;

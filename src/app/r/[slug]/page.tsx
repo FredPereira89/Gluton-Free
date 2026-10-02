@@ -1,6 +1,5 @@
-// The Verdict page: decision-first. A diner reads the hero (Tier, one plain reason, Price tier, Format,
-// address, booking link), then strengths and warnings, then standings in words. The reasoning sits in
-// a collapsed "How we judged this", then the quotes and Sources table. Owner and Invitee read the same report; the Owner alone gets the
+// The Verdict page: decision-first. A diner reads the Verdict and warning, then strengths and Dietary fit,
+// quotes and concise Sources. Method and Owner tools stay available in disclosures. Owner and Invitee read the same report; the Owner alone gets the
 // editing tools and questions. Neither sees θ, percentile numbers, SD or Peer-snapshot language.
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -36,8 +35,9 @@ import { ChangePoints } from "@/web/change-points";
 import { VerdictFeedback } from "@/web/verdict-feedback";
 import { FeedbackWidget } from "@/web/feedback-widget";
 import { UsageEventOnMount, UsageTrackedLink } from "@/web/usage-tracking";
+import { safeDirectoryReturn } from "@/lib/directory-url";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ from?: string | string[] }> };
 
 // Both the Owner's bundle and the Invitee projection render through this one page, with the same report.
 // What only the Owner has (tools, jobs, questions) is read from `owner`, which is null for an Invitee.
@@ -46,7 +46,7 @@ type RedFlagGroup = ReportVerdict["blocks"]["rollup"]["redFlags"][number];
 type SourceLink = { name: string; url: string; access: "public_ok" | "personal_only" };
 
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
   const { slug } = await params;
   const page = await loadRestaurantBundle(slug);
   return { title: page ? `${page.restaurant.name} · Gluton-Free` : "Not found" };
@@ -55,12 +55,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function VerdictPageRoute({ params }: Props) {
   await connection();
   const { slug } = await params;
-  const [role, loaded] = await Promise.all([pageRole(), loadRestaurantBundle(slug)]);
+  const [role, loaded, search] = await Promise.all([pageRole(), loadRestaurantBundle(slug), searchParams]);
   if (!loaded) notFound();
+  const from = safeDirectoryReturn(typeof search.from === "string" ? search.from : undefined);
   const owner = role === "owner" ? loaded : null;
   const page: RestaurantBundle | InviteeBundle = owner ?? projectInviteeBundle(loaded);
   const { restaurant: R } = page;
   const v: ReportVerdict | null = page.verdict;
+  const hasForcingRedFlag = v?.blocks.rollup.redFlags.some((group) => group.forcesAvoid) ?? false;
   const marker = owner ? null : <><InviteeView /><UsageEventOnMount type="report_opened" actionKey={R.slug} /></>;
   const ctx = { format: R.format, city: R.city };
   const crowd = page.sources.filter((s) => s.kind === "crowd");
@@ -85,7 +87,7 @@ export default async function VerdictPageRoute({ params }: Props) {
   );
   // The booking link is the next step after the Verdict, so it sits in the hero's first screen as a capsule.
   const bookLink = R.booking && (
-    <UsageTrackedLink className="book" track={role === "invitee"} href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label}<ExternalIcon /></UsageTrackedLink>
+    <UsageTrackedLink className={`book${hasForcingRedFlag ? " book-secondary" : ""}`} track={role === "invitee"} href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label}<ExternalIcon /></UsageTrackedLink>
   );
   const baseChips = (
     <>
@@ -109,8 +111,10 @@ export default async function VerdictPageRoute({ params }: Props) {
   if (!v) {
     return (
       <div className="A">{marker}
+        <Link className="btn btn-secondary report-back" href={from}>Back to results</Link>
         <section className="hero">
           {head}
+          {activeJob?.kind === "lookup" && <LookupProgress jobId={activeJob.id} />}
           {activity}
           <p className="explain">No Verdict yet: the Reviews have not been read.</p>
           {bookLink}
@@ -119,7 +123,6 @@ export default async function VerdictPageRoute({ params }: Props) {
         </section>
         {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
         <Sources page={page} owner={owner} />
-        {activeJob?.kind === "lookup" && <LookupProgress jobId={activeJob.id} />}
         <BundleExtras page={page} owner={owner} />
       </div>
     );
@@ -134,7 +137,7 @@ export default async function VerdictPageRoute({ params }: Props) {
     </>
   );
   const perSource = r.counts.perSource;
-  const ownerSections = (
+  const evidenceSections = (
     <>
       {v.blocks.quotes.length > 0 && (
         <section className="sec">
@@ -153,7 +156,6 @@ export default async function VerdictPageRoute({ params }: Props) {
       )}
       {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
       <Sources page={page} owner={owner} perSource={perSource} sourceReadings={r.sourceReadings} />
-      <BundleExtras page={page} owner={owner} />
     </>
   );
 
@@ -161,6 +163,7 @@ export default async function VerdictPageRoute({ params }: Props) {
     const nee = r.notEnoughEvidence;
     return (
       <div className="A">{marker}
+        <Link className="btn btn-secondary report-back" href={from}>Back to results</Link>
         <section className="hero">
           {head}
           {activity}
@@ -168,7 +171,6 @@ export default async function VerdictPageRoute({ params }: Props) {
             <span className="nee">Not enough evidence</span>
           </div>
           {nee.reasonLine && !changePointNotice(r) && <p className="explain">{nee.reasonLine}</p>}
-          {bookLink}
           <div className="chips">{baseChips}</div>
           <ReportFacts facts={page.reportFacts} />
           {notices}
@@ -179,6 +181,7 @@ export default async function VerdictPageRoute({ params }: Props) {
             </ul>
           </div>
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
+          {bookLink}
           {role === "invitee" && r.redFlags.length > 0 && (
             <FeedbackWidget kind="restaurant_issue" restaurantSlug={R.slug} buttonLabel="Something wrong? Tell us" />
           )}
@@ -191,7 +194,8 @@ export default async function VerdictPageRoute({ params }: Props) {
             <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
           </details>
         )}
-        {ownerSections}
+        {evidenceSections}
+        <BundleExtras page={page} owner={owner} />
       </div>
     );
   }
@@ -207,48 +211,61 @@ export default async function VerdictPageRoute({ params }: Props) {
   const consistency = consistencyLine(r.consistencySpread);
   const showChart = !r.provisional && r.series.some((q) => q.compositePercentile != null);
   const names = Object.fromEntries(Array.from(sourceByCode, ([code, s]) => [code, s.name]));
+  const highlights = (
+    <>
+      {summary && <p className="hero-summary">{summary}</p>}
+      {!forced && (strengths.length > 0 || warnings.length > 0) && (
+        <div className="hero-themes">
+          <div className="theme-row">
+            <span className="row-label">Reviewers praise</span>
+            {strengths.length ? strengths.map((t) => <span key={t.label} className="theme-chip pos">{t.label} <b>{t.reviewers}</b></span>)
+              : <span className="small muted">No recurring praise yet</span>}
+          </div>
+          <div className="theme-row">
+            <span className="row-label">Reviewers warn</span>
+            {warnings.length ? warnings.map((t) => <span key={t.label} className="theme-chip neg">{t.label} <b>{t.reviewers}</b></span>)
+              : <span className="small muted">No recurring criticism</span>}
+          </div>
+        </div>
+      )}
+      <ReportFacts facts={page.reportFacts} />
+      <TierLegend />
+    </>
+  );
 
   return (
     <div className="A">{marker}
+      <Link className="btn btn-secondary report-back" href={from}>Back to results</Link>
       <section className="hero">
         {head}
         {activity}
         <div className="tier-row">
           <TierBadge tier={(forced ? "avoid" : r.tier) as Tier} size="lg" dashed={r.provisional} />
           <ConfChip level={r.confidence.level} />
+          <details className="confidence-help">
+            <summary><span aria-hidden="true">?</span><span className="sr-only">About Confidence</span></summary>
+            <p>Confidence describes how likely this Tier is to hold with a different sample of Reviews.</p>
+          </details>
         </div>
         {!forced && <p className="explain"><span className="hl">{heroReason(r, ctx)}</span></p>}
+        {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         {bookLink}
-        {summary && <p className="hero-summary">{summary}</p>}
-        {!forced && (strengths.length > 0 || warnings.length > 0) && (
-          <div className="hero-themes">
-            <div className="theme-row">
-              <span className="row-label">Reviewers praise</span>
-              {strengths.length ? strengths.map((t) => <span key={t.label} className="theme-chip pos">{t.label} <b>{t.reviewers}</b></span>)
-                : <span className="small muted">No recurring praise yet</span>}
-            </div>
-            <div className="theme-row">
-              <span className="row-label">Reviewers warn</span>
-              {warnings.length ? warnings.map((t) => <span key={t.label} className="theme-chip neg">{t.label} <b>{t.reviewers}</b></span>)
-                : <span className="small muted">No recurring criticism</span>}
-            </div>
-          </div>
-        )}
         {notices}
         <div className="chips">
           {baseChips}
           <TrendChip trend={r.provisional ? null : trendOf(r.series, r.confidence.level, new Date())} />
         </div>
-        <ReportFacts facts={page.reportFacts} />
-        <TierLegend />
-        {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         {role === "invitee" && (forced || r.tier === "avoid" || r.redFlags.length > 0) && (
           <FeedbackWidget kind="restaurant_issue" restaurantSlug={R.slug} buttonLabel="Something wrong? Tell us" />
         )}
         {historyLink}
       </section>
 
-      {role === "invitee" && r.state === "verdict" && <VerdictFeedback restaurantSlug={R.slug} verdictId={v.id} />}
+      <section className="sec report-highlights" aria-label="Strengths and dietary fit">{highlights}</section>
+
+
+
+      {evidenceSections}
 
       <details className="judged">
         <summary>How we judged this</summary>
@@ -311,8 +328,9 @@ export default async function VerdictPageRoute({ params }: Props) {
           )}
         </div>
       </details>
-
-      {ownerSections}
+      {role === "invitee" && r.state === "verdict" && <VerdictFeedback restaurantSlug={R.slug} verdictId={v.id} />}
+      {!owner && <BundleExtras page={page} owner={owner} />}
+      {owner && <BundleExtras page={page} owner={owner} />}
     </div>
   );
 }
@@ -374,7 +392,9 @@ function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: M
           {g.newestAt ? `Most recent: ${monthLabel(g.newestAt.slice(0, 7))}.` : ""}
           {` ${g.forcesAvoid ? "Recurring recent incidents force Avoid." : "Does not force Avoid; blocks Life Changing."}`}
         </p>
-        {(g.incidents ?? []).map((incident) => {
+        {(g.incidents?.length ?? 0) > 0 && <details className="flag-evidence">
+          <summary>Read reported incidents</summary>
+          {(g.incidents ?? []).map((incident) => {
           const source = sources.get(incident.source);
           return (
             <figure className="flag-quote" key={incident.reviewId}>
@@ -386,7 +406,8 @@ function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: M
               </figcaption>
             </figure>
           );
-        })}
+          })}
+        </details>}
       </div>
     </aside>
   );
@@ -398,58 +419,34 @@ function Sources({ page, owner, perSource, sourceReadings }: { page: InviteeBund
   return (
     <section className="sec">
       <h2>Sources</h2>
-      <p className="small muted">Source ratings and Review counts are facts about each Source, not a Verdict.</p>
       <div className="source-cards">
-        <table className="src src-cards">
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th>Access</th>
-              <th className="num">Reviews</th>
-              <th className="num">With text</th>
-              <th className="num">Rating</th>
-              <th>Tier reading</th>
-              <th>Newest</th>
-              <th className="num">Window</th>
-              <th>Window since</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {page.sources.map((s) => {
-              const w = perSource?.[s.code];
-              const reading = sourceReadings?.find((sr) => sr.source === s.code);
-              return (
-                <tr key={s.code}>
-                  <td>
-                    <a href={s.url} rel="noreferrer nofollow" target="_blank">
-                      {s.name} <ExternalIcon />
-                    </a>
-                    <div className="small muted">{s.kind === "crowd" ? "Crowd Source" : "Editorial Source"}{reading?.quiet && " · quiet"}</div>
-                    {owner && s.matchProvenance === "auto_accepted" && (
-                      <div className="source-undo">
-                        <ListingUndo slug={page.restaurant.slug} source={s.code} disabled={owner.activeJob !== null} />
-                      </div>
-                    )}
-                  </td>
-                  <td data-label="Access">
-                    <span className={`acc ${s.access === "personal_only" ? "personal" : "public"}`}>
-                      {s.access === "personal_only" ? "personal-only" : "public-OK"}
-                    </span>
-                  </td>
-                  <td className="num" data-label="Reviews">{s.reviewCount?.toLocaleString("en") ?? "—"}</td>
-                  <td className="num" data-label="With text">{s.textCount?.toLocaleString("en") ?? "—"}</td>
-                  <td className="num" data-label="Rating">{s.rating?.toFixed(1) ?? "—"}</td>
-                  <td data-label="Tier reading">{reading?.tier ? TIER_LABEL[reading.tier] : "—"}</td>
-                  <td data-label="Newest">{dateLabel(s.newestAt)}</td>
-                  <td className="num" data-label="Window">{w ? w.text.toLocaleString("en") : "—"}</td>
-                  <td data-label="Window since">{w?.windowStart ? dateLabel(w.windowStart) : "—"}</td>
-                  <td data-label="Status">{s.fetchStatus.replaceAll("_", " ")}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {page.sources.map((s) => {
+          const w = perSource?.[s.code];
+          const reading = sourceReadings?.find((sr) => sr.source === s.code);
+          return <article className="source-card" key={s.code}>
+            <h3><a href={s.url} rel="noreferrer nofollow" target="_blank">{s.name} <ExternalIcon /></a></h3>
+            <p className="small muted">{s.kind === "crowd" ? "Review site" : "Guide or critic"}{reading?.quiet ? " · few recent Reviews" : ""}</p>
+            <dl>
+              <dt>Reviews at this source</dt><dd>{s.reviewCount?.toLocaleString("en") ?? "—"}</dd>
+              <dt>Newest review</dt><dd>{dateLabel(s.newestAt)}</dd>
+            </dl>
+            <details>
+              <summary>Source details</summary>
+              <dl>
+                <dt>Reviews with text</dt><dd>{s.textCount?.toLocaleString("en") ?? "—"}</dd>
+                <dt>Source rating</dt><dd>{s.rating?.toFixed(1) ?? "—"}</dd>
+                <dt>Review access</dt><dd>{s.access === "personal_only" ? "Available through this account" : "Publicly available"}</dd>
+                <dt>Reviews read for this Verdict</dt><dd>{w ? w.text.toLocaleString("en") : "—"}</dd>
+                <dt>Review window began</dt><dd>{w?.windowStart ? dateLabel(w.windowStart) : "—"}</dd>
+                {reading?.tier && <><dt>Source-specific read</dt><dd>{TIER_LABEL[reading.tier]}</dd></>}
+                <dt>Source status</dt><dd>{s.fetchStatus.replaceAll("_", " ")}</dd>
+              </dl>
+            </details>
+            {owner && s.matchProvenance === "auto_accepted" && (
+              <div className="source-undo"><ListingUndo slug={page.restaurant.slug} source={s.code} disabled={owner.activeJob !== null} /></div>
+            )}
+          </article>;
+          })}
       </div>
     </section>
   );
@@ -469,8 +466,12 @@ function BundleExtras({ page, owner }: { page: InviteeBundle; owner: RestaurantB
     );
   }
   return (
-    <section className="sec owner-section" aria-label="Owner tools">
-      <p className="owner-tools-label">Owner tools</p>
+    <details className="sec owner-section" aria-label="Owner tools">
+      <summary className="owner-tools-summary">
+        <span>Owner tools</span>
+        <span className="small muted">{owner.ownerQuestions.length ? `${owner.ownerQuestions.length} open ${owner.ownerQuestions.length === 1 ? "question" : "questions"}` : "No open questions"}</span>
+      </summary>
+      <div className="owner-tools-body">
       <h2>Restaurant details</h2>
       <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
         priceTier={page.restaurant.priceTier} busy={owner.activeJob !== null} />
@@ -500,7 +501,8 @@ function BundleExtras({ page, owner }: { page: InviteeBundle; owner: RestaurantB
           </details>
         </div>
       )}
-    </section>
+      </div>
+    </details>
   );
 }
 

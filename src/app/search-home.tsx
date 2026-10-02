@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { PreviewLookupResponse, SearchResponse } from "@/lib/api-contract";
-import { MissingRestaurantRequest } from "@/web/feedback-widget";
 import { ArrowIcon } from "@/web/icons";
 import { trackUsageEvent } from "@/web/usage-tracking";
+import { isLookupQuery } from "@/lib/directory-url";
 
 const warnings = {
   same_name: "Several Restaurants share this name. Check the address.",
@@ -33,16 +33,16 @@ function formatResetTime(resetAt: string): string {
 
 function PreviewPanel({ loading, error, data, onClose, onStart, starting, startError }: {
   loading: boolean; error: boolean; data: PreviewLookupResponse | null; onClose: () => void;
-  onStart: () => void; starting: boolean; startError: boolean;
+  onStart: () => void; onRetry: () => void; starting: boolean; startError: boolean;
 }) {
   return <div className="preview-panel">
     {loading && <span className="small muted">Checking Listings…</span>}
-    {error && <span className="small muted">Preview is unavailable. Try again.</span>}
+    {error && <div><p className="small muted">Preview is unavailable.</p><button type="button" className="btn btn-secondary" onClick={onRetry}>Try preview again</button></div>}
     {data && <>
       {data.categoryGuess && <span className="small muted">Google category: {data.categoryGuess} (not a confirmed Format)</span>}
       {data.listings.map((listing) => <div className="preview-listing" key={`${listing.source}:${listing.placeRef}`}>
         <span className={`chip conf-${listing.confidence === "confident" ? "High" : "Low"}`}>
-          {listing.source}{listing.autoAccept ? " · auto-accept" : " · ask later"}
+          {listing.source}{listing.autoAccept ? " · ready to add" : " · needs your check later"}
         </span>
         <a className="small" href={listing.url} target="_blank" rel="noreferrer">{listing.name}</a>
       </div>)}
@@ -179,7 +179,7 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
   useEffect(() => {
     const q = query.trim();
     setPreviewFor(null);
-    if (!q) {
+    if (!q || !isLookupQuery(q)) {
       setResults(emptyResults);
       setLoading(false);
       setError(false);
@@ -212,36 +212,36 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
   }, [query]);
 
   function candidateRow(result: SearchResponse["candidates"][number]) {
+    if (!canAddRestaurant) return <div className="search-result" key={result.placeId}><ResultContent result={result} /></div>;
     return <div className="search-group" key={result.placeId}>
       <button type="button" className="search-result" onClick={() => openPreview(result.placeId)}>
         <ResultContent result={result} />
         <span className="search-action">Preview <ArrowIcon /></span>
       </button>
       {previewFor === result.placeId
-        && <PreviewPanel loading={previewLoading} error={previewError} data={preview} onClose={() => setPreviewFor(null)} onStart={() => start(result.placeId)} starting={starting} startError={startError} />}
+        && <PreviewPanel loading={previewLoading} error={previewError} data={preview} onClose={() => setPreviewFor(null)} onRetry={() => void openPreview(result.placeId)} onStart={() => start(result.placeId)} starting={starting} startError={startError} />}
     </div>;
   }
 
-  const noResults = !!query.trim() && searchedQuery === query.trim() && !loading && !error && !adding && !addError && !spendCapResetAt
+  const noResults = isLookupQuery(query) && !!query.trim() && searchedQuery === query.trim() && !loading && !error && !adding && !addError && !spendCapResetAt
     && !results.recognised && !results.known.length && !results.candidates.length;
 
   return <section className="index search-home">
     <h1>Find a Restaurant</h1>
-    <p className="muted">Search by name, paste a Google Maps, Tripadvisor or TheFork link, or enter a Google place ID or CID.</p>
-    <label htmlFor="restaurant-search" className="field-label">Restaurant name or link</label>
+    <p className="muted">Search Restaurants or neighbourhoods. Have a Restaurant link? Paste a Google Maps, Tripadvisor or TheFork link to open a stored listing.</p>
+    <label htmlFor="restaurant-search" className="field-label">Search Restaurants or neighbourhoods</label>
     <input id="restaurant-search" type="search" autoComplete="off" value={query}
-      onChange={(event) => { setSearchedQuery(""); setQuery(event.target.value); }} placeholder="Name, link, Google place ID or CID" />
+      onChange={(event) => { setSearchedQuery(""); setQuery(event.target.value); }} placeholder="Restaurant or neighbourhood" />
     <div role="status" aria-live="polite" className="small muted">
       {loading ? "Searching…"
         : spendCapResetAt ? `Today's search budget is spent. It resets at ${formatResetTime(spendCapResetAt)}.`
         : adding ? "Searching Google Maps…"
         : addError ? "Could not search for that Restaurant. Try again."
         : error ? "Search is unavailable. Try again."
-        : results.message ?? (query.trim() && !results.recognised && !results.known.length && !results.candidates.length ? "No Restaurants found." : "")}
+        : results.message ?? (isLookupQuery(query) && query.trim() && !results.recognised && !results.known.length && !results.candidates.length ? "No Restaurants found." : "")}
     </div>
-    {!canAddRestaurant && noResults && <MissingRestaurantRequest key={query.trim()} query={query.trim()} />}
-    {canAddRestaurant && !!query.trim() && <button type="button" className="btn" disabled={adding || loading} onClick={() => void addRestaurant()}>
-      {adding ? "Searching Google Maps…" : "Add a Restaurant"}
+    {canAddRestaurant && <button type="button" className="btn btn-secondary" disabled={!query.trim() || adding || loading} onClick={() => void addRestaurant()}>
+      {adding ? "Searching Google Maps…" : "Owner: search Google Maps to add a Restaurant"}
     </button>}
     {results.recognised && <div className="search-group">
       <h2>Recognised Restaurant</h2>
@@ -251,16 +251,17 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
       </Link> : candidateRow(results.recognised)}
     </div>}
     {!!results.known.length && <div className="search-group">
-      <h2>Restaurants in Gluton-Free</h2>
+      <h2>{isLookupQuery(query) ? "Matching stored Restaurants" : "Google Maps matches for Owner add"}</h2>
       {results.known.map((result) => <Link className="search-result" href={`/r/${encodeURIComponent(result.slug)}`} key={result.slug}>
         <ResultContent result={result} />
         <span className="search-action">Open Verdict <ArrowIcon /></span>
       </Link>)}
     </div>}
     {!!results.candidates.length && <div className="search-group">
-      <h2>Google Maps results</h2>
+      <h2>Google Maps candidates for Owner add</h2>
       {results.candidates.map(candidateRow)}
     </div>}
-    <Link href="/restaurants" className="small browse-link">Browse looked-up Restaurants</Link>
+    {noResults && <p className="small muted">No stored Restaurant matched that link. Search by name or neighbourhood instead.</p>}
+    {canAddRestaurant && <Link href="/restaurants" className="small browse-link">Owner inventory · all lookups</Link>}
   </section>;
 }

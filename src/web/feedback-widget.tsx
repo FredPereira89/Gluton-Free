@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { feedbackCreatedResponseSchema, type GeneralFeedbackSubmission } from "@/lib/api-contract";
 
 function detailFrom(body: unknown): string | null {
@@ -26,10 +26,30 @@ export function FeedbackWidget(props: FeedbackWidgetProps) {
   const kind = props.kind ?? "general";
   const buttonLabel = props.buttonLabel ?? "Feedback";
   const id = useId();
+  const disclosure = useRef<HTMLDetailsElement>(null);
+  const trigger = useRef<HTMLSummaryElement>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    function closeOnOutsidePointer(event: PointerEvent) {
+      const target = event.target;
+      if (disclosure.current?.open && target instanceof Node && !disclosure.current.contains(target)) {
+        disclosure.current.open = false;
+      }
+    }
+    window.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => window.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, []);
+
+  function closeOnEscape(event: KeyboardEvent<HTMLDetailsElement>) {
+    if (event.key !== "Escape" || !disclosure.current?.open) return;
+    event.preventDefault();
+    disclosure.current.open = false;
+    trigger.current?.focus();
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,8 +74,8 @@ export function FeedbackWidget(props: FeedbackWidgetProps) {
   }
 
   return (
-    <details className="feedback-widget">
-      <summary className="btn btn-secondary">{buttonLabel}</summary>
+    <details ref={disclosure} className="feedback-widget" onKeyDown={closeOnEscape}>
+      <summary ref={trigger} className="btn btn-secondary">{buttonLabel}</summary>
       <form className="feedback-widget-panel" onSubmit={submit}>
         <label className="field" htmlFor={`${id}-message`}>
           {kind === "restaurant_issue" ? "What seems wrong?" : "What would you like us to know?"}

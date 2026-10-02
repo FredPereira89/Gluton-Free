@@ -26,6 +26,7 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
     <div className="A history">
       {role === "invitee" && <InviteeView />}
       <section className="hero">
+        <p><Link className="btn btn-secondary report-back" href={restaurantHref}>Back to report</Link></p>
         <div className="name">
           <h1>Verdict history</h1>
           <p>
