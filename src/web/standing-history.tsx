@@ -16,15 +16,22 @@ export function StandingHistoryChart({ series, changePointAt }: Props) {
   if (!series.some((quarter) => quarter.compositePercentile != null)) return null;
 
   const visible = showAll ? series : series.slice(-8);
-  const width = showAll ? Math.max(600, visible.length * 42) : 360;
-  const left = 56;
-  const right = width - 14;
+  const width = showAll ? Math.max(600, visible.length * 52) : 360;
+  const height = 156;
+  const left = 84;
+  const right = width - 30;
   const step = visible.length > 1 ? (right - left) / (visible.length - 1) : 0;
-  const x = (index: number) => left + index * step;
-  const y = (percentile: number) => 20 + (100 - percentile) * 0.82;
+  const x = (index: number) => visible.length > 1 ? left + index * step : (left + right) / 2;
+  const y = (percentile: number) => 44 + (100 - percentile) * 0.68;
   const changePointQuarter = changePointAt ? quarterOf(new Date(changePointAt)) : null;
   const changePointIndex = changePointQuarter ? visible.findIndex((quarter) => quarter.quarter === changePointQuarter) : -1;
   const every = Math.max(1, Math.ceil(visible.length / 8));
+  // Three cut-paper strips stand for Higher, Middle and Lower: the word is on the strip, so colour is never the only cue.
+  const bands = [
+    { word: "Higher", cls: "hi", top: 27 },
+    { word: "Middle", cls: "mid", top: 62 },
+    { word: "Lower", cls: "lo", top: 97 },
+  ] as const;
 
   return (
     <div className="composite-history">
@@ -34,19 +41,20 @@ export function StandingHistoryChart({ series, changePointAt }: Props) {
         onClick={() => setShowAll((value) => !value)}>
         {showAll ? "Show latest eight quarters" : "Show full history"}
       </button>
-      <div id={chartId} className="history-scroll" tabIndex={0} role="region" aria-label={showAll ? "Full standing history, scrolls sideways" : "Latest eight quarters, scrolls sideways"}>
-        <svg viewBox={"0 0 " + width + " 110"} width={showAll ? width : 360} height="110" role="img"
+      <div id={chartId} className={"history-scroll" + (showAll ? "" : " fit")} tabIndex={0} role="region" aria-label={showAll ? "Full standing history, scrolls sideways" : "Latest eight quarters of standing"}>
+        <svg viewBox={"0 0 " + width + " " + height} width={showAll ? width : undefined} height={showAll ? height : undefined} role="img"
           aria-label={showAll ? "Full history of standing among similar Restaurants, by quarter" : "Latest eight quarters of standing among similar Restaurants"}>
-          {([["Higher", 100], ["Middle", 50], ["Lower", 0]] as const).map(([word, percentile]) => (
-            <g key={word}>
-              <line x1={left} x2={right} y1={y(percentile)} y2={y(percentile)} className="chart-grid" />
-              <text x="2" y={y(percentile) + 4} className="chart-tick">{word}</text>
+          {bands.map((band) => (
+            <g key={band.word}>
+              <rect x="0" y={band.top} width={width} height="32" rx="16" className={"chart-band chart-band-" + band.cls} />
+              <text x="16" y={band.top + 21} className="chart-label">{band.word}</text>
             </g>
           ))}
           {changePointIndex >= 0 && (
             <g>
-              <line x1={x(changePointIndex)} x2={x(changePointIndex)} y1="20" y2="102" className="chart-changepoint" />
-              <text x={x(changePointIndex)} y="14" textAnchor="middle" className="chart-tick">Change</text>
+              <line x1={x(changePointIndex)} x2={x(changePointIndex)} y1="26" y2="132" className="chart-changepoint" />
+              <rect x={x(changePointIndex) - 30} y="2" width="60" height="20" rx="10" className="chart-change-pill" />
+              <text x={x(changePointIndex)} y="16" textAnchor="middle" className="chart-change-text">Change</text>
             </g>
           )}
           {visible.slice(1).map((quarter, index) => {
@@ -56,16 +64,17 @@ export function StandingHistoryChart({ series, changePointAt }: Props) {
               : null;
           })}
           {visible.map((quarter, index) => quarter.compositePercentile == null ? null : (
-            <circle key={quarter.quarter} cx={x(index)} cy={y(quarter.compositePercentile)} r="4"
+            <circle key={quarter.quarter} cx={x(index)} cy={y(quarter.compositePercentile)} r={index === visible.length - 1 ? 9 : 7}
               className={quarter.enoughReviews ? "chart-composite-dot" : "chart-composite-dot-hollow"}>
               <title>{quarter.quarter + ": " + standingPhrase(quarter.compositePercentile) + " among similar Restaurants" + (quarter.enoughReviews ? "" : " · few reviews")}</title>
             </circle>
           ))}
           {visible.map((quarter, index) => index % every === 0 || index === visible.length - 1
-            ? <text key={quarter.quarter} x={x(index)} y="109" textAnchor="middle" className="chart-tick">{quarter.quarter}</text>
+            ? <text key={quarter.quarter} x={x(index)} y="151" textAnchor="middle" className="chart-tick">{quarter.quarter}</text>
             : null)}
         </svg>
       </div>
+      {visible.filter((quarter) => quarter.compositePercentile != null).length < 2 && <p className="small muted">Only one quarter of reviews so far, so there is no movement to show yet.</p>}
       <details className="history-values">
         <summary>Quarterly values</summary>
         <ul>{visible.map((quarter) => (

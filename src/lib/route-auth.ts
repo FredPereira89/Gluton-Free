@@ -12,7 +12,7 @@ const compiled = Object.values(routes).map((route) => ({
 
 // Pages are not in the registry. These are the pages an Invitee may open (ADR 0008); each page
 // hides the Owner's tools from them.
-const inviteePages = [/^\/restaurants\/?$/, /^\/r\/[^/]+\/?$/, /^\/r\/[^/]+\/history\/?$/, /^\/account\/?$/];
+const inviteePages = [/^\/restaurants\/?$/, /^\/r\/[^/]+\/?$/, /^\/r\/[^/]+\/history\/?$/, /^\/account\/?$/, /^\/compare\/?$/];
 
 export function requiredAuthLevel(method: string, pathname: string): AuthLevel {
   const match = compiled.find((route) => route.method === method.toUpperCase() && route.pattern.test(pathname));

@@ -45,5 +45,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|brand-mark.png|icon.png|apple-touch-icon.png|icon-192.png|icon-512.png|icon-maskable-512.png|manifest.webmanifest|sw.js|sign-in|welcome|invite/|auth/confirm|api/auth/sign-in|api/auth/invite|api/auth/magic-link|api/auth/callback|api/auth/confirm|api/auth/sign-out|api/v1/health|openapi.json).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|brand-mark.png|logo-mark.png|lisbon-table.png|icon.png|apple-touch-icon.png|icon-192.png|icon-512.png|icon-maskable-512.png|manifest.webmanifest|sw.js|sign-in|welcome|invite/|auth/confirm|api/auth/sign-in|api/auth/invite|api/auth/magic-link|api/auth/callback|api/auth/confirm|api/auth/sign-out|api/v1/health|openapi.json).*)"],
 };

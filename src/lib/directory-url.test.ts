@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { directoryQuerySchema, parseDirectoryQuery } from "./api-contract";
-import { directoryHref, directoryQueryFromPage } from "./directory-url";
+import { directoryHref, directoryQueryFromPage, safeDirectoryReturn, safeReportReturn } from "./directory-url";
 
 const base = directoryQuerySchema.parse({});
 
@@ -24,5 +24,21 @@ describe("directory URL", () => {
     expect(directoryQueryFromPage({ q: "tasca", tier: ["good", "ok"], nee: "1" })).toMatchObject({ q: "tasca", tier: ["good", "ok"], nee: true });
     expect(directoryQueryFromPage({ sort: "vibes" })).toEqual(base);
     expect(directoryQueryFromPage({})).toEqual(base);
+  });
+});
+
+describe("report return links", () => {
+  it("lets a Report return to a canonical directory or comparison and nowhere else", () => {
+    expect(safeReportReturn("/?tier=good")).toBe("/?tier=good");
+    expect(safeReportReturn("/compare?r=a&r=b")).toBe("/compare?r=a&r=b");
+    expect(safeReportReturn("/compare?r=a&r=b&from=%2F%3Fsort%3Dname")).toBe("/compare?r=a&r=b&from=%2F%3Fsort%3Dname");
+    for (const unsafe of ["https://evil.example/", "//evil.example", "/settings", "/compare?r=../x", "/compare", "/\evil", undefined]) {
+      expect(safeReportReturn(unsafe), String(unsafe)).toBe("/");
+    }
+  });
+
+  it("returns a comparison's own way back only to the directory", () => {
+    expect(safeReportReturn("/compare?r=a&r=b&from=%2Fsettings")).toBe("/compare?r=a&r=b");
+    expect(safeDirectoryReturn("/compare?r=a")).toBe("/");
   });
 });

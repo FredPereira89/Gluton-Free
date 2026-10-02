@@ -56,14 +56,10 @@ describe("directory", () => {
     expect(html).toContain('rel="noopener noreferrer"');
   });
 
-  it("shows the Trend chip in the row where there is a Trend, and nothing where there is none", () => {
-    for (const [trend, label] of [["improving", "Improving"], ["steady", "Steady"], ["slipping", "Slipping"]] as const) {
-      const html = render(result({ items: [item({ trend })] }));
-      expect(html).toContain(`trend-${trend}`);
-      expect(html).toContain(label);
+  it("keeps the Trend off the row, which carries only the Verdict, Confidence and reason (the Report and Compare show it)", () => {
+    for (const trend of ["improving", "steady", "slipping"] as const) {
+      expect(render(result({ items: [item({ trend })] }))).not.toContain(`trend-${trend}`);
     }
-    const html = render(result({ items: [item({ trend: null })] }));
-    for (const label of ["Improving", "Steady", "Slipping"]) expect(html).not.toContain(label);
   });
 
   it("labels a Not enough evidence Restaurant instead of showing a Tier", () => {

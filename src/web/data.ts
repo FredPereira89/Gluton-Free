@@ -435,7 +435,8 @@ async function loadDishDietaryFacts(windows: { id: number; as_of: Date; since: D
     where w.source_rank <= ${PARAMS.reviewWindowCap}` : [];
 }
 
-export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryResponse> {
+/** `selectedSlugs` narrows the load to those Restaurants (the shortlist comparison); omit it for the whole directory. */
+export async function loadDirectory(query: DirectoryQuery, selectedSlugs?: string[]): Promise<DirectoryResponse> {
   const now = new Date();
   const rows = await db()`
     select r.id, v.created_at, v.blocks->'rollup'->>'changePointAt' as change_point_at, r.slug, r.name, r.city, r.address, r.area, r.lat, r.lng, r.format, r.price_tier,
@@ -448,7 +449,8 @@ export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryRes
            (select url from listing where restaurant_id = r.id and source_code = 'thefork') as thefork_url
     from restaurant r
     join lateral (select created_at, state, tier, confidence, provisional, blocks from verdict where restaurant_id = r.id order by id desc limit 1) v on true
-    where r.status <> 'permanently_closed'`;
+    where r.status <> 'permanently_closed'
+    ${selectedSlugs ? db()`and r.slug in ${db()(selectedSlugs.length ? selectedSlugs : [""])}` : db()``}`;
   const windows = rows.map((r) => ({ id: Number(r.id), as_of: new Date(r.created_at), since: reviewWindowCutoff(new Date(r.created_at), r.change_point_at ? new Date(r.change_point_at) : null) }));
   const facts = await loadDishDietaryFacts(windows);
   const categories = rows.length ? await db()`select restaurant_id, categories from listing where restaurant_id in (select jsonb_array_elements_text(${db().json(rows.map((r) => r.id))}::jsonb)::bigint)` : [];

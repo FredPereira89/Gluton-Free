@@ -22,6 +22,7 @@ type ListFilter = "tier" | "family" | "price" | "area" | "diet";
 
 // One-tap shortcuts onto the same filters the sheet offers: Good or better is the Tier filter with its three upper Tiers.
 const GOOD_OR_BETTER = ["good", "must_go", "life_changing"] as const;
+const EVERYDAY_PRICES = ["€", "€€"] as const;
 
 function toggled<T>(values: readonly T[], value: T): T[] {
   return values.includes(value) ? values.filter((each) => each !== value) : [...values, value];
@@ -101,29 +102,32 @@ export default function DirectoryControls({ query, neighbourhoods, resultCount, 
     go({ [name]: toggled<unknown>(shown[name], value) } as Partial<DirectoryQuery>, "filter");
   }
   function group<K extends ListFilter>(name: K, legend: string, options: { value: DirectoryQuery[K][number]; label: string; count?: number }[]) {
-    return <fieldset className="dir-group" key={name}>
-      <legend>{legend}</legend>
-      <div className={name === "area" ? "dir-options dir-areas" : "dir-options"}>
+    const chosen = shown[name].length;
+    // In the phone sheet each group folds away behind its name, so the whole list is not one long scroll. The desktop sidebar starts with them open.
+    return <details className="dir-group" key={name} open={mobileViewport ? undefined : true}>
+      <summary><span>{legend}</span>{chosen > 0 && <span className="dir-group-count">{chosen} chosen</span>}</summary>
+      <div className={name === "area" ? "dir-options dir-areas" : "dir-options"} role="group" aria-label={legend}>
         {options.map((option) => <label key={String(option.value)} className="dir-option">
           <input type="checkbox" checked={(shown[name] as readonly unknown[]).includes(option.value)} onChange={() => pick(name, option.value)} />
           <span>{option.label}</span>
           {option.count !== undefined && <span className="muted small">{option.count}</span>}
         </label>)}
       </div>
-    </fieldset>;
+    </details>;
   }
 
   const goodOrBetter = shown.tier.length === GOOD_OR_BETTER.length && GOOD_OR_BETTER.every((tier) => shown.tier.includes(tier));
+  const everyday = shown.price.length === EVERYDAY_PRICES.length && EVERYDAY_PRICES.every((price) => shown.price.includes(price));
   function quick(label: string, pressed: boolean, onClick: () => void) {
     return <button key={label} type="button" className="dir-chip" aria-pressed={pressed} onClick={onClick}>{label}</button>;
   }
 
   const filterOptions = <>
-    {group("tier", "Tier", TIERS.map((tier) => ({ value: tier, label: TIER_LABEL[tier] })).reverse())}
-    {group("family", "Format family", FORMAT_FAMILIES.map((family) => ({ value: family.code, label: family.label })))}
-    {group("diet", "Dietary fit", DIETS.map((diet) => ({ value: diet, label: DIET_LABEL[diet] })))}
-    {group("price", "Price", PRICE_TIERS.map((price) => ({ value: price, label: price })))}
     {group("area", "Neighbourhood", neighbourhoods.map(({ name, count }) => ({ value: name, label: name, count })))}
+    {group("price", "Price", PRICE_TIERS.map((price) => ({ value: price, label: price })))}
+    {group("diet", "Dietary fit", DIETS.map((diet) => ({ value: diet, label: DIET_LABEL[diet] })))}
+    {group("family", "Kind of place", FORMAT_FAMILIES.map((family) => ({ value: family.code, label: family.label })))}
+    {group("tier", "Tier", TIERS.map((tier) => ({ value: tier, label: TIER_LABEL[tier] })).reverse())}
     <label className="dir-option dir-nee">
       <input type="checkbox" checked={shown.nee} onChange={() => go({ nee: !shown.nee }, "filter")} />
       <span>Show Restaurants with Not enough evidence</span>
@@ -135,6 +139,8 @@ export default function DirectoryControls({ query, neighbourhoods, resultCount, 
     <div className="dir-mobile-filter-row">
       <div className="dir-quick" role="group" aria-label="Quick filters">
         {quick("Good or better", goodOrBetter, () => go({ tier: goodOrBetter ? [] : [...GOOD_OR_BETTER] }, "filter"))}
+        {quick("€–€€", everyday, () => go({ price: everyday ? [] : [...EVERYDAY_PRICES] }, "filter"))}
+        {quick("Traditional Portuguese", shown.family.includes("traditional_portuguese"), () => pick("family", "traditional_portuguese"))}
         {DIETS.map((diet) => quick(DIET_LABEL[diet], shown.diet.includes(diet), () => pick("diet", diet)))}
       </div>
       <button ref={filterButton} type="button" className="dir-chip dir-more" aria-expanded={sheetOpen && mobileViewport} aria-controls="dir-filters" onClick={() => setSheetOpen(true)}>

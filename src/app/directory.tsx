@@ -1,7 +1,8 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { TIER_LABEL } from "@/domain/aspects";
-import { ConfChip, DietIcon, TierBadge, TrendChip } from "@/web/atoms";
+import { ConfChip, DietIcon, TierBadge } from "@/web/atoms";
+import { ShortlistButton } from "@/web/shortlist";
 import { ExternalIcon } from "@/web/icons";
 import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "@/lib/api-contract";
 import { directoryHref } from "@/lib/directory-url";
@@ -34,9 +35,11 @@ function Row({ item, trackUsage, returnTo }: { item: DirectoryItem; trackUsage: 
     {meta && <p className="line-meta">{meta}</p>}
     <div className="line-foot">
       {item.confidence && <ConfChip level={item.confidence} />}
-      <TrendChip trend={item.trend} />
       {item.dietaryFits.length > 0 && <span className="dir-diet">{item.dietaryFits.map((diet) => <DietIcon key={diet} diet={diet} iconOnly />)}</span>}
-      <UsageTrackedLink className="book sm" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">{item.booking.label}<ExternalIcon /></UsageTrackedLink>
+      <span className="line-actions">
+        <ShortlistButton slug={item.slug} name={item.name} />
+        <UsageTrackedLink className="book sm" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">{item.booking.label}<ExternalIcon /></UsageTrackedLink>
+      </span>
     </div>
   </li>;
 }

@@ -444,7 +444,8 @@ describe("Decision-first report (issue #112)", () => {
     }
     const empty = await render("invitee", { ...bundle(0), reportFacts: { standoutDishes: [], dietaryFits: [] } });
     expect(empty).not.toContain("Standout dishes");
-    expect(empty).not.toContain("Dietary fit");
+    // Missing dietary information is stated, never left as a silent gap.
+    expect(empty).toContain("No dietary information in the Reviews yet");
   });
 
   it("lists the top 3 strengths and warnings with how many reviewers raise them", async () => {
@@ -471,7 +472,7 @@ describe("Decision-first report (issue #112)", () => {
     expect(highlights).toContain("Reviewers warn");
     expect(hero).not.toContain('class="scorecard"');
     expect(hero).not.toContain('class="bars');
-    const judged = html.slice(html.indexOf('<details class="judged"'));
+    const judged = html.slice(html.indexOf('<section class="sec judged"'));
     expect(judged).toContain('class="scorecard"');
     expect(judged).toContain('class="bars');
   });
@@ -485,13 +486,12 @@ describe("Decision-first report (issue #112)", () => {
     expect(html).toMatch(/class="score lv-5"/);
   });
 
-  it("keeps the reasoning in a collapsed 'How we judged this' with Peer group, positions, chart, confidence and consistency", async () => {
+  it("shows the reasoning openly under 'How we judged this' with Peer group, positions, chart, confidence and consistency", async () => {
     const page = withThemes(bundleWithPeers(40, 40));
     page.verdict!.blocks.rollup.series = [{ quarter: "2026-Q1", composite: 0.5, compositePercentile: 72, enoughReviews: true, volume: 10, textVolume: 10 }];
     const html = await render("invitee", page);
-    const judged = html.slice(html.indexOf('<details class="judged"'));
+    const judged = html.slice(html.indexOf('<section class="sec judged"'));
     expect(judged).toContain("How we judged this");
-    expect(html).not.toMatch(/<details class="judged"[^>]*open/);
     expect(judged).toContain("Compared with 40 tascas in Lisbon");
     expect(judged).toContain("Aspect positions");
     expect(judged).toContain("How its standing has moved");
@@ -513,7 +513,7 @@ describe("Decision-first report (issue #112)", () => {
 
   it("gives the Owner the same plain report, plus why the Tier landed, with no technical explanation", async () => {
     const html = await render("owner", withThemes(bundleWithPeers(40, 40)));
-    const judged = html.slice(html.indexOf('<details class="judged"'));
+    const judged = html.slice(html.indexOf('<section class="sec judged"'));
     expect(judged).toContain("Why this Tier (Owner)");
     expect(judged).toContain("Ceiling: needs at least 50 Peers");
     expect(html).not.toContain("Technical explanation");

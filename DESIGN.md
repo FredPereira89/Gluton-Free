@@ -1,101 +1,103 @@
 ---
 name: Gluton-Free
-description: A Lisbon Restaurant Verdict guide set as an ementa, the paper menu of a tasca, printed in one blue ink on table-paper white.
+description: A Lisbon Restaurant Verdict guide cut from paper, cream cards and flat colour fields on a lemon ground.
 colors:
-  ground: "#F5EFE0"
-  surface: "#FFF9EA"
-  sunk: "#ECE4CE"
-  ink: "#141B3A"
-  muted: "#424968"
-  faint: "#525877"
-  line: "#D6CDB6"
-  edge: "#6F7592"
-  band: "#E4DBC3"
-  brand: "#1C3D9B"
+  ground: "#FFD23F"
+  surface: "#FFF8E7"
+  sunk: "#F6E6B4"
+  ink: "#14110F"
+  muted: "#4D4108"
+  faint: "#594C10"
+  line: "#E2C766"
+  edge: "#7A6416"
+  band: "#EBD9A0"
+  brand: "#1F3FBF"
   on-brand: "#FFFFFF"
-  accent: "#1C3D9B"
-  accent-soft: "#E7ECF9"
-  focus: "#1C3D9B"
-  coral: "#D9402B"
-  sun: "#FFE27A"
-  tier-avoid: "#B5301D"
-  tier-avoid-fill: "#FCE6E1"
-  tier-ok: "#4D5578"
-  tier-ok-fill: "#E9EBF3"
-  tier-good: "#1F6F43"
-  tier-good-fill: "#DEF0E5"
-  tier-must-go: "#14502F"
-  tier-must-go-fill: "#C5E4D1"
-  tier-life-changing: "#8A5200"
-  tier-life-changing-fill: "#FFEAB3"
-  flag: "#B5301D"
-  flag-fill: "#FCE6E1"
+  accent: "#1F3FBF"
+  accent-soft: "#DDE4FA"
+  focus: "#14110F"
+  coral: "#D63A26"
+  on-coral: "#FFFFFF"
+  olive: "#5E8A1E"
+  sun: "#FFD23F"
+  tier-avoid: "#B72A17"
+  tier-avoid-fill: "#FBDDD6"
+  tier-ok: "#55506B"
+  tier-ok-fill: "#E6E3EE"
+  tier-good: "#4A7216"
+  tier-good-fill: "#E1EBC9"
+  tier-must-go: "#14603A"
+  tier-must-go-fill: "#CFE6D6"
+  tier-life-changing: "#F2A900"
+  tier-life-changing-fill: "#FFE9A8"
+  on-tier: "#FFFFFF"
+  flag: "#B72A17"
+  flag-fill: "#FBDDD6"
   warn: "#7A5200"
-  warn-fill: "#FFF0C4"
+  warn-fill: "#FFEFB8"
 typography:
   display:
-    fontFamily: "Bricolage Grotesque, Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(46px, 13.4vw, 76px)"
-    fontWeight: 800
-    lineHeight: 0.95
-    letterSpacing: "-0.035em"
+    fontFamily: "Bagel Fat One, Figtree, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(44px, 13.4vw, 76px)"
+    fontWeight: 400
+    lineHeight: 0.98
   headline:
-    fontFamily: "Bricolage Grotesque, Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(32px, 8.4vw, 46px)"
-    fontWeight: 800
-    lineHeight: 1.02
-    letterSpacing: "-0.025em"
+    fontFamily: "Bagel Fat One, Figtree, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(32px, 8vw, 48px)"
+    fontWeight: 400
+    lineHeight: 1.05
   directory-title:
-    fontFamily: "Bricolage Grotesque, Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Bagel Fat One, Figtree, ui-sans-serif, system-ui, sans-serif"
     fontSize: "clamp(26px, 6vw, 34px)"
-    fontWeight: 800
-    lineHeight: 1.12
-    letterSpacing: "-0.02em"
-  ementa-name:
-    fontFamily: "Bricolage Grotesque, Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(20px, 5.2vw, 24px)"
-    fontWeight: 700
-    lineHeight: 1.15
-    letterSpacing: "-0.01em"
-  hero-tier:
-    fontFamily: "Bricolage Grotesque, Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(23px, 6.2vw, 38px)"
-    fontWeight: 700
-    lineHeight: 1.12
-  page-title:
-    fontFamily: "Bricolage Grotesque, Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "28px"
-    fontWeight: 800
-    lineHeight: 1.12
-    letterSpacing: "-0.03em"
-  section-title:
-    fontFamily: "Bricolage Grotesque, Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontWeight: 400
+    lineHeight: 1.1
+  line-name:
+    fontFamily: "Bagel Fat One, Figtree, ui-sans-serif, system-ui, sans-serif"
     fontSize: "22px"
-    fontWeight: 800
-    lineHeight: 1.12
-    letterSpacing: "-0.01em"
+    fontWeight: 400
+    lineHeight: 1.15
+  hero-tier:
+    fontFamily: "Bagel Fat One, Figtree, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(23px, 6.2vw, 38px)"
+    fontWeight: 400
+    lineHeight: 1.1
+  page-title:
+    fontFamily: "Bagel Fat One, Figtree, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "28px"
+    fontWeight: 400
+    lineHeight: 1.1
+  section-title:
+    fontFamily: "Bagel Fat One, Figtree, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "24px"
+    fontWeight: 400
+    lineHeight: 1.1
   title:
-    fontFamily: "Bricolage Grotesque, Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "19px"
-    fontWeight: 700
-    lineHeight: 1.12
+    fontFamily: "Bagel Fat One, Figtree, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "18px"
+    fontWeight: 400
+    lineHeight: 1.1
   lede:
-    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "17px"
+    fontFamily: "Figtree, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(17px, 2.2vw, 20px)"
     fontWeight: 400
     lineHeight: 1.5
+  reason:
+    fontFamily: "Figtree, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(20px, 5vw, 24px)"
+    fontWeight: 600
+    lineHeight: 1.35
   body:
-    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Figtree, ui-sans-serif, system-ui, sans-serif"
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Figtree, ui-sans-serif, system-ui, sans-serif"
     fontSize: "14px"
     fontWeight: 600
     lineHeight: 1.5
   caption:
-    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Figtree, ui-sans-serif, system-ui, sans-serif"
     fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.5
@@ -106,9 +108,9 @@ typography:
     lineHeight: 1.5
     fontFeature: "tabular-nums"
 rounded:
-  sm: "4px"
-  card: "6px"
-  lobe: "6px"
+  sm: "10px"
+  card: "22px"
+  lobe: "28px"
   pill: "999px"
 spacing:
   s-1: "4px"
@@ -120,25 +122,26 @@ spacing:
   s-7: "48px"
 components:
   tier:
-    backgroundColor: "{colors.tier-ok-fill}"
-    textColor: "{colors.ink}"
+    backgroundColor: "{colors.tier-good}"
+    textColor: "{colors.on-tier}"
     typography: "{typography.label}"
     rounded: "{rounded.pill}"
     padding: "4px 14px"
   tier-lg:
     backgroundColor: "{colors.tier-good}"
-    textColor: "{colors.on-brand}"
+    textColor: "{colors.on-tier}"
     typography: "{typography.hero-tier}"
     rounded: "{rounded.pill}"
     padding: "8px 22px"
-  tier-lg-dashed:
-    backgroundColor: "{colors.tier-ok-fill}"
+  tier-provisional:
+    backgroundColor: "{colors.tier-good-fill}"
     textColor: "{colors.ink}"
     rounded: "{rounded.pill}"
-    padding: "8px 22px"
+    padding: "4px 14px"
   nee:
-    textColor: "{colors.muted}"
-    rounded: "{rounded.card}"
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
     padding: "8px 18px"
   chip:
     backgroundColor: "{colors.sunk}"
@@ -176,6 +179,11 @@ components:
     rounded: "{rounded.pill}"
     padding: "8px 20px"
     height: "44px"
+  sign-in-pill:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
+    padding: "8px 18px"
   dir-chip:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -183,17 +191,40 @@ components:
     padding: "0 16px"
     height: "44px"
   dir-chip-pressed:
-    backgroundColor: "{colors.accent-soft}"
+    backgroundColor: "{colors.brand}"
+    textColor: "{colors.on-brand}"
+  shortlist-btn:
+    backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
+    rounded: "{rounded.pill}"
+    padding: "0 14px 0 10px"
+    height: "44px"
+  shortlist-btn-pressed:
+    backgroundColor: "{colors.brand}"
+    textColor: "{colors.on-brand}"
   ementa:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.card}"
+  ementa-course:
+    backgroundColor: "{colors.sunk}"
+    textColor: "{colors.ink}"
+    padding: "12px 16px 6px"
   report-hero:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.lobe}"
     padding: "24px"
+  compare-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.card}"
+    padding: "16px"
+  shortlist-dock:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.lobe}"
+    padding: "10px 16px"
   flag:
     backgroundColor: "{colors.flag-fill}"
     textColor: "{colors.ink}"
@@ -207,6 +238,7 @@ components:
   filter-sheet:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
+    rounded: "{rounded.lobe}"
     padding: "0 16px 20px"
   skeleton-block:
     backgroundColor: "{colors.band}"
@@ -220,207 +252,203 @@ components:
 
 # Design System: Gluton-Free
 
-Recorded from the shipped build of issue #121, round 2 ("Ementa do Dia", seed 268cf2c0), from `src/app/globals.css`, `layout.tsx`, `page.tsx`, `directory.tsx`, `directory-controls.tsx` and `r/[slug]/page.tsx`. It replaces the round-1 "Guide Map Lobes" system. Where the build and the direction contract differ, the build is recorded and the difference is noted.
+Recorded from the shipped build of the round-3 "Recorte" redesign (owner-chosen, seed key c109bad0), from `src/app/globals.css`, `layout.tsx`, `page.tsx`, `compare/page.tsx`, `directory.tsx`, `r/[slug]/page.tsx` and `src/web/*.tsx`. It replaces the round-2 "Ementa do Dia" system. Provenance and decisions: `docs/design-round-3-decision-journey.md`. Where the build and the direction contract differ, the build is recorded.
 
 ## Overview
 
-**Creative North Star: "Ementa do Dia"**
+**Creative North Star: "Recorte"**
 
-The guide is an ementa, the paper menu of a Lisbon tasca, printed in one colour of blue ink on table-paper white. A Restaurant is a line: name, dotted leader, Verdict. The leader carries the eye from a name to its call, so a diner compares tables by reading down one edge. The system refuses the category default of a photo card with a star score.
+The guide is a paper cut-out, Matisse's scissors in a Lisbon kitchen. Flat saturated colour fields and food shapes (lemon, tomato, olive, cobalt) are cut from paper and set on a lemon ground; cream paper cards carry the facts. The joy is colour with a job: lemon is the ground, cobalt is the action, tomato marks the word "eat" and warnings, olive is Good-side. The system refuses the category default of a white photo card with a star score, and the sober paper-menu look it replaces.
 
-Surfaces are flat paper. Blue double rules frame the menu and Report hero; the page is quiet, the Verdict is the loudest thing on it. Recognisable with content removed: the framed menu, dotted leaders, round pips. There are no gradients in surfaces and no photographs; one soft paper lift is the only shadow.
+Cards are cream paper lifted off the ground by one soft shadow, with large radii. A Restaurant is still a line: name, dotted leader, Verdict. Recognisable with content removed: a lemon page, a tomato blob and cobalt disc bleeding off the edges, cream rounded cards, a chunky rounded face.
 
 **Key Characteristics:**
-- One ink: blue carries brand, links, actions, rules and focus. Tomato marks Avoid, red flags and errors; menu green marks Good-side Tiers and positives.
-- Logo mark: the original open G-and-dot mark, with the G in Ementa Blue (#1C3D9B) and the dot in brighter blue (#3A7BD5). Its warm cream counter sits on the transparent mark and the header's cream tile; app icons use the same mark on that tile. The wordmark remains live text.
-- Double-rule frames (2px rule plus a second 2px rule 3px outside) mark the ementa and the Report hero.
-- Dotted rules (2px, `edge`) divide sections and join name to Verdict.
-- Round pips and dots carry meaning (Tier 1-5, Confidence 1-3) alongside words.
-- Capsule controls, 44px minimum touch height.
-- Light and dark themes share one structure; only values change.
+- Lemon ground (#FFD23F) with cream cards (#FFF8E7); ink (#14110F) for all text.
+- Cobalt (#1F3FBF) is the action and link colour; coral and olive appear as cut shapes and as Avoid/Good-side signals.
+- Chunky single-weight display face for the wordmark, headlines, Restaurant names and Verdicts; plain sans for reading.
+- Round cut-paper discs, a leaf and organic blobs; pill controls with 44px minimum touch height.
+- Dotted leaders join name to Verdict; the leader draws in coral on hover, focus and touch press.
+- Dark theme is a deep cobalt-ink night with a lemon action; structure unchanged.
 
 ## Colors
 
-Table-paper white and blue-black ink, one saturated blue for everything interactive, a green-to-amber Tier family, and tomato held back for Avoid and flags.
+A lemon page, cream paper, near-black warm ink, one cobalt for action, tomato and olive as food-shaped accents, and a Tier family that always carries a label and pips.
 
 ### Primary
-- **Ementa Blue** (#1C3D9B): the one ink. Book and `.btn` fill, links, double-rule frames, focus ring, selection, the leader's drawn state, the landing headline. Dark twin #8FA9FF (accent #A6BAFF, focus #C9D5FF), with `on-brand` #0B1030.
-- **Blue Wash** (#E7ECF9): `accent-soft`. Pressed chips, checked options, banner, welcome card, diet badge tint. Dark #1F274A.
+- **Cobalt** (#1F3FBF, `brand`/`accent`): Book and `.btn` fill, links, pressed chip and shortlist state, pressed-row name, `.skip-link`, the cut disc on the landing. Dark twin is **Lemon** (#FFD23F) with `on-brand` #14110F.
+- **Cobalt Wash** (#DDE4FA, `accent-soft`): banners, Sent notice, diet badge, hover on secondary controls, checked filter options, "N chosen" count. Dark #2B3478.
 
 ### Secondary
-- **Tomato** (#B5301D, token `flag`/`tier-avoid`): Flag cards, Avoid Tier, negative themes and bars, errors. Fill **Tomato Wash** #FCE6E1. Dark #FF9C8A on #3A1F1B.
-- **Menu Green** (#1F6F43, `tier-good`): Good Tier, positive themes, High Confidence tint. Must-go #14502F, fills #DEF0E5 and #C5E4D1.
-- **Highlighter** (#FFE27A, `sun`): the flat inset band under the main reason and the sample reason. Dark #6A5710.
-- **Amber** (`tier-life-changing` #8A5200 on #FFEAB3; `warn` #7A5200 on #FFF0C4): Life-changing Tier, minor flags, provisional and personal-source tints, change-point marks.
+- **Tomato** (#D63A26, `coral`, `on-coral` #FFFFFF): the tilted blob behind "eat" in the landing headline, the step-2 disc, the tomato cut disc, the leader's drawn state. Dark #FF8A75 with ink text.
+- **Olive** (#5E8A1E, `olive`): the cut leaf on the landing only. Dark #A8D45A.
+- **Avoid Red** (#B72A17, `flag`/`tier-avoid`): Avoid Tier, Flag cards, negative themes and bars, errors; fill **Red Wash** #FBDDD6. Dark #FF8A75 on #4A1E1E (flag fill #44201C).
+- **Highlighter** (#FFD23F, `sun`): the flat inset band under the one main reason and under the sample reason; lemon on cream. Dark #6A5710.
+- **Amber** (`warn` #7A5200 on #FFEFB8): minor flags, provisional and personal-source tints, change-point marks. Dark #FFD23F on #3F3508.
 
-Note: `--coral` #D9402B is declared in the build but no rule uses it; the tomato actually shipped is #B5301D. Treat #D9402B as unused.
+### Tier family
+Avoid #B72A17, OK #55506B, Good #4A7216 (olive-leaning), Must-go #14603A, Life-changing #F2A900. Fills #FBDDD6, #E6E3EE, #E1EBC9, #CFE6D6, #FFE9A8. A Tier capsule is solid Tier colour with white text and pips (`on-t` #FFFFFF); Life-changing is the exception, with ink text on amber. Dark: #FF8A75, #B9BEDD, #A8D45A, #6FD39A, #FFD23F on fills #4A1E1E, #262C60, #26391A, #153D2A, #4A3A08 with ink text.
 
 ### Neutral
-- **Table Paper** (#F5EFE0): page ground. **Card Cream** (#FFF9EA): ementa, hero, cards, sheet. **Sunk** (#ECE4CE): wells, chips, hover row. **Band** (#E4DBC3): rails, meters, skeleton blocks.
-- **Blue-Black Ink** (#141B3A): all text on fills; **Muted** (#424968), **Faint** (#525877); **Line** (#D6CDB6) hairlines; **Edge** (#6F7592) dotted rules, input and chip borders.
-- **OK Slate** (`tier-ok` #4D5578 on #E9EBF3): OK Tier, Steady trend, and the family's neutral.
+- **Lemon Ground** (#FFD23F): page background; scrollbar and `themeColor` match. **Cream Paper** (#FFF8E7): cards, rows, hero, sheet, inputs. **Sunk** (#F6E6B4): wells, chips, row hover, course headers. **Band** (#EBD9A0): rails, meters, skeleton blocks.
+- **Warm Ink** (#14110F): all text and the focus ring. **Muted** (#4D4108), **Faint** (#594C10): secondary text; **Line** (#E2C766) hairlines; **Edge** (#7A6416) dotted rules and control borders.
+- Dark neutrals: ground #0E1233, surface #1A2050, sunk #141A45, ink #FFF3D1, muted #CDD0EE, faint #ADB1DA, line #2E3672, edge #808ACB, band #2B3470. Dark applies by `prefers-color-scheme` or `data-theme="dark"`.
 
 ### Named steps
-- **Dark twin:** every light token has a dark twin on the same role (ground #0F1220, surface #171B30, sunk #131728, ink #EEF0F8, muted #B0B6CF, faint #9298B4, line #2D3454, edge #6C7396, band #2A3050; Tier colours #FF9C8A / #B7BDD6 / #7FD1A0 / #A5E8BF / #FFD25A on #3D1E1A / #262B42 / #16301F / #1E4630 / #4A3A0A; warn #F2C94C on #3A3010). Dark applies by `prefers-color-scheme` or `data-theme="dark"`.
 - **Scrim:** rgba(10,14,36,.55) behind the filter sheet.
-- **Logo tile:** #F5F1E4 behind the 32px logo in both themes.
-- **Status tints:** Confidence High and Trend Improving use the Good fill; Medium and provisional use the warn fill; Low and Slipping the Avoid fill; Steady the OK fill.
+- **Logo disc:** #FFF8E7 behind the 36px round logo in the top bar.
+- **Status tints:** Confidence High and Trend Improving use the Good fill; Medium and provisional the warn fill; Low and Slipping the Avoid fill; Steady the OK fill.
 
 ### Named Rules
-**The One Ink Rule.** Blue is the only interactive and brand colour. Tomato is for Avoid and red flags, green for Good-side Tiers; neither is used as decoration.
+**The Colour-With-A-Job Rule.** Lemon is the ground, cobalt is the action, tomato marks "eat", warnings and the leader, olive is Good-side. A cut shape is decoration only when it sits in the page gutter or behind a figure, never under text.
 
-**The Never-Hue-Alone Rule.** Tier is carried by label plus pip count (1 to 5 filled round pips) plus fill. Confidence is carried by dot count (1 to 3) plus its word. Trend is carried by arrow plus word. Colour never stands alone.
+**The Never-Hue-Alone Rule.** Tier is carried by label plus pip count (1 to 5 round pips) plus fill. Confidence is dots plus its word. Trend is an arrow plus its word.
 
-**The Dashed Means Unsure Rule.** A dashed outline on a Tier or status atom means a provisional Tier or Not enough evidence. Nothing else uses a dashed border there.
+**The Dashed Means Unsure Rule.** A dashed outline on a Tier or status atom means a provisional Tier or Not enough evidence, and the disabled shortlist button. Nothing else uses a dashed border on such atoms.
 
-**The NEE Is A State Rule.** Not enough evidence is a state, not a Tier: no pips, no Tier colour, a dashed muted frame at card radius (`.nee`, `.nee-chip`, the dashed "Not enough evidence" filter option). It is never ranked or coloured like a Tier.
+**The NEE Is A State Rule.** Not enough evidence is a state, not a Tier: no pips, no Tier colour, a dashed faint pill (`.nee`, `.nee-chip`, the dashed filter option). Never ranked or coloured like a Tier.
 
-**The Ink-On-Fill Rule.** In lists and chips, text on a tinted Tier fill is ink; Tier colours are borders and pips. The one exception is the Report's large Verdict (`.tier.lg`), which is solid Tier colour with paper-colour text (`on-t`). A provisional large Verdict stays tinted with ink text and a dashed rule.
+**The Provisional Stays Tinted Rule.** A provisional Tier (`.tier.dashed`) keeps the tinted fill with ink text and ink pips and a dashed rule; only a confirmed Tier is solid.
 
 ## Typography
 
-**Display Font:** Bricolage Grotesque (via next/font, 800 and 700, fallback Schibsted Grotesk then system sans)
-**Body Font:** Schibsted Grotesk (via next/font, system sans fallback)
-**Ledger Font:** Courier Prime (400, 700), for ledger data only: price, counts, dates, percentiles, axis ticks, language tags, Evidence figures
+**Display Font:** Bagel Fat One (via next/font, one weight, 400; fallback Figtree then system sans)
+**Body Font:** Figtree (via next/font, weights as shipped, system sans fallback)
+**Ledger Font:** Courier Prime (400, 700), for ledger data only: percentile values, axis ticks, counts, language tags
 
-**Character:** Bricolage is heavy and slightly quirky for names, Verdicts and headings; Schibsted reads plainly; Courier Prime is the till receipt, used only where a figure must align. Fraunces italic is the printed voice: the masthead, Tier course headings, Verdict reasons and the sample Restaurant kind, never UI chrome, numbers or body copy.
+**Character:** Bagel Fat One is chunky, rounded and cut-paper friendly, a food-label voice for names and Verdicts. Figtree is a friendly plain reader. Courier Prime is the till receipt, only where figures must align. The display face has a single weight, so `font-weight` on display text is inert (`font-synthesis:none`); hierarchy comes from size.
 
 ### Hierarchy
-- **Display** (800, clamp(46px, 13.4vw, 76px), 0.95, -0.035em, `brand` colour, max 13ch): landing headline only.
-- **Headline** (800, clamp(32px, 8vw, 48px), 1.05, -0.025em): restaurant name on the Report hero.
-- **Directory title** (800, clamp(26px, 6vw, 34px), -0.02em): Directory heading and state-page title; privacy and account titles run clamp 28 to 38 and 30 to 42 at 800.
-- **Ementa name** (700, 22px, 1.15, -0.01em): consistent across Directory sorts; the sample line runs 700 at clamp(22px, 5.5vw, 26px).
-- **Hero Tier** (700, clamp(23px, 6.2vw, 38px)): the large Verdict on the Report hero; `.tier.lg` elsewhere is 26px; the Tier in a list is 700 at body size.
-- **Page title** (800, 28px, -0.03em): sign-in, settings, baseline checks, feedback inbox.
-- **Section title** (700, 24px, -0.02em): Report section headings; Bricolage, upright. Fraunces italic is reserved for reasons, selected quotes and course headings.
-- **Title** (700, 17px to 19px, display face): sheet group legends, "How we judged this" summary, source-card name 18px.
-- **Lede** (400, 17px, 1.5): intro, sample reason, search input; the Report reason is 500 at clamp(20px, 5vw, 24px), max 62ch.
-- **Body** (400, 16px, 1.5): running text, inputs.
-- **Label** (600 to 700, 14px): chips, row labels (muted), meta lines, field labels, table headers 13px.
-- **Caption** (400, 12px): footnotes, tooltips, axis, language tags. 12px is the floor.
-- **Ledger** (Courier Prime, 12 to 13.5px, tabular): percentile values, axis ticks, counts, source figures.
-
-Odd values (12.5px, 13.5px, 14.5px, 15px, 21px) are one-off refinements around these steps; do not add more.
+- **Display** (400, clamp(44px, 13.4vw, 76px), 0.98, max 11ch): landing headline only; "eat" sits on a tomato blob tilted -3deg.
+- **Headline** (400, clamp(32px, 8vw, 48px), 1.05): restaurant name on the Report hero.
+- **Directory title** (400, clamp(26px, 6vw, 34px)): Directory heading, state-page title, Compare title clamp 30 to 44; 24px at 520px and below.
+- **Line name** (400, 22px, 1.15; 21px at 520px and below): Restaurant name in a Directory line; Compare and sample names clamp 22 to 26px.
+- **Hero Tier** (clamp(23px, 6.2vw, 38px)): the large Verdict on the Report hero; `.tier.lg` elsewhere 26px; Tier in a list is display face at body size, 15px on phone rows.
+- **Page title** (28px): sign-in, settings, baseline checks, feedback inbox; privacy and account clamp 28 to 42.
+- **Section title** (24px): Report section headings; owner-tool sub-headings 19px.
+- **Title** (17 to 22px, display face): filter group summaries 17px, source-card names 18px, sheet title 22px, "How we judged this" section heading 24px.
+- **Lede** (Figtree 400, clamp(17px, 2.2vw, 20px), 1.5): landing intro. **Reason** (Figtree 600, clamp(20px, 5vw, 24px), 1.35, max 62ch): the Report's main reason; a Directory line reason is 500 at 16.5px.
+- **Body** (400, 16px, 1.5). **Label** (600 to 800, 14px): chips, row labels, meta lines, field labels. **Caption** (12px): footnotes, tooltips, axis, language tags; 12px is the floor.
+- **Ledger** (Courier Prime, 12 to 13.5px, tabular): percentile values, axis ticks, counts, language tags.
 
 ### Named Rules
-**The Ledger Only Rule.** Courier Prime appears only on figures that must align: price, counts, dates, percentiles, Evidence numbers. Never on names, headings, labels or running copy.
+**The Ledger Only Rule.** Courier Prime appears only on figures that must align. Never on names, headings, labels or running copy.
 
-**The Step-Not-Size Rule.** New text takes a named step above. A new literal size needs a reason and a place in this list.
+**The One Face Per Job Rule.** Bagel Fat One is for the wordmark, headlines, Restaurant names, Verdicts and button labels that name an action on the landing and state pages; Figtree carries all reading and UI chrome.
 
 **The Verdict Vocabulary Rule.** Copy never calls a Verdict a "score", "rating" or "grade". Say Verdict, Tier, Confidence.
 
 ## Layout
 
-Single centred column. `.wrap` max 720px; the landing widens to 960px; the Directory (and its wide skeleton, and the top bar above it) to 1120px. Body has 16px gutters and 32px bottom spacing plus the safe-area inset. Spacing scale 4 / 8 / 12 / 16 / 24 / 32 / 48.
+Single centred column. `.wrap` max 720px; the landing widens to 960px; the Directory (and its skeleton and top bar) to 1120px. Body gutters 16px; bottom padding 32px plus safe-area inset, growing to 96px (112px at 520px and below) while the shortlist dock exists. Spacing scale 4 / 8 / 12 / 16 / 24 / 32 / 48.
 
-Report: name, area, Verdict, Confidence, reason and warning come first; booking follows the warning and is secondary for forced Avoid. Standout dishes and Dietary fit are compact; then quotes, concise Source cards, expandable method/history, Invitee feedback and collapsed Owner tools. Back to results sits above the hero and preserves the Directory URL and scroll. Landing: the blue headline and two-sentence intro lead into the sign-in action, then the fictional example on phones; at 900px the copy and example sit side by side (1.05fr / .95fr).
+Landing on a phone: headline, framed illustration, short intro, full-width Sign in, then the tilted fictional sample card; the tier menu and three steps follow. From 900px the copy and illustration sit side by side (1.05fr / .95fr). Directory: below 1000px one column of search, a Filters button, scrollable quick chips, removable active filters, then the ementa; from 1000px a 268px sticky filter panel sits left. Filter groups are `details.dir-group` in the order Neighbourhood, Price, Dietary fit, Kind of place, Tier, open on desktop and folded in the sheet. Compare: one column on phones, side by side from 720px. Report: back link and shortlist button share a row; name, address, Verdict, Confidence and reason come first, then Open in Google Maps and "Read the Evidence". The page keeps its state in the URL.
 
-Directory: below 1000px it is one column: search, an always-visible Filters button, scrollable quick chips and removable active filters above the result count and ementa. At 1000px and up a 268px sticky filter panel sits left of the ementa. Each row uses one 22px name style, reason and standout dish; the report link is primary and booking stays secondary. While the list refetches (`aria-busy` on the controls) the ementa dims to 55%.
-
-Top bar: Brand at left, a "Lisboa · Invitation-only beta" tagline, feedback and Settings or "Your data" at right, over a 1px dotted `edge` rule; signed-in navigation includes Directory and Sign out. The page keeps its state in the URL.
+Cut-paper discs bleed off the page edge on every signed-in page (a tomato disc at right, a cobalt disc at left, fixed, behind content); only the gutter sliver shows.
 
 ## Elevation & Depth
 
-Flat paper. Depth is a rule and a tone: cream cards on Table Paper, Sunk wells inside cards, double rules to frame the important things. One soft paper lift exists for secondary cards.
+Cut paper lying on paper. Depth is a soft lift under cream cards plus tone changes (Sunk wells inside cards); there is no hover elevation.
 
 ### Shadow Vocabulary
-- **Paper lift** (`box-shadow: 0 1px 0 rgba(70,50,15,.10), 0 10px 24px -14px rgba(50,35,10,.38)`; dark `0 1px 0 rgba(0,0,0,.4), 0 6px 18px -10px rgba(0,0,0,.6)`): account, settings and index cards, the landing sample card, state pages, the feedback panel. The ementa, Report hero and filter sheet use the double rule instead and carry no shadow.
-- **Highlight band** (`box-shadow: inset 0 -.42em 0 var(--sun)`): a flat marker stroke under the main reason; `inset 0 -.2em 0 var(--flag-bg)` under "eat" in the landing headline. Cloned across line breaks. An inset band, not a gradient and not a drop shadow.
+- **Paper lift** (`box-shadow: 0 2px 0 rgba(20,17,15,.05), 0 16px 28px -18px rgba(60,40,0,.55)`; dark `0 2px 0 rgba(0,0,0,.25), 0 16px 28px -16px rgba(0,0,0,.7)`): ementa, Report hero, sample card, Compare cards, source cards, quotes, forms, sections, state pages.
+- **Button lift** (`0 8px 16px -8px rgba(20,17,15,.5)`; dark `.7`): Book and `.btn`; removed from `.book.sm` in Directory lines.
+- **Sheet and dock lift** (`0 -12px 32px -12px` / `0 -14px 28px -14px`, ink at .55): filter sheet and shortlist dock rising from the bottom edge.
+- **Highlight band** (`box-shadow: inset 0 -.5em 0 var(--sun)`): a flat marker stroke under the main reason, cloned across line breaks. An inset band, not a gradient or drop shadow.
 
 ### Named Rules
-**The Paper Lift Only Rule.** One shadow token. No extra elevation on hover; hover changes tone (Sunk row) or draws the leader.
+**The Lift Does Not Move Rule.** No extra elevation on hover; hover changes tone (Sunk row, Cobalt Wash) or draws the leader.
 
 ## Shapes
 
-Printed and squared-off: a menu card, not a lobe. Cards, rows, flags and source cards 6px; small wells, inputs, language tags 4px; every control, chip, pip and badge a full capsule or circle (999px / 50%). Exceptions: the filter sheet's top corners 14px, the logo tile 8px, the preview panel 10px, tooltips 5px, meter segments and bars 4px, rails 2 to 3px.
+Cut paper: soft, large and round. Cards, rows, flags and source cards 22px (`--r-card`); the Report hero, filter sheet, shortlist dock and desktop filter panel 28px (`--r-lobe`); inputs, small wells and invite rows 10px; every control, chip, pip, Tier and badge a full pill or circle (999px / 50%). Organic blob radii (`--blob-a`, `--blob-b`) shape the word "eat" and the illustration. Cut shapes: cobalt disc (92px), tomato disc (66px), olive leaf (72x34px, corners 0 100% 0 100%, tilted -14deg). The sample card tilts -1.2deg, the illustration -1.5deg, "eat" -3deg; nothing else tilts.
 
-Frames: the **double rule** is `border:2px solid brand` plus `outline:2px solid brand; outline-offset:3px` with 5px margin so the outer rule is not clipped. Keep it on the menu and Report hero only. Dividers: 1px `line` for ordinary groups, dotted `edge` for the menu. Quiet cards: 1px `line`. Flags: 2px Tomato, all round, no side stripe. Grain stays faint and is disabled in dark mode.
+Dividers: dotted `edge` between sections and in the tier menu, 2px dotted `line` between Directory rows. Flags: 2px Avoid Red border, all round, no side stripe. The sign-in pill has a 3px ink border.
 
-Pips are 9px (default), 14px (large; 12px at 480px and under in the hero), 8px on phone rows; Confidence dots 8px (7px in rows).
+Pips are 9px (14px large, 12px in the hero at 480px and below, 8px on phone rows); Confidence dots 8px (7px in rows).
 
 ## Components
 
 ### Tier (`.tier`, `.tier.lg`, `.tier.dashed`)
-Capsule: 2px Tier-colour border, Tier fill, ink text in Bricolage 700, then five round pips (filled up to the Tier, hollow after) and the label. `.lg` (26px; clamp 23 to 38px in the Report hero) is solid Tier colour with paper-colour text and paper-colour pips. Provisional: dashed border; a provisional `.lg` stays tinted with ink text and Tier-colour pips. Phones shrink the row Tier to 15px with 8px pips. No hover transform.
+Pill in the display face: solid Tier colour, white label and white pips (five round pips, filled up to the Tier, hollow after; ink text on Life-changing amber). `.lg` is 26px (clamp 23 to 38px in the hero). Provisional: tinted fill, ink text and ink pips, dashed 2px border. Phones shrink the row Tier to 15px with 8px pips.
 
 ### Not enough evidence (`.nee`, `.nee-chip`)
-A state, not a Tier: 2px dashed `faint` border, muted display text, 6px radius, no pips. In rows it is a compact dashed chip (display 15px).
+A state: 2px dashed `faint` border, ink display text on cream, pill, no pips. In rows a compact transparent dashed chip (display 15px).
 
 ### Confidence, Trend, chips
-Chips are capsules on Sunk. Confidence: three round dots filled to level plus the word, tinted High green, Medium amber, Low tomato. Trend: arrow plus Improving / Steady / Slipping on green, slate or tomato tint. In Directory rows chips drop their fill and read as plain muted text, keeping the dots. Theme chips add a 1.5px green or tomato border. Account and invite chips take a 2px `line` border on white.
+Chips are pills on Sunk. Confidence: dots filled to level plus the word, tinted High olive-wash, Medium amber, Low red. Trend: arrow plus word on green, slate or red tint. In Directory rows chips drop their fill and read as muted text, keeping the dots.
 
 ### Book (`.book`) and Buttons
-- **Shape:** full capsule (999px), 2px border in the fill colour.
-- **Book:** Ementa Blue fill, white text, Bricolage 700 17px, min-height 52px, padding 0 26px; hover mixes 14% black into blue. Full width on phones. `.book.sm`: 44px, 15px. In Directory rows `.book.sm` is a text link: no fill, blue underlined, Schibsted 700, hover Blue Wash.
-- **`.btn`:** same capsule, 44px, 700. **Secondary:** white fill, blue text, 2px blue border, hover Blue Wash. **Danger:** Tomato Wash fill, ink text, 2px Tomato border.
-- **Focus:** 3px blue (`focus`) outline, 3px offset. **Disabled:** Sunk fill, muted text, line border, full opacity, not-allowed.
+- **Book:** cobalt pill, white text, display face 18px, min-height 52px, padding 0 26px, button lift; hover mixes 14% black into cobalt. Full width on phones. `.book.sm`: 44px, Figtree 800 15px. In Directory lines it is a plain cobalt underlined link (hidden at 520px and below); in Compare cards a cream pill with a cobalt border; on the Report a secondary underlined link when Booking is not the lead.
+- **`.btn`:** same pill, 44px, Figtree 800 (display face on the landing CTA and state pages). **Secondary:** cream fill, cobalt text, 2px cobalt border. **Danger:** Red Wash fill, ink text, 2px Avoid Red border.
+- **Sign in (landing):** cream pill, ink text, 3px ink border; hover Sunk.
+- **Focus:** 3px ink outline (lemon-cream #FFE27A in dark), 3px offset. **Disabled:** Sunk fill, muted text, line border, not-allowed.
 
 ### Directory ementa (signature)
-`ul.ementa`: cream, double-rule frame, 6px radius. Each `.dir-row` is a ledger line, 1px `line` between rows, 16px padding. Top line is a grid: name (Bricolage 700) | dotted leader | Tier. Under it a muted 14px meta line (Format, Price, Area), then a foot: Confidence, Trend, dietary icons, and the Book link. The whole row is clickable through the name link's stretched overlay; the Book link sits above it. Hover or focus-within tints the row Sunk and draws the leader.
+`ul.ementa`: cream, 22px radius, paper lift, clipped. Optional `li.ementa-course` headers (display 18px on Sunk with a dotted rule). Each `.dir-row` is a ledger line with a dotted `line` rule between rows: name (display 22px) | dotted leader | Tier, then the one-line reason, a muted meta line (Kind, Price, Area), then a foot of Confidence, dietary marks, shortlist button and, on desktop, the Book link. Trend is not shown on rows. The whole row is clickable through the name link's stretched overlay; hover or focus-within tints the row Sunk and turns the name cobalt.
 
-**The leader** is a 2px dotted `edge` line from name to Verdict. On row hover or focus-within a second 2px dotted blue line is revealed left to right (`clip-path`, 200ms ease-out). Under `prefers-reduced-motion` all transitions collapse and the blue leader appears at once. Keyboard focus shows a 3px inset outline on the row.
+**The leader** is a 2px dotted `edge` line from name to Verdict. On row hover, focus-within and touch press a 3px dotted tomato line is revealed left to right (`clip-path`, 200ms ease-out). Under `prefers-reduced-motion` transitions collapse and the tomato leader appears at once. Keyboard focus shows a 3px inset outline on the row. This is the one authored motion moment.
+
+### Shortlist and dock
+`.shortlist-btn`: 44px pill, 2px `edge` border, round plus-mark that becomes a check; pressed is cobalt with white mark (`aria-pressed`); at three it disables with a dashed border. Up to 3, slugs only in `sessionStorage`, cleared on sign-out. `.shortlist-dock`: fixed cream bar with 28px top corners, count in the display face, Clear link and a "Compare N" pill; hides on `/compare` and on the public landing.
+
+### Compare (`/compare`)
+`ol.compare-grid` of `li.compare-card`: name, Tier, Confidence, reason, `dl.compare-facts` (Kind of place, Price, Neighbourhood, Known for, Dietary fit) with dotted dividers, then actions (Read the Verdict primary, booking secondary, Remove link). It never ranks or highlights a winner; missing data reads "No ... in the Reviews yet".
 
 ### Directory controls and filter sheet
-Quick chips: capsules, 44px, 2px `edge` border on white, 15px 600; pressed is Blue Wash with a blue border. Sort is a capsule select. Options in groups are capsules (2px `edge`), checked state Blue Wash; "Not enough evidence" option is dashed. At 1000px and up options become plain 36px rows inside a sticky white panel with a 1px line border. Below 1000px the full filters open as a modal bottom sheet: fixed to the bottom, white, 14px top radius, 2px blue border (none at bottom), max height 86vh, scrolling, safe-area padding, sticky header with a 2px dotted rule and Bricolage 22px title, over a scrim beneath. Empty state: white card, 2px dashed `edge`.
+Quick chips: 44px pills, 2px `edge` border on cream, 15px 600; pressed is solid cobalt with a white check. Sort is a pill select. Filter options are pills (2px `edge`), checked Cobalt Wash with a cobalt border; "Not enough evidence" is dashed. At 1000px and up options are plain 36px rows in a sticky cream panel. Below 1000px the filters open as a modal bottom sheet: cream, 28px top corners, max-height 86vh, sticky header with a dotted rule, over the scrim. Empty state: cream card, 2px dashed `edge`.
 
 ### Report
-**Hero:** white, double-rule frame, 6px radius, 24px padding: name, area, Verdict and Confidence, reason and warning before booking. Forced Avoid booking is a secondary link. NEE heroes show the `.nee` state, missing-evidence explanation and any red flags before booking.
-**Sections:** upright 24px Bricolage 700 headings. "How we judged this" is a white details card with a 2px `edge` border and a 44px Bricolage summary.
-**Flags:** Tomato-ruled card with a round 28px icon badge; minor flags use the amber pair. A dotted rule separates the quote.
-**Quotes:** white card, 1px `line`; negative quotes take a Tomato border.
-**Scorecard and strips:** five-segment meters (green at 4-5, slate at 3, amber at 2, tomato at 1), 4px percentile rails with a dot, Courier Prime values.
-**Source cards:** one semantic card per Source at every width: white, 1px `line`, 6px radius, linked name, review count and newest review. A native disclosure holds access and processing details; `<dl>` carries the labels and values.
+**Hero:** cream, 28px radius, paper lift, 24px padding: name, address, Verdict, Confidence, the highlighted reason, then `.report-actions` (Open in Google Maps, "Read the Evidence" jump). Forced Avoid keeps booking secondary.
+**Sections:** dotted-top sections with 24px display headings. "How we judged this" is always open, an ordinary section straight after the highlights: no disclosure.
+**Flags:** Red-ruled card with a round 28px icon badge; minor flags use the amber pair.
+**Quotes:** cream card with paper lift; negative quotes take an inset 2px Avoid Red ring.
+**Scorecard and strips:** five-segment meters (olive at 4-5, slate at 3, amber at 2, red at 1), 4px rails with a dot, Courier Prime values.
+**Source cards:** one card per Source: display-face name over a dotted rule, `<dl>` labels and values, a native disclosure for processing details.
+
+**Standing chart:** three cut-paper strips (Higher, Middle, Lower, each labelled in words), a 5px cobalt line with round caps, cream disc dots with a cobalt ring (solid for the latest quarter, hollow for few reviews), a tomato pill marks a Change point. It scales to the column and never sets the page width.
+**Critical quote:** a solid tomato paper card with on-coral text and a "Criticism" pill; never an outline.
+
+**Praising quote:** a solid deep-green paper card (#14603A light, #1F6B45 dark) with cream text, so praise stands off the lemon ground and sits beside the tomato cards; no pill, since the colour is never the only cue (the Criticism pill names the other side).
 
 ### Landing
-Wordmark and secondary Sign in; headline in Display blue with the word "eat" under a Sun band; short intro and sign-in action precede the sample on phones. The fictional Casa Imaginária sample has a double rule and paper lift, a Good Tier, reason and Medium Confidence, with one clear fictional-example note.
-
-### Welcome card, tier legend
-Welcome card: Blue Wash, 1px dashed blue, 6px radius. Tier legend: a details disclosure with a definition list of Tier names and meanings.
+Wordmark and Sign in pill; headline with "eat" on a tomato blob; the framed illustration `public/lisbon-table.png` (a cut-out plate of grilled sardines) in a blob-shaped mask with the cobalt disc, tomato disc and olive leaf behind it, captioned "Original illustration. It does not show any listed Restaurant."; a short intro and full-width cobalt sign-in action; the tier menu; three numbered steps (cobalt, tomato, olive discs); the tilted fictional Casa Imaginária sample with a Good Tier, a highlighted reason and Medium Confidence, labelled as an example.
 
 ### Inputs / Fields
-44px minimum height, 2px `edge` border, white fill, 4px radius (search input 6px, 48px), 16px text. Focus: 3px blue outline offset 2px.
+44px minimum height, 2px `edge` border, cream fill, 10px radius (search input 22px, 48px tall), 16px text. Focus: 3px ink outline, 2px offset.
 
 ### Page skeletons and state pages
-Skeletons: Band blocks pulsing to 55% over 1.4s (removed under reduced motion), shaped like what they stand in for (title 32px, bar 44px capsule, card 160px, row 70px or 132px under 720px, a Report hero variant with a 56px Tier capsule and the Book block pinned to the bottom). State pages (error, not found): double-rule card, paper lift, max 520px, 48px top margin, 26 to 34px 800 heading, capsule actions.
+Band blocks pulsing to 55% over 1.4s (removed under reduced motion), shaped like what they replace. State pages (error, not found): cream card, paper lift, max 520px, 48px top margin, display heading, pill actions.
 
 ### Navigation
-Brand (32px logo, Bricolage 20px 800) and ink 700 links, 13px bar, 44px tap height, over a 1px dotted rule. Feedback widget panel is white with a 2px ink border and the paper lift.
+Brand (36px round logo on a cream disc, display wordmark 22px) and ink 800 links on the lemon ground, 44px tap height, no rule. The feedback widget panel is cream with a 2px ink border. Tagline "Lisboa · Invitation-only beta" hides at 480px and below.
 
-### Icons
-Drawn SVG icons from `src/web/icons.tsx` and `atoms.tsx`: 24px viewBox, 2.25 stroke, round caps, `currentColor`, decorative with `aria-hidden`, always beside words. Forward arrow follows action words; diagonal arrow marks links that leave the app. Stars describe a Review, never the Verdict.
+### Icons and images
+Drawn SVG icons from `src/web/icons.tsx` and `atoms.tsx`: 24px viewBox, 2.25 stroke, round caps, `currentColor`, `aria-hidden`, always beside words. Stars describe a Review, never the Verdict. Rasters: `public/logo-mark.png` (the original G-and-dot mark, kept) and `public/lisbon-table.png` (1536x1024, transparent cut-out, supplied by the owner 2026-10-02, rights owner-confirmed 2026-10-02, creation tool not recorded). The illustration is landing-only and never implies a listed Restaurant.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** give every Tier, Confidence or status atom a shape cue (pips, dots, arrow, dashed outline) and a word.
-- **Do** frame the ementa, Report hero, sample report, state pages and sheet with the blue double rule.
-- **Do** join a name to its Verdict with the dotted leader; draw it on hover and focus in 200ms ease-out and drop the animation under `prefers-reduced-motion`.
+- **Do** use cream cards with the paper lift on the lemon ground; keep shapes round (22px cards, 28px hero, pills for controls).
+- **Do** join a name to its Verdict with the dotted leader; draw it in tomato on hover, focus and touch press in 200ms ease-out, and drop the animation under `prefers-reduced-motion`.
 - **Do** keep Not enough evidence a dashed state with no pips and no Tier colour.
-- **Do** use Courier Prime for price, counts, dates and Evidence figures only.
+- **Do** use Courier Prime for ledger figures only; use Bagel Fat One for names, Verdicts and headlines only.
 - **Do** use the highlighter inset band for the one main reason on a screen.
-- **Do** make every tap target at least 44px tall; keep Book full width on phones.
-- **Do** keep text at 12px or above.
+- **Do** keep cut shapes in gutters or behind figures, never under text.
+- **Do** make every tap target at least 44px tall; keep Book full width on phones; keep text at 12px or above.
 
 ### Don't:
-- **Don't** use gradients in surfaces or fills, or any shadow beyond the paper lift. The one exception is the paper grain, a faint noise tile on the page ground only (off in dark mode), never on cards or fills.
-- **Don't** call a Verdict a score, rating or grade, or show a star or score pill as the Verdict.
+- **Don't** show a star, numeric score or score pill as the Verdict, and don't call a Verdict a score, rating or grade.
 - **Don't** signal Tier or Confidence by hue alone.
-- **Don't** use a dashed outline on a Tier or status atom except for provisional Tier or Not enough evidence.
+- **Don't** use a dashed outline on a Tier or status atom except for a provisional Tier or Not enough evidence.
 - **Don't** treat Not enough evidence as a Tier.
-- **Don't** use tomato or green as decoration; tomato marks Avoid and red flags, green is Good-side.
 - **Don't** add a coloured side stripe to cards or flags; frame them all round.
-- **Don't** use photographs or imagery that implies a listed Restaurant; label the example as fictional.
+- **Don't** rank or highlight a winner in Compare.
+- **Don't** use photographs or imagery that implies a listed Restaurant.
 - **Don't** put a kicker, eyebrow or uppercase caption above headings.
 
 ## Scope and known gaps
 
-Beta surfaces on this system: landing, privacy, Directory, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. The Directory shows reasons and standout dishes; the paginated Restaurant inventory is Owner-only. Portuguese UI is out of scope.
+Beta surfaces on this system: landing, privacy, Directory, Compare, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. The paginated Restaurant inventory is Owner-only. Portuguese UI is out of scope.
 
-## Current implementation (2026-10-02)
-- **Brand and paper.** The open G-and-dot mark is `public/brand-mark.png`; matching PWA rasters live in `public/`. Ground #F5EFE0, Card Cream #FFF9EA, Sunk #ECE4CE, Line #D6CDB6, Band #E4DBC3. The faint paper grain is disabled in dark mode; `themeColor` matches the ground.
-- **Landing.** A short intro and sign-in action precede the clearly labelled fictional example on phones. The Tier menu is centred; the sample line wraps cleanly.
-- **Discovery.** Normal name and neighbourhood search filter the URL-backed Directory. Stored links open a recognised listing; Owner Google Maps search is explicit. Mobile Filters are always visible, active groups are removable, and hidden Not enough evidence has a direct reveal link. The paginated Restaurant inventory is Owner-only.
-- **Navigation and account.** Reports link back to the validated Directory URL and restore its scroll position. Magic-link sign-in carries a safe return path. Invitees have Your data, Sign out and installation guidance; successful account deletion returns with a confirmation.
-- **Report.** Verdict and warnings precede booking. Dishes and Dietary fit are compact; quotes and concise Source cards lead to expandable method/history and feedback. Source processing facts, incident quotes and Owner tools remain available in disclosures.
-- **Supporting flows.** Confidence has an explanation; provisional badges announce their state. Standing history has a latest-eight view and an accessible quarterly list. Spot checks default to Pending and offer direct next-item navigation. Settings group device, beta access and Owner operations; invite creation starts collapsed.
-- **PWA.** Manifest, service worker and icons are available outside the sign-in redirect. The service worker does not cache private data.
+Drift in the build, recorded but not canonized: single-weight Bagel Fat One still carries inert `font-weight` 700/800 declarations; some rules are declared twice (box-shadow on `.state-page` and `.compare-card`); several CSS comments still say "blue double rule" though no double rule ships; `--blob-a`/`--blob-b` are the only organic radii and `--coral` doubles as the leader colour. These are cleanup items, not rules.

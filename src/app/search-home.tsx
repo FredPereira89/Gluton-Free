@@ -227,11 +227,14 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
     && !results.recognised && !results.known.length && !results.candidates.length;
 
   return <section className="index search-home">
-    <h1>Find a Restaurant</h1>
-    <p className="muted">Search Restaurants or neighbourhoods. Have a Restaurant link? Paste a Google Maps, Tripadvisor or TheFork link to open a stored listing.</p>
+    <h1>Where to eat in Lisbon?</h1>
     <label htmlFor="restaurant-search" className="field-label">Search Restaurants or neighbourhoods</label>
     <input id="restaurant-search" type="search" autoComplete="off" value={query}
       onChange={(event) => { setSearchedQuery(""); setQuery(event.target.value); }} placeholder="Restaurant or neighbourhood" />
+    <details className="search-help">
+      <summary className="small">Have a link?</summary>
+      <p className="small muted">Paste a Google Maps, Tripadvisor or TheFork link to open a stored listing.</p>
+    </details>
     <div role="status" aria-live="polite" className="small muted">
       {loading ? "Searching…"
         : spendCapResetAt ? `Today's search budget is spent. It resets at ${formatResetTime(spendCapResetAt)}.`

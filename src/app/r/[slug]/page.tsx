@@ -35,7 +35,8 @@ import { ChangePoints } from "@/web/change-points";
 import { VerdictFeedback } from "@/web/verdict-feedback";
 import { FeedbackWidget } from "@/web/feedback-widget";
 import { UsageEventOnMount, UsageTrackedLink } from "@/web/usage-tracking";
-import { safeDirectoryReturn } from "@/lib/directory-url";
+import { safeReportReturn } from "@/lib/directory-url";
+import { ShortlistButton } from "@/web/shortlist";
 
 type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ from?: string | string[] }> };
 
@@ -57,7 +58,7 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
   const { slug } = await params;
   const [role, loaded, search] = await Promise.all([pageRole(), loadRestaurantBundle(slug), searchParams]);
   if (!loaded) notFound();
-  const from = safeDirectoryReturn(typeof search.from === "string" ? search.from : undefined);
+  const from = safeReportReturn(typeof search.from === "string" ? search.from : undefined);
   const owner = role === "owner" ? loaded : null;
   const page: RestaurantBundle | InviteeBundle = owner ?? projectInviteeBundle(loaded);
   const { restaurant: R } = page;
@@ -65,25 +66,24 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
   const hasForcingRedFlag = v?.blocks.rollup.redFlags.some((group) => group.forcesAvoid) ?? false;
   const marker = owner ? null : <><InviteeView /><UsageEventOnMount type="report_opened" actionKey={R.slug} /></>;
   const ctx = { format: R.format, city: R.city };
-  const crowd = page.sources.filter((s) => s.kind === "crowd");
   const sourceByCode = new Map<string, SourceLink>(page.sources.map((s) => [s.code, s]));
   const activeJob = owner?.activeJob ?? null;
 
+  // The Review sites are listed under Evidence, so the hero's first screen keeps to the Verdict and the next step.
+  const place = R.address
+    ? (R.address.toLowerCase().includes(R.city.toLowerCase()) ? R.address : `${R.address}, ${R.city}`)
+    : [R.area, R.city].filter(Boolean).join(", ");
   const head = (
     <div className="name">
       <h1>{R.name}</h1>
-      <p>
-        {R.address ? `${R.address}, ${R.city}` : [R.area, R.city].filter(Boolean).join(", ")}
-        {crowd.map((s) => (
-          <span key={s.code}>
-            {" · "}
-            <a href={s.url} rel="noreferrer nofollow" target="_blank">
-              {s.name}&nbsp;<ExternalIcon />
-            </a>
-          </span>
-        ))}
-      </p>
+      <p>{place}</p>
     </div>
+  );
+  const nav = (
+    <nav className="report-nav" aria-label="Report navigation">
+      <Link className="btn btn-secondary report-back" href={from}>{from.startsWith("/compare") ? "Back to comparison" : "Back to results"}</Link>
+      <ShortlistButton slug={R.slug} name={R.name} />
+    </nav>
   );
   // The booking link is the next step after the Verdict, so it sits in the hero's first screen as a capsule.
   const bookLink = R.booking && (
@@ -111,7 +111,7 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
   if (!v) {
     return (
       <div className="A">{marker}
-        <Link className="btn btn-secondary report-back" href={from}>Back to results</Link>
+        {nav}
         <section className="hero">
           {head}
           {activeJob?.kind === "lookup" && <LookupProgress jobId={activeJob.id} />}
@@ -137,8 +137,15 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
     </>
   );
   const perSource = r.counts.perSource;
+  // The next step after the Verdict: book or open the map, or read what it rests on.
+  const actions = (
+    <div className="report-actions">
+      {bookLink}
+      <a className="evidence-jump" href="#report-evidence">Read the Evidence</a>
+    </div>
+  );
   const evidenceSections = (
-    <>
+    <div id="report-evidence" className="report-evidence" tabIndex={-1}>
       {v.blocks.quotes.length > 0 && (
         <section className="sec">
           <h2>In their words</h2>
@@ -149,21 +156,21 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
                 text={q.text} textEn={q.textEn} lang={q.lang} stars={q.stars}
                 sourceName={s?.name ?? q.source} sourceUrl={s?.url ?? null}
                 month={monthLabel(q.month)} aspectLabel={ASPECT_LABEL[q.aspect]}
-                negative={q.polarity < 0} access={q.access ?? s?.access} readOnly={!owner} />;
+                negative={q.polarity < 0} positive={q.polarity > 0} access={q.access ?? s?.access} readOnly={!owner} />;
             })}
           </div>
         </section>
       )}
       {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
       <Sources page={page} owner={owner} perSource={perSource} sourceReadings={r.sourceReadings} />
-    </>
+    </div>
   );
 
   if (r.state === "not_enough_evidence") {
     const nee = r.notEnoughEvidence;
     return (
       <div className="A">{marker}
-        <Link className="btn btn-secondary report-back" href={from}>Back to results</Link>
+        {nav}
         <section className="hero">
           {head}
           {activity}
@@ -181,18 +188,18 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
             </ul>
           </div>
           {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
-          {bookLink}
+          {actions}
           {role === "invitee" && r.redFlags.length > 0 && (
             <FeedbackWidget kind="restaurant_issue" restaurantSlug={R.slug} buttonLabel="Something wrong? Tell us" />
           )}
           {historyLink}
         </section>
         {owner && v.explanation && (
-          <details className="judged">
-            <summary>How we judged this</summary>
+          <section className="sec judged" aria-labelledby="judged-title">
+            <h2 id="judged-title">How we judged this</h2>
             <p className="explain"><Explanation text={v.explanation} /></p>
             <Footer createdAt={v.issuedAt} ruleVersion={r.ruleVersion} snapshot={r.peerSnapshot} standings={r.standings} compositeStanding={r.compositeStanding} />
-          </details>
+          </section>
         )}
         {evidenceSections}
         <BundleExtras page={page} owner={owner} />
@@ -235,7 +242,7 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
 
   return (
     <div className="A">{marker}
-      <Link className="btn btn-secondary report-back" href={from}>Back to results</Link>
+      {nav}
       <section className="hero">
         {head}
         {activity}
@@ -249,7 +256,7 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
         </div>
         {!forced && <p className="explain"><span className="hl">{heroReason(r, ctx)}</span></p>}
         {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
-        {bookLink}
+        {actions}
         {notices}
         <div className="chips">
           {baseChips}
@@ -263,12 +270,8 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
 
       <section className="sec report-highlights" aria-label="Strengths and dietary fit">{highlights}</section>
 
-
-
-      {evidenceSections}
-
-      <details className="judged">
-        <summary>How we judged this</summary>
+      <section className="sec judged" aria-labelledby="judged-title">
+        <h2 id="judged-title">How we judged this</h2>
         <div className="judged-body">
           <div>
             <h3>Peer group</h3>
@@ -327,7 +330,10 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
             </div>
           )}
         </div>
-      </details>
+      </section>
+
+      {evidenceSections}
+
       {role === "invitee" && r.state === "verdict" && <VerdictFeedback restaurantSlug={R.slug} verdictId={v.id} />}
       {!owner && <BundleExtras page={page} owner={owner} />}
       {owner && <BundleExtras page={page} owner={owner} />}
@@ -342,9 +348,9 @@ const DIET_LABEL: Record<ReportFactsData["dietaryFits"][number], string> = {
 };
 
 function ReportFacts({ facts }: { facts: ReportFactsData }) {
-  if (!facts.standoutDishes.length && !facts.dietaryFits.length) return null;
+  // Missing dietary information is said plainly, never left as a gap a diner could read as "fine for me".
   return (
-    <section className="report-facts" aria-label="Standout dishes and dietary fit">
+    <section className="report-facts" aria-label={facts.standoutDishes.length ? "Standout dishes and dietary fit" : "Dietary fit"}>
       {facts.standoutDishes.length > 0 && (
         <div>
           <h2>Standout dishes</h2>
@@ -356,12 +362,12 @@ function ReportFacts({ facts }: { facts: ReportFactsData }) {
           ))}</ul>
         </div>
       )}
-      {facts.dietaryFits.length > 0 && (
-        <div>
-          <h2>Dietary fit</h2>
-          <ul>{facts.dietaryFits.map((diet) => <li key={diet}><DietIcon diet={diet} text={DIET_LABEL[diet]} /></li>)}</ul>
-        </div>
-      )}
+      <div>
+        <h2>Dietary fit</h2>
+        {facts.dietaryFits.length > 0
+          ? <ul>{facts.dietaryFits.map((diet) => <li key={diet}><DietIcon diet={diet} text={DIET_LABEL[diet]} /></li>)}</ul>
+          : <p className="small muted">No dietary information in the Reviews yet. Ask the Restaurant before you go.</p>}
+      </div>
     </section>
   );
 }
