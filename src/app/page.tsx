@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { AuthError, requireCaller } from "@/lib/auth";
-import { directoryQueryFromPage } from "@/lib/directory-url";
+import { directoryHref, directoryQueryFromPage, isLookupQuery } from "@/lib/directory-url";
+import { TIERS, TIER_MEANING } from "@/domain/aspects";
 import { WELCOME_DISMISSED_COOKIE } from "@/domain/welcome";
 import { Brand } from "@/web/brand";
+import { Masthead } from "@/web/masthead";
 import { ConfChip, TierBadge } from "@/web/atoms";
 import { loadDirectory } from "@/web/data";
 import { WelcomeCard } from "@/web/welcome-card";
@@ -17,21 +19,23 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function LandingPage() {
+function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
   return (
     <div className="public-page landing-page">
       <header className="landing-header">
         <Brand />
         <Link className="btn btn-secondary landing-sign-in" href="/sign-in">Sign in</Link>
       </header>
+      {accountDeleted && <p className="account-deleted-notice" role="status">Your account and Invitee data were deleted.</p>}
+
+      <Masthead />
 
       <section className="landing-top" aria-labelledby="landing-title">
         <div className="landing-copy">
           <h1 id="landing-title">Know where to <span className="hl-eat">eat</span> in Lisbon.</h1>
           <p className="landing-intro">
-            Gluton-Free is a Lisbon Restaurant Verdict guide. It reads what diners say and gives each Restaurant
-            one clear Verdict, judged against others of its own kind, so a tasca is compared with tascas,
-            not with every restaurant in the city.
+            Gluton-Free reads what diners say and gives every Lisbon Restaurant one clear Verdict.
+            Each is judged against its own kind: a tasca against tascas, not the whole city.
           </p>
         </div>
 
@@ -43,20 +47,16 @@ function LandingPage() {
               <i className="leader" aria-hidden="true" />
               <TierBadge tier="good" />
             </div>
-            <p className="sample-report-kind">A fictional Lisbon tasca</p>
+            <p className="sample-report-kind">Lisbon tasca</p>
             <p className="sample-report-reason">
-              <span className="hl">Solid choice for its kind.</span> In this invented example, diners praise the simple plates;
+              <span className="hl">Solid choice for its kind.</span> Diners praise the simple plates;
               reports about busy-hour waits are mixed.
             </p>
             <div className="sample-report-foot">
-              <div className="sample-report-conf">
-                <ConfChip level="medium" />
-                <span className="small muted">Every detail in this report is fictional. No real Verdicts are public.</span>
-              </div>
-              <span className="stamp" aria-hidden="true">Not a real Verdict</span>
+              <ConfChip level="medium" />
             </div>
           </article>
-          <p className="example-label">Fictional example · invented for this page</p>
+          <p className="example-label">Fictional example. No real Restaurant Verdicts are public.</p>
         </div>
 
         <div className="landing-actions">
@@ -67,6 +67,19 @@ function LandingPage() {
             <li>Invitation-only beta</li>
           </ul>
         </div>
+      </section>
+
+      <section className="landing-menu" aria-labelledby="menu-title">
+        <h2 id="menu-title">How a Verdict reads</h2>
+        <p className="landing-menu-lede">Every Restaurant gets one Tier, judged against its own kind. Highest first.</p>
+        <ol className="ementa tier-menu">
+          {[...TIERS].reverse().map((tier) => <li key={tier} className="tier-line">
+            <p className="tier-meaning">{TIER_MEANING[tier]}</p>
+            <i className="leader" aria-hidden="true" />
+            <TierBadge tier={tier} />
+          </li>)}
+        </ol>
+        <p className="landing-menu-note">A dashed outline means the Tier is provisional.</p>
       </section>
 
       <footer className="landing-footer">
@@ -88,14 +101,25 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
     if (!(error instanceof AuthError)) throw error;
   }
 
-  if (!role) return <LandingPage />;
+  if (!role) {
+    const params = await searchParams;
+    return <LandingPage accountDeleted={params?.account === "deleted"} />;
+  }
   // The directory's state lives in the URL, so a refresh or a shared link restores it.
   const query = directoryQueryFromPage(await searchParams ?? {});
-  const result = await loadDirectory(query);
+  const defaultQuery = directoryQueryFromPage({});
+  const lookupInput = isLookupQuery(query.q);
   const welcomed = (await cookies()).get(WELCOME_DISMISSED_COOKIE) !== undefined;
+  const [result, unfilteredResult] = await Promise.all([
+    lookupInput ? Promise.resolve(null) : loadDirectory(query),
+    !welcomed && directoryHref(query) !== directoryHref(defaultQuery) ? loadDirectory(defaultQuery) : Promise.resolve(null),
+  ]);
+  const coverage = unfilteredResult ?? result;
+  const restaurantsCount = coverage ? coverage.total + coverage.hiddenNotEnoughEvidence : 0;
   return <>
-    {!welcomed && <WelcomeCard />}
+    {!welcomed && <WelcomeCard restaurantsCount={restaurantsCount} />}
+    <Masthead />
     <SearchHome canAddRestaurant={role === "owner"} initialQuery={query.q} trackUsage={role === "invitee"} />
-    <Directory query={query} result={result} trackUsage={role === "invitee"} />
+    {!lookupInput && result && <Directory query={query} result={result} trackUsage={role === "invitee"} />}
   </>;
 }

@@ -41,10 +41,9 @@ describe("Restaurant list screen", () => {
     expect(html).toMatch(/class="tier [^"]*dashed/);
   });
 
-  it("marks the page for an Invitee so the shell hides Settings, and leaves the Owner's page unmarked (issue #109)", async () => {
+  it("redirects Invitees away from the Owner-only inventory", async () => {
     vi.mocked(listRestaurants).mockResolvedValue({ items: [], nextCursor: null });
     vi.mocked(pageRole).mockResolvedValueOnce("invitee");
-    expect(renderToStaticMarkup(await RestaurantListPage({ searchParams: Promise.resolve({}) }))).toContain("invitee-view");
-    expect(renderToStaticMarkup(await RestaurantListPage({ searchParams: Promise.resolve({}) }))).not.toContain("invitee-view");
+    await expect(RestaurantListPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("NEXT_REDIRECT");
   });
 });

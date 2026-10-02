@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { DIETS, DIET_LABEL } from "@/domain/dish-dietary";
 import { TIERS, TIER_LABEL } from "@/domain/aspects";
 import { FORMAT_FAMILIES } from "@/domain/format-labels";
@@ -26,41 +27,67 @@ function toggled<T>(values: readonly T[], value: T): T[] {
   return values.includes(value) ? values.filter((each) => each !== value) : [...values, value];
 }
 
-export default function DirectoryControls({ query, neighbourhoods, trackUsage = false }: { query: DirectoryQuery; neighbourhoods: { name: string; count: number }[]; trackUsage?: boolean }) {
+export default function DirectoryControls({ query, neighbourhoods, resultCount, trackUsage = false }: { query: DirectoryQuery; neighbourhoods: { name: string; count: number }[]; resultCount: number; trackUsage?: boolean }) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [mobileViewport, setMobileViewport] = useState(false);
   const [pending, startTransition] = useTransition();
   // The controls show the tap at once; the server-rendered query replaces it when the new view arrives.
   const [shown, showOptimistic] = useOptimistic(query, (current: DirectoryQuery, next: Partial<DirectoryQuery>) => ({ ...current, ...next }));
-  const sheet = useRef<HTMLDivElement>(null);
+  const filterDialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const filterButton = useRef<HTMLButtonElement>(null);
-  const activeFilters = shown.tier.length + shown.family.length + shown.price.length + shown.area.length + shown.diet.length + (shown.nee ? 1 : 0);
+  const sortSelect = useRef<HTMLSelectElement>(null);
+  const activeFilters = Number(shown.tier.length > 0) + Number(shown.family.length > 0) + Number(shown.price.length > 0)
+    + Number(shown.area.length > 0) + Number(shown.diet.length > 0) + Number(shown.nee);
+  const returnTo = directoryHref(query);
+
+  useEffect(() => {
+    const key = `gluton-directory-scroll:${returnTo}`;
+    let raw: string | null = null;
+    try { raw = sessionStorage.getItem(key); sessionStorage.removeItem(key); } catch { return; }
+    const y = raw === null ? NaN : Number(raw);
+    if (Number.isFinite(y) && y >= 0) requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "auto" }));
+  }, [returnTo]);
 
   function closeSheet() {
     setSheetOpen(false);
+    if (filterDialog.current?.open) filterDialog.current.close();
     filterButton.current?.focus();
   }
 
-  // The phone sheet is modal: focus moves in, Tab stays inside, Escape closes, the page behind does not scroll.
+  // Match the mobile sheet breakpoint and return to a visible control when resizing to the desktop sidebar.
   useEffect(() => {
-    if (!sheetOpen) return;
-    closeButton.current?.focus();
-    const scrollBefore = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") return closeSheet();
-      if (event.key !== "Tab" || !sheet.current) return;
-      const focusable = [...sheet.current.querySelectorAll<HTMLElement>("button, input, select, [href]")].filter((el) => !el.hasAttribute("disabled"));
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    const media = window.matchMedia("(max-width: 999px)");
+    const updateViewport = () => {
+      setMobileViewport(media.matches);
+      if (!media.matches) {
+        if (filterDialog.current?.open) filterDialog.current.close();
+        setSheetOpen(false);
+        requestAnimationFrame(() => sortSelect.current?.focus());
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = scrollBefore; };
-  }, [sheetOpen]);
+    updateViewport();
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
+  }, []);
+
+  // A native modal dialog isolates background controls, traps focus, and closes on Escape.
+  useEffect(() => {
+    const dialog = filterDialog.current;
+    if (!mobileViewport || !sheetOpen || !dialog) return;
+    const previousOverflow = document.body.style.overflow;
+    if (!dialog.open) dialog.showModal();
+    document.body.style.overflow = "hidden";
+    closeButton.current?.focus();
+    const onClose = () => setSheetOpen(false);
+    dialog.addEventListener("close", onClose);
+    return () => {
+      dialog.removeEventListener("close", onClose);
+      document.body.style.overflow = previousOverflow;
+      if (dialog.open) dialog.close();
+    };
+  }, [mobileViewport, sheetOpen]);
 
   // Every change goes into the URL, back on the first page; the server renders the new view.
   function go(next: Partial<DirectoryQuery>, eventType?: "filter" | "sort") {
@@ -86,44 +113,56 @@ export default function DirectoryControls({ query, neighbourhoods, trackUsage = 
     </fieldset>;
   }
 
-  const goodOrBetter = GOOD_OR_BETTER.every((tier) => shown.tier.includes(tier));
+  const goodOrBetter = shown.tier.length === GOOD_OR_BETTER.length && GOOD_OR_BETTER.every((tier) => shown.tier.includes(tier));
   function quick(label: string, pressed: boolean, onClick: () => void) {
     return <button key={label} type="button" className="dir-chip" aria-pressed={pressed} onClick={onClick}>{label}</button>;
   }
 
+  const filterOptions = <>
+    {group("tier", "Tier", TIERS.map((tier) => ({ value: tier, label: TIER_LABEL[tier] })).reverse())}
+    {group("family", "Format family", FORMAT_FAMILIES.map((family) => ({ value: family.code, label: family.label })))}
+    {group("diet", "Dietary fit", DIETS.map((diet) => ({ value: diet, label: DIET_LABEL[diet] })))}
+    {group("price", "Price", PRICE_TIERS.map((price) => ({ value: price, label: price })))}
+    {group("area", "Neighbourhood", neighbourhoods.map(({ name, count }) => ({ value: name, label: name, count })))}
+    <label className="dir-option dir-nee">
+      <input type="checkbox" checked={shown.nee} onChange={() => go({ nee: !shown.nee }, "filter")} />
+      <span>Show Restaurants with Not enough evidence</span>
+    </label>
+    {activeFilters > 0 && <button type="button" className="btn btn-secondary dir-clear" onClick={() => go({ tier: [], family: [], diet: [], price: [], area: [], nee: false }, "filter")}>Clear all filters</button>}
+  </>;
+
   return <div className="dir-controls" aria-busy={pending}>
-    <div className="dir-quick" role="group" aria-label="Quick filters">
-      {quick("Good or better", goodOrBetter, () => go({ tier: goodOrBetter ? shown.tier.filter((tier) => !GOOD_OR_BETTER.includes(tier as (typeof GOOD_OR_BETTER)[number])) : [...new Set([...shown.tier, ...GOOD_OR_BETTER])] }, "filter"))}
-      {DIETS.map((diet) => quick(DIET_LABEL[diet], shown.diet.includes(diet), () => pick("diet", diet)))}
-      <button ref={filterButton} type="button" className="dir-chip dir-more" aria-expanded={sheetOpen} aria-controls="dir-filters" onClick={() => setSheetOpen(true)}>
-        All filters{activeFilters ? ` (${activeFilters})` : ""}
+    <div className="dir-mobile-filter-row">
+      <div className="dir-quick" role="group" aria-label="Quick filters">
+        {quick("Good or better", goodOrBetter, () => go({ tier: goodOrBetter ? [] : [...GOOD_OR_BETTER] }, "filter"))}
+        {DIETS.map((diet) => quick(DIET_LABEL[diet], shown.diet.includes(diet), () => pick("diet", diet)))}
+      </div>
+      <button ref={filterButton} type="button" className="dir-chip dir-more" aria-expanded={sheetOpen && mobileViewport} aria-controls="dir-filters" onClick={() => setSheetOpen(true)}>
+        Filters{activeFilters ? ` (${activeFilters})` : ""}
       </button>
     </div>
     <label className="dir-sort">
       <span className="row-label">Sort by</span>
-      <select value={shown.sort} onChange={(event) => {
+      <select ref={sortSelect} value={shown.sort} onChange={(event) => {
         const sort = event.target.value as DirectoryQuery["sort"];
         if (sort !== shown.sort) go({ sort }, "sort");
       }}>
         {DIRECTORY_SORTS.map((sort) => <option key={sort} value={sort}>{SORT_LABEL[sort]}</option>)}
       </select>
     </label>
-    {sheetOpen && <div className="dir-backdrop" aria-hidden="true" onClick={closeSheet} />}
-    <div ref={sheet} id="dir-filters" className={`dir-filters${sheetOpen ? " open" : ""}`} role={sheetOpen ? "dialog" : undefined} aria-modal={sheetOpen ? true : undefined} aria-label="Filters">
-      <div className="dir-sheet-head">
-        <strong>Filters</strong>
-        <button ref={closeButton} type="button" className="btn" onClick={closeSheet}>Show results</button>
-      </div>
-      {group("tier", "Tier", TIERS.map((tier) => ({ value: tier, label: TIER_LABEL[tier] })).reverse())}
-      {group("family", "Format family", FORMAT_FAMILIES.map((family) => ({ value: family.code, label: family.label })))}
-      {group("diet", "Dietary fit", DIETS.map((diet) => ({ value: diet, label: DIET_LABEL[diet] })))}
-      {group("price", "Price", PRICE_TIERS.map((price) => ({ value: price, label: price })))}
-      {group("area", "Neighbourhood", neighbourhoods.map(({ name, count }) => ({ value: name, label: name, count })))}
-      <label className="dir-option dir-nee">
-        <input type="checkbox" checked={shown.nee} onChange={() => go({ nee: !shown.nee }, "filter")} />
-        <span>Show Restaurants with Not enough evidence</span>
-      </label>
-      {activeFilters > 0 && <button type="button" className="btn btn-secondary dir-clear" onClick={() => go({ tier: [], family: [], diet: [], price: [], area: [], nee: false }, "filter")}>Clear all filters</button>}
-    </div>
+    <div className="dir-filters dir-sidebar">{filterOptions}</div>
+    {mobileViewport && createPortal(
+      <dialog ref={filterDialog} id="dir-filters" className="dir-mobile-filter-dialog" aria-labelledby="dir-filter-title"
+        onClick={(event) => { if (event.target === event.currentTarget) closeSheet(); }}>
+        <div className="dir-mobile-filter-sheet">
+          <div className="dir-sheet-head">
+            <strong id="dir-filter-title">Filters</strong>
+            <button ref={closeButton} type="button" className="btn" onClick={closeSheet}>Show {resultCount} {resultCount === 1 ? "result" : "results"}</button>
+          </div>
+          <p className="small muted" role="status">{resultCount} {resultCount === 1 ? "Restaurant" : "Restaurants"} match these filters.</p>
+          {filterOptions}
+        </div>
+      </dialog>, document.body,
+    )}
   </div>;
 }

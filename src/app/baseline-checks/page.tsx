@@ -8,6 +8,8 @@ import { SpotCheckActions, StartSpotCheck } from "@/web/baseline-spot-checks";
 export const metadata: Metadata = { title: "Baseline spot checks · Gluton-Free", robots: { index: false, follow: false } };
 
 const headings: Record<SpotCheckKind, string> = { format: "Formats", tripadvisor_match: "Tripadvisor matches" };
+const views = ["pending", "all", "confirmed", "rejected"] as const;
+type View = (typeof views)[number];
 
 function httpsUrl(value: string | null): string | null {
   if (!value) return null;
@@ -15,7 +17,7 @@ function httpsUrl(value: string | null): string | null {
   catch { return null; }
 }
 
-function Check({ item }: { item: SpotCheckItem }) {
+function Check({ item, nextPendingId }: { item: SpotCheckItem; nextPendingId: number | null }) {
   const googleUrl = httpsUrl(item.googleUrl);
   const tripadvisorUrl = httpsUrl(item.tripadvisorUrl);
   return (
@@ -39,14 +41,27 @@ function Check({ item }: { item: SpotCheckItem }) {
         {googleUrl && <a href={googleUrl} target="_blank" rel="noopener noreferrer">Google Listing<ExternalIcon /></a>}
         {tripadvisorUrl && <a href={tripadvisorUrl} target="_blank" rel="noopener noreferrer">Tripadvisor Listing<ExternalIcon /></a>}
       </div>
-      <SpotCheckActions id={item.id} />
+      <SpotCheckActions id={item.id} nextPendingId={nextPendingId} />
     </li>
   );
 }
 
-export default async function BaselineChecksPage() {
+export default async function BaselineChecksPage({ searchParams }: { searchParams: Promise<{ view?: string; saved?: string }> }) {
   await connection();
-  const { items, available } = await spotCheckState();
+  const [{ view: requestedView, saved }, { items, available }] = await Promise.all([searchParams, spotCheckState()]);
+  const view: View = views.includes(requestedView as View) ? requestedView as View : "pending";
+  const visible = (item: SpotCheckItem) => view === "all"
+    || (view === "pending" && item.agreed === null)
+    || (view === "confirmed" && item.agreed === true)
+    || (view === "rejected" && item.agreed === false);
+  const viewCounts = {
+    pending: items.filter((item) => item.agreed === null).length,
+    all: items.length,
+    confirmed: items.filter((item) => item.agreed === true).length,
+    rejected: items.filter((item) => item.agreed === false).length,
+  };
+  const nextPending = items.find((item) => item.agreed === null);
+  const savedAnswer = requestedView === "pending" ? saved : undefined;
   const started = items.length > 0;
   return (
     <section className="spot-checks">
@@ -58,6 +73,16 @@ export default async function BaselineChecksPage() {
           ? <StartSpotCheck />
           : <p className="muted">Run the Lisbon baseline first. The checklist needs at least 50 Formats and 30 Tripadvisor matches.</p>}
       </div>}
+      {started && <>
+        <p className="spot-progress">{viewCounts.pending} of {items.length} checks remain. Answers can be changed later.</p>
+        {(savedAnswer === "confirmed" || savedAnswer === "rejected") && <p className="spot-saved" role="status">Answer {savedAnswer}. {nextPending ? <Link href={`/baseline-checks?view=pending#check-${nextPending.id}`}>Next pending check</Link> : "All checks answered."}</p>}
+        <nav className="spot-filters" aria-label="Filter spot checks">
+          {views.map((option) => <Link key={option} href={`/baseline-checks?view=${option}`} aria-current={view === option ? "page" : undefined}>
+            {option === "all" ? "All" : option[0]!.toUpperCase() + option.slice(1)} ({viewCounts[option]})
+          </Link>)}
+          {nextPending && <Link className="spot-next" href={`/baseline-checks?view=pending#check-${nextPending.id}`}>Next pending check</Link>}
+        </nav>
+      </>}
       {started && (["format", "tripadvisor_match"] as const).map((kind) => {
         const result = spotCheckRate(items, kind);
         return <section key={kind} className="spot-group" id={kind}>
@@ -68,7 +93,9 @@ export default async function BaselineChecksPage() {
             {result.complete && <strong className={result.passes ? "spot-pass" : "spot-fail"}>{result.passes ? " Pass" : " Below bar"}</strong>}
           </p>
           <p className="small muted">{result.answered}/{result.sampled} answered. {result.complete ? "Complete." : "Acceptance result pending until the full sample is answered."}</p>
-          <ol className="spot-list">{items.filter((item) => item.kind === kind).map((item) => <Check key={item.id} item={item} />)}</ol>
+          {items.some((item) => item.kind === kind && visible(item))
+            ? <ol className="spot-list">{items.filter((item) => item.kind === kind && visible(item)).map((item) => <Check key={item.id} item={item} nextPendingId={items.find((candidate) => candidate.agreed === null && candidate.id !== item.id)?.id ?? null} />)}</ol>
+            : <p className="small muted">No {view === "pending" ? "pending" : view} checks here.</p>}
         </section>;
       })}
     </section>

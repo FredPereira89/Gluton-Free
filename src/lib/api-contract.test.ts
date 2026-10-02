@@ -164,7 +164,7 @@ describe("handler responses", () => {
     const markup = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "o-velho-eurico" }) }));
     expect(markup).toContain("O Velho Eurico");
     expect(markup).toContain("Google");
-    expect(markup).toContain("personal-only");
+    expect(markup).toContain("Available through this account");
     expect(markup).toContain("4.5");
     expect(markup).toContain("fetched");
     expect(markup).toContain("Not enough evidence");

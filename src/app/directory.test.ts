@@ -30,9 +30,20 @@ describe("directory", () => {
     expect(html.match(/line-reason/g)).toHaveLength(1);
   });
 
+  it("heads each Tier course once when sorted by Tier, and not under any other sort", () => {
+    const items = [
+      item({ slug: "a", tier: "must_go" }), item({ slug: "b", tier: "must_go" }), item({ slug: "c", tier: "good" }),
+      item({ slug: "n", state: "not_enough_evidence", tier: null, confidence: null }),
+    ];
+    const byTier = render(result({ items }), { sort: "tier" });
+    expect(byTier.match(/ementa-course/g)).toHaveLength(3);
+    expect(byTier).toContain(">Not enough evidence</span>");
+    expect(render(result({ items }), { sort: "name" })).not.toContain("ementa-course");
+  });
+
   it("shows each Restaurant's Tier, Confidence, Format label, Price, neighbourhood and booking link", () => {
     const html = render(result());
-    expect(html).toContain('href="/r/cantina"');
+    expect(html).toContain('href="/r/cantina?from=%2F"');
     expect(html).toContain("Cantina Zé");
     expect(html).toContain("Must Go");
     expect(html).toContain("High Confidence");
@@ -61,9 +72,9 @@ describe("directory", () => {
     expect(html).not.toContain("conf-");
   });
 
-  it("says how many Not enough evidence Restaurants are hidden", () => {
-    expect(render(result({ hiddenNotEnoughEvidence: 10 }))).toContain("10 with Not enough evidence hidden");
-    expect(render(result({ hiddenNotEnoughEvidence: 0 }))).not.toContain("Not enough evidence hidden");
+  it("offers a link to show hidden Not enough evidence Restaurants", () => {
+    expect(render(result({ hiddenNotEnoughEvidence: 10 }))).toContain("Show 10 with Not enough evidence");
+    expect(render(result({ hiddenNotEnoughEvidence: 0 }))).not.toContain("Show 0 with Not enough evidence");
   });
 
   it("links the previous and next page, keeping the rest of the view in the URL", () => {

@@ -4,8 +4,8 @@
   "title": "Design System: Gluton-Free",
   "extensions": {
     "colorMeta": {
-      "ground": { "role": "neutral", "displayName": "Table Paper", "canonical": "#FBFBF8", "tonalRamp": ["#141B3A", "#454C6E", "#767D9A", "#CDD0DE", "#DEE0EB", "#F0EFE7", "#FBFBF8", "#FFFFFF"] },
-      "ink": { "role": "neutral", "displayName": "Blue-Black Ink", "canonical": "#141B3A", "tonalRamp": ["#0B1030", "#141B3A", "#454C6E", "#555C7B", "#767D9A", "#B0B6CF", "#CDD0DE", "#EEF0F8"] },
+      "ground": { "role": "neutral", "displayName": "Table Paper", "canonical": "#F5EFE0", "tonalRamp": ["#141B3A", "#424968", "#6F7592", "#D6CDB6", "#E4DBC3", "#ECE4CE", "#F5EFE0", "#FFFFFF"] },
+      "ink": { "role": "neutral", "displayName": "Blue-Black Ink", "canonical": "#141B3A", "tonalRamp": ["#0B1030", "#141B3A", "#424968", "#525877", "#6F7592", "#B0B6CF", "#D6CDB6", "#EEF0F8"] },
       "brand": { "role": "primary", "displayName": "Ementa Blue", "canonical": "#1C3D9B", "tonalRamp": ["#0B1030", "#122A70", "#1C3D9B", "#3F5FBF", "#8FA9FF", "#A6BAFF", "#C9D5FF", "#E7ECF9"] },
       "accent-soft": { "role": "tertiary", "displayName": "Blue Wash", "canonical": "#E7ECF9", "tonalRamp": ["#1F274A", "#1C3D9B", "#8FA9FF", "#E7ECF9"] },
       "flag": { "role": "secondary", "displayName": "Tomato", "canonical": "#B5301D", "tonalRamp": ["#3A1F1B", "#3D1E1A", "#B5301D", "#D9402B", "#FF9C8A", "#FCE6E1"] },
@@ -13,7 +13,7 @@
       "tier-ok": { "role": "tier", "displayName": "OK Slate", "canonical": "#4D5578", "tonalRamp": ["#262B42", "#4D5578", "#B7BDD6", "#E9EBF3"] },
       "tier-life-changing": { "role": "tier", "displayName": "Amber", "canonical": "#8A5200", "tonalRamp": ["#4A3A0A", "#8A5200", "#FFD25A", "#FFEAB3"] },
       "sun": { "role": "secondary", "displayName": "Highlighter", "canonical": "#FFE27A", "tonalRamp": ["#6A5710", "#FFE27A"] },
-      "band": { "role": "neutral", "displayName": "Band", "canonical": "#DEE0EB", "tonalRamp": ["#2A3050", "#DEE0EB"] }
+      "band": { "role": "neutral", "displayName": "Band", "canonical": "#E4DBC3", "tonalRamp": ["#2A3050", "#E4DBC3"] }
     },
     "typographyMeta": {
       "display": { "displayName": "Display", "purpose": "Landing headline only, in Ementa Blue." },

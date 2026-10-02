@@ -3,6 +3,7 @@ import { bookingLink } from "@/domain/booking-link";
 import { formatFamily, formatLabel } from "@/domain/format-labels";
 import { neighbourhoodOf } from "@/domain/neighbourhood";
 import { normaliseName } from "@/app/api/v1/search/input";
+import { isLookupQuery } from "./directory-url";
 import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "./api-contract";
 
 // One Restaurant as the directory reads it: the latest Verdict, the Listings that matter for the
@@ -53,10 +54,8 @@ function toItem(row: DirectoryRow): DirectoryItem {
 }
 
 // A pasted link or place ID starts a lookup in the search bar; it is not a word to narrow by.
-const LOOKUP_INPUT = /^(?:https?:\/\/|www\.|cid:|ChIJ|GhIJ)/i;
-
 function searchWords(q: string): string[] {
-  if (LOOKUP_INPUT.test(q)) return [];
+  if (isLookupQuery(q)) return [];
   return normaliseName(q).split(" ").filter(Boolean);
 }
 

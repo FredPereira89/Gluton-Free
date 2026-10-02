@@ -7,7 +7,7 @@ related_targets: ["src/app/page.tsx","src/app/directory.tsx","src/app/directory-
 
 # Surface brief: Landing + Directory + Report journey, second round (#121, PR #134)
 
-Mode: Persuade (landing), Operate (Directory, Report; "How we judged this" is Read). Scope: the whole path a phone diner walks, landing, find, narrow and compare, read the Verdict, book or open the map. Replaces the round-1 "Guide Map Lobes" look; keeps the logo mark, Verdict semantics, Tier pips and every business rule.
+Mode: Persuade (landing), Operate (Directory, Report; "How we judged this" is Read). Scope: the whole path a phone diner walks, landing, find, narrow and compare, read the Verdict, book or open the map. Replaces the round-1 "Guide Map Lobes" look; retains the original G-and-dot logo in two blue tones while keeping Verdict semantics, Tier pips and every business rule.
 Anti-goals: delivery-app discount styling, stock-photo cards, dashboard feel, fabricated social proof, any image that implies it shows a listed Restaurant.
 Unresolved: Portuguese UI out of scope; a one-line reason or standout dish per Directory row needs a DirectoryItem contract change (proposed separately); 3-real-phone test.
 

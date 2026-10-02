@@ -40,7 +40,7 @@ describe("home page", () => {
     const html = renderToStaticMarkup(await HomePage());
 
     expect(html).toContain("Lisbon only");
-    expect(html).toContain("judged against others of its own kind");
+    expect(html).toContain("Each is judged against its own kind");
     expect(html).toContain("Invitation-only beta");
     expect(html).toContain("Fictional example");
     expect(html).toContain("Casa Imaginária");

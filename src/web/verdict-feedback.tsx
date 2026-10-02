@@ -78,8 +78,10 @@ export function VerdictFeedback({ restaurantSlug, verdictId }: { restaurantSlug:
   }
 
   return (
-    <section className="verdict-feedback" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>Is this Verdict right?</h2>
+    <details className="verdict-feedback-disclosure">
+      <summary>Is this Verdict right?</summary>
+      <section className="verdict-feedback" aria-labelledby={`${id}-title`}>
+      <h2 id={`${id}-title`} className="sr-only">Is this Verdict right?</h2>
       <p className="small muted">Your answer helps the Owner understand where Invitees disagree. It never changes the Verdict.</p>
       {loading && <p className="small muted" role="status">Loading your feedback…</p>}
       {loadError && (
@@ -128,6 +130,7 @@ export function VerdictFeedback({ restaurantSlug, verdictId }: { restaurantSlug:
           </button>
         </form>
       )}
-    </section>
+      </section>
+    </details>
   );
 }

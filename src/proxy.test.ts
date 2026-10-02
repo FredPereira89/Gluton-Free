@@ -8,7 +8,7 @@ const proxied = (path: string) => new RegExp(`^${config.matcher[0]}$`).test(path
 describe("which paths the auth gate covers", () => {
   it("leaves Invite link redemption, sign-in and the magic-link routes public", () => {
     for (const path of [
-      "/sign-in", "/welcome", "/invite/" + "A".repeat(43), "/api/auth/invite", "/api/auth/magic-link", "/api/auth/callback", "/auth/confirm", "/api/auth/confirm", "/api/auth/sign-out", "/api/auth/sign-in", "/api/v1/health", "/logo-mark.png", "/icon.png", "/apple-touch-icon.png",
+      "/sign-in", "/welcome", "/invite/" + "A".repeat(43), "/api/auth/invite", "/api/auth/magic-link", "/api/auth/callback", "/auth/confirm", "/api/auth/confirm", "/api/auth/sign-out", "/api/auth/sign-in", "/api/v1/health", "/brand-mark.png", "/icon.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/manifest.webmanifest", "/sw.js",
     ]) expect(proxied(path), path).toBe(false);
   });
 

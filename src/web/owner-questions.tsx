@@ -12,10 +12,12 @@ function ChangePointQuestion({ slug, question }: { slug: string; question: Extra
   const [date, setDate] = useState(question.proposedDate);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
 
   async function settle(confirm: boolean) {
     setBusy(true);
     setError(null);
+    setSaved(null);
     try {
       const response = confirm
         ? await fetch(`/api/v1/restaurants/${encodeURIComponent(slug)}/change-points`, {
@@ -27,6 +29,7 @@ function ChangePointQuestion({ slug, question }: { slug: string; question: Extra
         const body = await response.json().catch(() => null) as { detail?: string } | null;
         throw new Error(body?.detail ?? "Could not save your answer. Try again.");
       }
+      setSaved(confirm ? "Change point saved. The Verdict is being updated." : "Proposal rejected.");
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not save your answer. Try again.");
@@ -40,10 +43,11 @@ function ChangePointQuestion({ slug, question }: { slug: string; question: Extra
     <label className="field">Change date
       <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required disabled={busy} />
     </label>
-    <button type="button" className="btn" disabled={busy || !date} onClick={() => void settle(true)}>Confirm and re-judge</button>{" "}
-    <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void settle(false)}>Reject proposal</button>
+    <button type="button" className="btn" disabled={busy || !!saved || !date} onClick={() => void settle(true)}>Confirm and re-judge</button>{" "}
+    <button type="button" className="btn btn-secondary" disabled={busy || !!saved} onClick={() => void settle(false)}>Reject proposal</button>
     {busy && <p className="small muted" role="status">Saving your answer…</p>}
     {error && <p className="error" role="alert">{error}</p>}
+    {saved && <p className="small" role="status">{saved}</p>}
   </article>;
 }
 

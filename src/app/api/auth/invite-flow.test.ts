@@ -113,7 +113,7 @@ describe("POST /api/auth/magic-link (an Invitee signing in again)", () => {
     expect(where(response)).toBe("/sign-in?sent=1");
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       email: "ana@example.test",
-      options: { shouldCreateUser: false },
+      options: { shouldCreateUser: false, emailRedirectTo: "https://app.example/auth/confirm" },
     });
   });
 
