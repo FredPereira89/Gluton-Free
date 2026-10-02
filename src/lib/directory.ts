@@ -9,6 +9,8 @@ import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "./api-con
 // booking link, and the Peer standings behind the Food and Value sorts.
 export type DirectoryRow = {
   dietaryFits?: DirectoryItem["dietaryFits"];
+  reason?: string | null;
+  standoutDish?: string | null;
   slug: string;
   name: string;
   address: string | null;
@@ -33,6 +35,8 @@ const CONFIDENCE_RANK = { low: 1, medium: 2, high: 3 } as const;
 function toItem(row: DirectoryRow): DirectoryItem {
   return {
     dietaryFits: row.dietaryFits ?? [],
+    reason: row.reason ?? null,
+    standoutDish: row.standoutDish ?? null,
     slug: row.slug,
     name: row.name,
     state: row.state,

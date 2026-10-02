@@ -16,6 +16,7 @@ function Row({ item, trackUsage }: { item: DirectoryItem; trackUsage: boolean })
       <i className="leader" aria-hidden="true" />
       {item.tier ? <TierBadge tier={item.tier} dashed={item.provisional} /> : <span className="chip nee-chip">Not enough evidence</span>}
     </div>
+    {item.reason && <p className="line-reason">{item.reason}{item.standoutDish && <span className="line-dish"> · Known for {item.standoutDish}</span>}</p>}
     {meta && <p className="line-meta">{meta}</p>}
     <div className="line-foot">
       {item.confidence && <ConfChip level={item.confidence} />}

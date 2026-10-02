@@ -308,6 +308,10 @@ export const directoryItemSchema = z.strictObject({
   // Null where the Trend rule hides it (Low Confidence, under a year of Reviews).
   trend: z.enum(["improving", "steady", "slipping"]).nullable(),
   dietaryFits: z.array(z.enum(DIETS)).default([]),
+  // The report's one-line reason, null without a Verdict.
+  reason: z.string().nullable().default(null),
+  // The most-mentioned Standout dish (3+ Reviews), null when none qualifies.
+  standoutDish: z.string().nullable().default(null),
   booking: bookingLinkSchema,
 });
 export const directoryResponseSchema = z.strictObject({

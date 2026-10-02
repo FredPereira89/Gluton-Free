@@ -9,7 +9,7 @@ vi.mock("./directory-controls", () => ({ default: () => createElement("div", nul
 const item = (overrides: Partial<DirectoryItem> = {}): DirectoryItem => ({
   slug: "cantina", name: "Cantina Zé", state: "verdict", tier: "must_go", provisional: false, confidence: "high",
   format: "Casa de fado", formatFamily: "traditional_portuguese", priceTier: "€€", neighbourhood: "Alfama", trend: null,
-  dietaryFits: [],
+  dietaryFits: [], reason: null, standoutDish: null,
   booking: { label: "Open in Google Maps", url: "https://www.google.com/maps/search/?api=1&query=Cantina", kind: "google_maps" },
   ...overrides,
 });
@@ -20,6 +20,16 @@ const render = (response: DirectoryResponse, query: Parameters<typeof directoryQ
   renderToStaticMarkup(createElement(Directory, { query: directoryQuerySchema.parse(query), result: response }));
 
 describe("directory", () => {
+  it("shows the one-line reason and Standout dish under the name, and nothing when there is no Verdict", () => {
+    const html = render(result({ items: [
+      item({ reason: "Better food than most tascas in Lisbon", standoutDish: "Arroz de tamboril" }),
+      item({ slug: "novo", name: "Novo Lugar", state: "not_enough_evidence", tier: null, confidence: null }),
+    ] }));
+    expect(html).toContain("Better food than most tascas in Lisbon");
+    expect(html).toContain("Known for Arroz de tamboril");
+    expect(html.match(/line-reason/g)).toHaveLength(1);
+  });
+
   it("shows each Restaurant's Tier, Confidence, Format label, Price, neighbourhood and booking link", () => {
     const html = render(result());
     expect(html).toContain('href="/r/cantina"');

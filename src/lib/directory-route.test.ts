@@ -42,7 +42,8 @@ async function dispatch(search = "", init: ConstructorParameters<typeof NextRequ
 }
 
 const dbRow = (overrides: Record<string, unknown>) => ({
-  id: 1, created_at: new Date(),
+  id: 1, created_at: new Date(), city: "Lisbon",
+  reason_src: { tier: "good", redFlags: [], inputs: [], standings: [] },
   slug: "x", name: "X", address: null, area: "Alfama", lat: null, lng: null, format: "tasca", price_tier: "€€",
   state: "verdict", tier: "good", confidence: "medium", provisional: false,
   food_percentile: 50, value_percentile: 50, google_place_id: "ChIJabcde", thefork_url: null,
@@ -57,6 +58,23 @@ function directoryDb(rows: Record<string, unknown>[], facts: Record<string, unkn
   return sql as unknown as ReturnType<typeof db>;
 }
 describe("GET /api/v1/directory", () => {
+  it("carries the report's one-line reason and the top Standout dish on each row, none without a Verdict", async () => {
+    const standings = [{ input: "food", percentile: 92, level: "format", key: "tasca" }];
+    vi.mocked(db).mockReturnValue(directoryDb(
+      [
+        dbRow({ id: 1, slug: "a", name: "Tasca A", tier: "good", reason_src: { tier: "good", redFlags: [], inputs: [{ input: "food", counted: true }], standings } }),
+        dbRow({ id: 2, slug: "b", name: "Tasca B", state: "not_enough_evidence", tier: null, confidence: null }),
+      ],
+      [1, 2, 3].map((id) => ({ id, restaurant_id: 1, standout_dishes: ["Arroz de tamboril"], dietary_praise: [], dietary_complaints: [] })),
+    ));
+    const response = await GET(new Request("https://app.example/api/v1/directory?nee=true"));
+    expect(response.status).toBe(200);
+    const body = routes.directory.responses[200].parse(await response.json());
+    expect(body.items).toMatchObject([
+      { slug: "a", reason: expect.stringMatching(/^Better food than almost all tascas in Lisbon$/), standoutDish: "Arroz de tamboril" },
+      { slug: "b", reason: null, standoutDish: null },
+    ]);
+  });
   it("filters Dietary fit server-side using category proof and Review praise, with URL filters", async () => {
     vi.mocked(db).mockReturnValue(directoryDb(
       [dbRow({ id: 1, slug: "a", name: "Tasca A" }), dbRow({ id: 2, slug: "b", name: "Tasca B" })],

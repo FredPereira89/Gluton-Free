@@ -23,7 +23,7 @@ describe("directory", () => {
     expect(result.items).toEqual([{
       slug: "cantina", name: "Cantina", state: "verdict", tier: "must_go", provisional: false, confidence: "high",
       format: "Café & pastelaria", formatFamily: "quick_cafe", priceTier: "€", neighbourhood: "Chiado", trend: null,
-      dietaryFits: [],
+      dietaryFits: [], reason: null, standoutDish: null,
       booking: { label: "Book on TheFork", url: "https://www.thefork.pt/restaurante/cantina-r9", kind: "thefork" },
     }]);
   });
