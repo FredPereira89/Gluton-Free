@@ -265,23 +265,33 @@ body:has(.directory) .topbar{max-width:1120px}
 
 /* ---------- forms ---------- */
 .signin,.settings{max-width:380px;margin:40px auto 0;display:grid;gap:16px}
+.settings{max-width:560px;gap:var(--s-4)}
 .signin h1,.settings h1{font-size:28px;font-weight:800;letter-spacing:-.03em}
 .signin form{display:grid;gap:14px;max-width:none;padding:var(--s-4);background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow)}
 .signin .btn{width:100%}
 .signin form.plain{padding:0;background:none;box-shadow:none}
 .signin .brand{justify-self:start;margin-bottom:var(--s-2)}
 .state-badge{display:grid;place-items:center;width:56px;height:56px;border-radius:var(--r-pill);background:var(--accent-soft);color:var(--accent)}
-.settings-section{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
-.settings-section h2{font-size:16px;font-weight:700}
-.settings-section p{color:var(--muted);font-size:13.5px}
+.settings-section{display:grid;gap:var(--s-3);background:var(--surface);border-radius:var(--r-card);padding:var(--s-4);box-shadow:var(--shadow)}
+.settings-section h2{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.settings-section p{color:var(--muted);font-size:14px}
+.settings-section .form{max-width:none}
+.settings-links{display:flex;flex-wrap:wrap;gap:var(--s-2)}
+.usage-event-counts ul{list-style:none;margin:0;padding:0;display:grid;gap:var(--s-2)}
+.usage-event-counts li{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s-3);background:var(--sunk);border-radius:var(--r-sm);padding:10px 14px;font-size:15px}
+.usage-event-counts li strong{font-size:18px;font-variant-numeric:tabular-nums}
+.settings-empty{background:var(--sunk);border-radius:var(--r-sm);padding:var(--s-3) 14px}
 .settings-section strong{color:var(--ink)}
 .settings-section .btn{margin-top:2px}
 .signin h2{font-size:16px;font-weight:700}
-.invite-list{display:grid;gap:10px;list-style:none;padding:0;margin:0}
-.invite-row{display:grid;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
-.invite-url{font:inherit;font-size:12.5px;color:var(--muted);background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%;min-width:0}
-.invite-actions{display:flex;gap:8px;flex-wrap:wrap}
-.invite-actions .btn{padding:6px 12px;font-size:13px;margin-top:0}
+.invite-list{display:grid;gap:var(--s-2);list-style:none;padding:0;margin:0}
+.invite-row{display:grid;gap:var(--s-2);background:var(--sunk);border-radius:var(--r-sm);padding:var(--s-3) 14px}
+.invite-row>div:first-child{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px var(--s-3);justify-content:space-between}
+.invite-row strong{overflow-wrap:anywhere}
+.invite-row .chip{background:var(--surface);border:2px solid var(--line);padding:2px 10px}
+.invite-url{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:var(--r-sm);min-height:44px;padding:8px 12px;width:100%;min-width:0}
+.invite-actions{display:flex;gap:var(--s-2);flex-wrap:wrap}
+.invite-actions .btn{padding:6px 18px;margin-top:0}
 .owner-questions{display:grid;gap:12px;margin-top:8px}
 .owner-question{display:grid;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
 .source-retry-banners{display:grid;gap:10px;margin:0 0 18px}

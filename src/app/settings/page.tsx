@@ -26,12 +26,14 @@ export default async function SettingsPage() {
       <InviteesAdmin invitees={invitees} />
       <section className="usage-event-counts" aria-labelledby="usage-event-counts-title">
         <h2 id="usage-event-counts-title">Invitee usage</h2>
-        <ul>{usageCounts.map(({ type, count }) => <li key={type}>{USAGE_EVENT_LABELS[type]}: {count}</li>)}</ul>
+        <ul>{usageCounts.map(({ type, count }) => <li key={type}><span>{USAGE_EVENT_LABELS[type]}</span><strong>{count}</strong></li>)}</ul>
       </section>
-      <Link href="/feedback">Feedback inbox</Link>
-      <Link href="/baseline-checks">Baseline spot checks</Link>
+      <nav className="settings-links" aria-label="Owner tools">
+        <Link className="btn btn-secondary" href="/feedback">Feedback inbox</Link>
+        <Link className="btn btn-secondary" href="/baseline-checks">Baseline spot checks</Link>
+      </nav>
       <form action="/api/auth/sign-out" method="post">
-        <button className="btn" type="submit">
+        <button className="btn btn-secondary" type="submit">
           Sign out
         </button>
       </form>

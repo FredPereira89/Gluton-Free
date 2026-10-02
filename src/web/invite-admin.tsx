@@ -58,10 +58,8 @@ function InviteLinkRow({ link, origin }: { link: InviteLink; origin: string }) {
     <li className="invite-row">
       <div>
         <strong>{link.label}</strong>
-        <p className="small muted">
-          {link.useCount}{link.useCap === null ? " joined" : ` of ${link.useCap} used`}
-          {link.revoked ? " · revoked" : exhausted ? " · full" : ""}
-        </p>
+        {(link.revoked || exhausted) && <span className="chip">{link.revoked ? "Revoked" : "Full"}</span>}
+        <p className="small muted">{link.useCount}{link.useCap === null ? " joined" : ` of ${link.useCap} used`}</p>
       </div>
       {!link.revoked && (
         <>
@@ -111,7 +109,7 @@ export function InviteLinksAdmin({ links }: { links: InviteLink[] }) {
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn" type="submit" disabled={busy}>{busy ? "Creating…" : "Create link"}</button>
       </form>
-      {links.length === 0 ? <p className="small muted">No links yet.</p> : (
+      {links.length === 0 ? <p className="settings-empty">No links yet. Create one above to invite someone.</p> : (
         <ul className="invite-list">
           {links.map((link) => <InviteLinkRow key={link.id} link={link} origin={origin} />)}
         </ul>
@@ -127,9 +125,9 @@ function InviteeRow({ invitee }: { invitee: InviteeRecord }) {
     <li className="invite-row">
       <div>
         <strong>{invitee.email ?? invitee.userId}</strong>
+        {invitee.lockedOut && <span className="chip">Locked out</span>}
         <p className="small muted">
           {invitee.inviteLink ? `via ${invitee.inviteLink.label}` : "no link"} · joined {day(invitee.joinedAt)} · last seen {invitee.lastSeenAt ? minute(invitee.lastSeenAt) : "never"}
-          {invitee.lockedOut ? " · locked out" : ""}
         </p>
       </div>
       <div className="invite-actions">
@@ -147,7 +145,7 @@ export function InviteesAdmin({ invitees }: { invitees: InviteeRecord[] }) {
     <section className="settings-section" aria-labelledby="invitees-heading">
       <h2 id="invitees-heading">Invitees</h2>
       <p>Locking someone out ends their session right away.</p>
-      {invitees.length === 0 ? <p className="small muted">Nobody has joined yet.</p> : (
+      {invitees.length === 0 ? <p className="settings-empty">Nobody has joined yet. Share an invite link above.</p> : (
         <ul className="invite-list">
           {invitees.map((invitee) => <InviteeRow key={invitee.userId} invitee={invitee} />)}
         </ul>
