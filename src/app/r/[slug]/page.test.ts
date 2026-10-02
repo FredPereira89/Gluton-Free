@@ -603,3 +603,15 @@ describe("Trend chip (issue #113)", () => {
     expect(await render("owner", young)).not.toMatch(/trend-(improving|steady|slipping)/);
   });
 });
+
+describe("Tier legend (issue #119)", () => {
+  it("is reachable from the report for the Owner and an Invitee, with the plain Tier meanings", async () => {
+    vi.mocked(loadRestaurantBundle).mockResolvedValue(bundle(0));
+    for (const role of ["owner", "invitee"] as const) {
+      vi.mocked(pageRole).mockResolvedValueOnce(role);
+      const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
+      expect(html).toContain("What do the Tiers mean?");
+      expect(html).toContain("Reviewers report real problems");
+    }
+  });
+});

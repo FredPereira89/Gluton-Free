@@ -3,10 +3,17 @@ import { createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import HomePage, { metadata } from "./page";
 import { AuthError, requireCaller } from "@/lib/auth";
+import { WELCOME_DISMISSED_COOKIE } from "@/domain/welcome";
 
 const { mockSearchHome, mockDirectory, mockLoadDirectory } = vi.hoisted(() => ({ mockSearchHome: vi.fn(), mockDirectory: vi.fn(), mockLoadDirectory: vi.fn() }));
 
-vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
+const { mockCookieGet } = vi.hoisted(() => ({ mockCookieGet: vi.fn() }));
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn().mockResolvedValue(new Headers()),
+  cookies: vi.fn().mockResolvedValue({ get: mockCookieGet }),
+}));
+vi.mock("@/web/welcome-card", () => ({ WelcomeCard: () => createElement("aside", null, "Welcome card") }));
 vi.mock("@/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth")>(),
   requireCaller: vi.fn(),
@@ -22,6 +29,7 @@ beforeEach(() => {
   mockSearchHome.mockReturnValue(createElement("div", null, "Signed-in app"));
   mockDirectory.mockReturnValue(createElement("div", null, "Directory"));
   mockLoadDirectory.mockResolvedValue({ items: [], total: 0 });
+  mockCookieGet.mockReturnValue(undefined);
 });
 
 describe("home page", () => {
@@ -84,5 +92,21 @@ describe("home page", () => {
     await HomePage();
 
     expect(mockLoadDirectory).not.toHaveBeenCalled();
+  });
+
+  it("welcomes a first-time signed-in visitor, Owner or Invitee, and not once dismissed", async () => {
+    for (const role of ["owner", "invitee"] as const) {
+      vi.mocked(requireCaller).mockResolvedValue({ userId: role, role });
+      mockCookieGet.mockReturnValue(undefined);
+      expect(renderToStaticMarkup(await HomePage())).toContain("Welcome card");
+      mockCookieGet.mockReturnValue({ name: WELCOME_DISMISSED_COOKIE, value: "1" });
+      expect(renderToStaticMarkup(await HomePage())).not.toContain("Welcome card");
+      expect(mockCookieGet).toHaveBeenLastCalledWith(WELCOME_DISMISSED_COOKIE);
+    }
+  });
+
+  it("does not show the welcome card to signed-out visitors", async () => {
+    vi.mocked(requireCaller).mockRejectedValue(new AuthError(401, "unauthenticated", "No session"));
+    expect(renderToStaticMarkup(await HomePage())).not.toContain("Welcome card");
   });
 });

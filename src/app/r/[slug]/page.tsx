@@ -22,6 +22,7 @@ import { projectInviteeBundle } from "@/lib/invitee-projection";
 import { pageRole } from "@/lib/page-role";
 import { InviteeView } from "@/web/invitee-view";
 import { Quote } from "@/web/quote";
+import { TierLegend } from "@/web/tier-legend";
 import { StandingHistoryChart } from "@/web/standing-history";
 import { LookupProgress } from "@/web/lookup-progress";
 import { RefreshWhileBusy } from "@/web/refresh-while-busy";
@@ -207,6 +208,7 @@ export default async function VerdictPageRoute({ params }: Props) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 14px", alignItems: "center" }}>
           <TierBadge tier={(forced ? "avoid" : r.tier) as Tier} size="lg" dashed={r.provisional} />
         </div>
+        <TierLegend />
         {!forced && <p className="explain">{heroReason(r, ctx)}</p>}
         {summary && <p className="hero-summary">{summary}</p>}
         {!forced && (strengths.length > 0 || warnings.length > 0) && (
