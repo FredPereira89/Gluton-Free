@@ -737,6 +737,12 @@ body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 .landing-figure{position:relative;margin:0;display:grid;gap:8px}
 .landing-plate{position:relative;padding:14px 14px 4px}
 .landing-plate img{position:relative;z-index:1;display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;object-position:38% 50%;background:var(--sunk);border:0;border-radius:var(--blob-b);transform:rotate(-1.5deg);box-shadow:var(--shadow)}
+.landing-plate .landing-art{animation:landing-paper-reveal .95s cubic-bezier(.2,1,.3,1) both}
+@keyframes landing-paper-reveal{
+  from{clip-path:inset(0 100% 0 0);transform:translateX(-24px) rotate(-5deg)}
+  to{clip-path:inset(0 0 0 0);transform:translateX(0) rotate(-1.5deg)}
+}
+@media(prefers-reduced-motion:reduce){.landing-plate .landing-art{animation:none}}
 .landing-figure figcaption{margin-top:4px;font-size:13.5px;font-weight:600;color:var(--muted)}
 @media(max-width:899px){.landing-plate img{aspect-ratio:3/2}}
 .landing-steps-section{display:grid;justify-items:center;gap:14px;max-width:720px;width:100%;margin-inline:auto;text-align:center}

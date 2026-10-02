@@ -44,7 +44,7 @@ function LandingPage({ accountDeleted = false }: { accountDeleted?: boolean }) {
               <span className="cut cut-cobalt" aria-hidden="true" />
               <span className="cut cut-tomato" aria-hidden="true" />
               <span className="cut cut-leaf" aria-hidden="true" />
-              <Image src="/lisbon-table.png" alt="Illustration of two grilled sardines on a blue-and-white patterned plate, with lemon, olives, a tomato and a striped napkin." width={1536} height={1024} sizes="(min-width: 900px) 460px, 90vw" priority />
+              <Image className="landing-art" src="/lisbon-table.png" alt="Illustration of two grilled sardines on a blue-and-white patterned plate, with lemon, olives, a tomato and a striped napkin." width={1536} height={1024} sizes="(min-width: 900px) 460px, 90vw" priority />
             </div>
             <figcaption>Original illustration. It does not show any listed Restaurant.</figcaption>
           </figure>
