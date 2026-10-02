@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { PreviewLookupResponse, SearchResponse } from "@/lib/api-contract";
 import { MissingRestaurantRequest } from "@/web/feedback-widget";
+import { ArrowIcon } from "@/web/icons";
 import { trackUsageEvent } from "@/web/usage-tracking";
 
 const warnings = {
@@ -54,7 +55,7 @@ function PreviewPanel({ loading, error, data, onClose, onStart, starting, startE
       <button type="button" className="btn" disabled={starting} onClick={onStart}>{starting ? "Starting…" : "Start lookup"}</button>
       {startError && <span role="alert" className="error">Could not start the lookup. Try again.</span>}
     </>}
-    <button type="button" className="small" onClick={onClose}>Close</button>
+    <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
   </div>;
 }
 
@@ -214,7 +215,7 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
     return <div className="search-group" key={result.placeId}>
       <button type="button" className="search-result" onClick={() => openPreview(result.placeId)}>
         <ResultContent result={result} />
-        <span className="search-action">Preview →</span>
+        <span className="search-action">Preview <ArrowIcon /></span>
       </button>
       {previewFor === result.placeId
         && <PreviewPanel loading={previewLoading} error={previewError} data={preview} onClose={() => setPreviewFor(null)} onStart={() => start(result.placeId)} starting={starting} startError={startError} />}
@@ -246,20 +247,20 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
       <h2>Recognised Restaurant</h2>
       {"slug" in results.recognised ? <Link className="search-result" href={`/r/${encodeURIComponent(results.recognised.slug)}`}>
         <ResultContent result={results.recognised} />
-        <span className="search-action">Open Verdict →</span>
+        <span className="search-action">Open Verdict <ArrowIcon /></span>
       </Link> : candidateRow(results.recognised)}
     </div>}
     {!!results.known.length && <div className="search-group">
       <h2>Restaurants in Gluton-Free</h2>
       {results.known.map((result) => <Link className="search-result" href={`/r/${encodeURIComponent(result.slug)}`} key={result.slug}>
         <ResultContent result={result} />
-        <span className="search-action">Open Verdict →</span>
+        <span className="search-action">Open Verdict <ArrowIcon /></span>
       </Link>)}
     </div>}
     {!!results.candidates.length && <div className="search-group">
       <h2>Google Maps results</h2>
       {results.candidates.map(candidateRow)}
     </div>}
-    <Link href="/restaurants" className="small">Browse looked-up Restaurants</Link>
+    <Link href="/restaurants" className="small browse-link">Browse looked-up Restaurants</Link>
   </section>;
 }

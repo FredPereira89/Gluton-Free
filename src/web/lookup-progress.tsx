@@ -53,7 +53,7 @@ export function LookupProgress({ jobId }: { jobId: number }) {
     {unavailable && <p className="small muted">Progress is temporarily unavailable. Retrying…</p>}
     {job?.status === "failed" && <p role="alert" className="error">
       Lookup failed: {job.error?.detail ?? "please try again later"}
-      {" "}<button type="button" onClick={() => void retry()} disabled={retrying}>{retrying ? "Retrying…" : "Retry"}</button>
+      {" "}<button type="button" className="btn btn-secondary" onClick={() => void retry()} disabled={retrying}>{retrying ? "Retrying…" : "Retry"}</button>
     </p>}
     <ol>{(job?.steps ?? []).map((step) => <li key={step.name}>
       {step.name} <span className="small muted">{step.status}</span>

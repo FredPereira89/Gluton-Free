@@ -35,7 +35,7 @@ export function DeleteMyData() {
       I understand this permanently deletes my sign-in account, Invitee record, feedback and usage events.
     </label>
     {error && <p className="error" role="alert">{error}</p>}
-    <button className="btn" type="submit" disabled={!confirmed || deleting}>
+    <button className="btn btn-danger" type="submit" disabled={!confirmed || deleting}>
       {deleting ? "Deleting…" : "Delete my data"}
     </button>
   </form>;

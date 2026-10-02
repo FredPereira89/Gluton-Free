@@ -17,6 +17,11 @@ export function Stars({ value }: { value: number }) {
   );
 }
 
+/** Points forward inside the app, beside the words that name the action. */
+export function ArrowIcon() {
+  return <Icon d="M5 12h14M13 6l6 6-6 6" size={14} />;
+}
+
 /** Marks a link that leaves the app. Always sits beside link text, never alone. */
 export function ExternalIcon() {
   return <Icon d="M7 17L17 7M9 7h8v8" size={14} />;

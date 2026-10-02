@@ -40,7 +40,7 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
             {!pagination.cursor && <p className="small muted">A Verdict appears here once there is enough evidence to issue one.</p>}
           </div>
         ) : (
-          <div className="tbl-wrap">
+          <div className="tbl-wrap" tabIndex={0} role="region" aria-label="Verdict history">
             <table className="src">
               <thead>
                 <tr>

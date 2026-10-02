@@ -399,7 +399,7 @@ function Sources({ page, owner, perSource, sourceReadings }: { page: InviteeBund
     <section className="sec">
       <h2>Sources</h2>
       <p className="small muted">Source ratings and Review counts are facts about each Source, not a Verdict.</p>
-      <div className="tbl-wrap">
+      <div className="tbl-wrap" tabIndex={0} role="region" aria-label="Sources, scrolls sideways">
         <table className="src">
           <thead>
             <tr>

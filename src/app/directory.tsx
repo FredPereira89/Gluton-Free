@@ -45,7 +45,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
         {(filtered || query.nee) && <p className="small muted">Try fewer filters.</p>}
         {(filtered || query.nee) && <UsageTrackedNavLink className="btn" href="/" track={trackUsage} eventType="filter">Clear filters</UsageTrackedNavLink>}
       </div>
-      : <div className="dir-scroll"><table className="dir-table">
+      : <div className="dir-scroll" tabIndex={0} role="region" aria-label="Restaurants"><table className="dir-table">
         <thead><tr><th scope="col">Restaurant</th><th scope="col">Tier</th><th scope="col">Confidence</th><th scope="col">Trend</th><th scope="col">Dietary fit</th><th scope="col">Book</th></tr></thead>
         <tbody>{result.items.map((item) => <Row key={item.slug} item={item} trackUsage={trackUsage} />)}</tbody>
       </table></div>}
