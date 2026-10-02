@@ -2,14 +2,13 @@
 import { Fragment, type ReactNode } from "react";
 import { INPUT_LABEL, TIERS, TIER_LABEL, type Tier } from "@/domain/aspects";
 import { DIET_LABEL, type Diet } from "@/domain/dish-dietary";
-import { ExternalIcon, Icon } from "./icons";
+import { Icon } from "./icons";
 import type { Blocks } from "@/verdict/blocks";
 import type { Trend } from "@/verdict/trend";
 import { formatPercentile } from "@/verdict/peer";
 
 const TIER_CLASS: Record<Tier, string> = { avoid: "t-avoid", ok: "t-ok", good: "t-good", must_go: "t-must", life_changing: "t-life" };
 
-export { ExternalIcon };
 
 export function TierBadge({ tier, size = "", dashed = false }: { tier: Tier; size?: string; dashed?: boolean }) {
   const idx = TIERS.indexOf(tier);

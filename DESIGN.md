@@ -288,7 +288,7 @@ Single centred column, `.wrap` max 720px; the Directory widens to 1120px and the
 
 Report first viewport at 390px: name and area, large Tier badge with pips, Confidence chip beside it, one explanation line, then the full-width Book capsule (48px). Legend, facts and history sit below. At 560px and up the Book capsule shrinks to fit its content.
 
-Directory: a table at wide widths (9 columns, still dense; known deferral). Below 1000px each row becomes a phone card: name, Tier and Confidence, Trend, dietary badges, facts line (Format, Price, Area), then a full-width Book capsule. The whole card is tappable through the name link's stretched overlay; the Book link sits above it. Below 720px the filters leave the page and open as a modal bottom sheet (see Components). While the list refetches (`aria-busy` on the controls) the results dim to 50% opacity. The wide loading skeleton uses the same 1120px column as the Directory.
+Directory: a table at wide widths (6 columns: Restaurant, Tier, Confidence, Trend, Dietary fit, Book). Below 1000px each row becomes a phone card: name, Tier and Confidence, Trend, dietary badges, facts line (Format, Price, Area), then a full-width Book capsule. The whole card is tappable through the name link's stretched overlay; the Book link sits above it. Below 720px the filters leave the page and open as a modal bottom sheet (see Components). While the list refetches (`aria-busy` on the controls) the results dim to 50% opacity. The wide loading skeleton uses the same 1120px column as the Directory.
 
 ## Elevation & Depth
 
@@ -375,5 +375,5 @@ Plain text top bar, 13px, ink links weight 700, no chrome.
 
 Every beta surface follows this system: landing, privacy, directory, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. New surfaces inherit it; the earlier 6px to 16px radii and 1px borders are gone from the stylesheet.
 
-Known gaps: the wavy divider and blob hero silhouette from the direction were not built (a dotted `.sec` divider ships); the 9-column desktop directory table is still dense. Eyebrows and kickers no longer exist in the source and are not part of the system.
+Known gaps: the wavy divider and blob hero silhouette from the direction were not built (a dotted `.sec` divider ships). Eyebrows and kickers no longer exist in the source and are not part of the system.
 

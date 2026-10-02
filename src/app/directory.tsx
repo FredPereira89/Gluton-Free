@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ConfChip, DietIcon, ExternalIcon, TierBadge, TrendChip } from "@/web/atoms";
+import { ConfChip, DietIcon, TierBadge, TrendChip } from "@/web/atoms";
+import { ExternalIcon } from "@/web/icons";
 import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "@/lib/api-contract";
 import { directoryHref } from "@/lib/directory-url";
 import { TierLegend } from "@/web/tier-legend";

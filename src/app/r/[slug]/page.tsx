@@ -15,8 +15,8 @@ import {
 import { formatPercentile } from "@/verdict/peer";
 import { type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
 import { trendOf } from "@/verdict/trend";
-import { ConfChip, dateLabel, DietIcon, Explanation, ExternalIcon, monthLabel, TierBadge, TrendChip } from "@/web/atoms";
-import { Icon, Stars } from "@/web/icons";
+import { ConfChip, dateLabel, DietIcon, Explanation, monthLabel, TierBadge, TrendChip } from "@/web/atoms";
+import { ExternalIcon, Icon, Stars } from "@/web/icons";
 import { loadRestaurantBundle } from "@/web/data";
 import type { InviteeBundle, ReportFacts as ReportFactsData, RestaurantBundle } from "@/lib/api-contract";
 import { projectInviteeBundle } from "@/lib/invitee-projection";

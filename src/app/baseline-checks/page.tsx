@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { SPOT_CHECK_BARS, SPOT_CHECK_TARGETS, spotCheckRate, spotCheckState, type SpotCheckItem, type SpotCheckKind } from "@/lib/baseline-spot-check";
-import { ExternalIcon } from "@/web/atoms";
+import { ExternalIcon } from "@/web/icons";
 import { SpotCheckActions, StartSpotCheck } from "@/web/baseline-spot-checks";
 
 export const metadata: Metadata = { title: "Baseline spot checks · Gluton-Free", robots: { index: false, follow: false } };
