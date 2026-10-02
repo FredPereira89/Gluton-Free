@@ -217,7 +217,7 @@ export default async function VerdictPageRoute({ params }: Props) {
           <TierBadge tier={(forced ? "avoid" : r.tier) as Tier} size="lg" dashed={r.provisional} />
           <ConfChip level={r.confidence.level} />
         </div>
-        {!forced && <p className="explain">{heroReason(r, ctx)}</p>}
+        {!forced && <p className="explain"><span className="hl">{heroReason(r, ctx)}</span></p>}
         {bookLink}
         {summary && <p className="hero-summary">{summary}</p>}
         {!forced && (strengths.length > 0 || warnings.length > 0) && (
@@ -399,8 +399,8 @@ function Sources({ page, owner, perSource, sourceReadings }: { page: InviteeBund
     <section className="sec">
       <h2>Sources</h2>
       <p className="small muted">Source ratings and Review counts are facts about each Source, not a Verdict.</p>
-      <div className="tbl-wrap" tabIndex={0} role="region" aria-label="Sources, scrolls sideways">
-        <table className="src">
+      <div className="source-cards">
+        <table className="src src-cards">
           <thead>
             <tr>
               <th>Source</th>
@@ -469,7 +469,7 @@ function BundleExtras({ page, owner }: { page: InviteeBundle; owner: RestaurantB
     );
   }
   return (
-    <section className="sec">
+    <section className="sec owner-section">
       <h2>Restaurant details</h2>
       <RestaurantFactsEditor slug={page.restaurant.slug} format={page.restaurant.format}
         priceTier={page.restaurant.priceTier} busy={owner.activeJob !== null} />

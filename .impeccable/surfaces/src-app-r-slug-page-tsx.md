@@ -2,25 +2,25 @@
 version: 1
 slug: "src-app-r-slug-page-tsx"
 primary_target: "src/app/r/[slug]/page.tsx"
-related_targets: ["src/app/directory.tsx","src/app/globals.css","src/web/atoms.tsx"]
+related_targets: ["src/app/page.tsx","src/app/directory.tsx","src/app/directory-controls.tsx","src/app/globals.css","src/web/atoms.tsx"]
 ---
 
-# Surface brief: Report + Directory foundation (#121)
+# Surface brief: Landing + Directory + Report journey, second round (#121, PR #134)
 
-Mode: Operate (Report; "How we judged this" is Read). Scope: foundation first. Tokens, Tier badge, Confidence dots, Trend chip, Dietary icons, restaurant card and row, on Report and Directory. Other surfaces follow in later passes.
-Anti-goals: cold or clinical; dense data-dashboard feel.
-Unresolved: tone of a playful register against a judgement (test in the first screenshot round); 3-real-phone test; Portuguese UI out of scope.
+Mode: Persuade (landing), Operate (Directory, Report; "How we judged this" is Read). Scope: the whole path a phone diner walks, landing, find, narrow and compare, read the Verdict, book or open the map. Replaces the round-1 "Guide Map Lobes" look; keeps the logo mark, Verdict semantics, Tier pips and every business rule.
+Anti-goals: delivery-app discount styling, stock-photo cards, dashboard feel, fabricated social proof, any image that implies it shows a listed Restaurant.
+Unresolved: Portuguese UI out of scope; a one-line reason or standout dish per Directory row needs a DirectoryItem contract change (proposed separately); 3-real-phone test.
 
 ## Direction contract
 
-THESIS: A Restaurant is a lobe on a guide map, and the Verdict is the lobe's size and fill. The one idea: the Tier reads from lobe fill and pip count plus its label, never hue alone. Refuses the category default of a star or score pill on a white card.
+THESIS: The guide is an ementa, the paper menu of a Lisbon tasca. A Restaurant is a line: name, dotted leader, Verdict. The one idea is the leader line that carries the eye from a name to its call, so a diner compares three tables by reading down one edge. Refuses the category default of a photo card with a star score.
 
-OWN-WORLD: Flat unmodulated colour on warm cream (#F5F1E4), ink #2C2E2A. Soft swelling lobes with round corners, pastel tinted cards with circular icon badges, capsule controls, a yellow pill accent, wavy-line dividers. Tier fills run coral, sand, light green, green, yellow, always with ink text. No gradients, no shadows beyond one flat offset. Recognisable with content removed: cream ground, capsule buttons, round pips.
+OWN-WORLD: Table-paper white (#FBFBF8) printed in one colour of blue ink (#1C3D9B), with tomato (#D9402B) only for the rubber stamp and red flags, and menu green (#1F6F43) for Good. Double-rule frames, dotted leaders, one hand-stamped "Not a real Verdict" disc on the fictional example. Bricolage Grotesque for names and Verdicts, Schibsted Grotesk for reading, Courier Prime only for the ledger details (price, counts, dates). No gradients, no photographs, no drop shadow beyond one soft paper lift. Recognisable with content removed: blue double rule on paper, dotted leaders, round pips.
 
-STORY: A diner on a phone sees what the Restaurant is judged, how sure we are and why, then taps one capsule to book or open the map. They believe it because the reasons sit in the first screen.
+STORY: A diner on a phone, hungry, choosing among two or three tables in a hurry. They read the landing and know within seconds this is a Lisbon Restaurant Verdict guide. They narrow with one tap, compare by reading down the leader edge, open one table and see Verdict, Confidence, the main reason and one action. They believe it because the reason is a sentence, not a number, and Evidence is one tap away.
 
-FIRST VIEWPORT (390px): Name and area top. A large Tier lobe with its 5 round pips and label, Confidence dots beside it. One reason line. Praise and warn chips. Full-width capsule Book button anchored under the reason, at least 44px tall. Legend, facts and history sit below the fold. Desktop: same stack at 720px max, Book capsule on the lobe edge.
+FIRST VIEWPORT (390px): Landing: wordmark and Sign in, then "Know where to eat in Lisbon." in heavy blue type, one sentence naming a Lisbon Restaurant Verdict guide judged against its own kind, a double-rule card with the fictional Casa Imaginária ledger line, Good pips, Medium Confidence, the "Not a real Verdict" stamp, and the full-width "Sign in with your invite" button. Directory: search, one row of filter chips, then ementa lines. Report: name, Verdict capsule with Confidence, the main reason, a full-width Book or Open-in-Maps button, all above 700px.
 
-FORM: Challenger "Guide Map Lobes" (challenger-zoo-map), chosen by the user on the decision page. Seed key acf7307b. Signature interaction: the Tier lobe swells 4% on row hover and focus; motion is 160ms, off under prefers-reduced-motion.
+FORM: Model pick "Ementa do Dia" (position 2 of 3 on the decision page), chosen by the user. Seed key 268cf2c0. Signature interaction: each ementa line's leader draws from the name to the Verdict on hover and focus (200ms, ease-out, off under prefers-reduced-motion); the Directory keeps its state in the URL.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

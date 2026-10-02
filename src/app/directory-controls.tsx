@@ -19,6 +19,9 @@ const SORT_LABEL: Record<(typeof DIRECTORY_SORTS)[number], string> = {
 
 type ListFilter = "tier" | "family" | "price" | "area" | "diet";
 
+// One-tap shortcuts onto the same filters the sheet offers: Good or better is the Tier filter with its three upper Tiers.
+const GOOD_OR_BETTER = ["good", "must_go", "life_changing"] as const;
+
 function toggled<T>(values: readonly T[], value: T): T[] {
   return values.includes(value) ? values.filter((each) => each !== value) : [...values, value];
 }
@@ -83,21 +86,28 @@ export default function DirectoryControls({ query, neighbourhoods, trackUsage = 
     </fieldset>;
   }
 
+  const goodOrBetter = GOOD_OR_BETTER.every((tier) => shown.tier.includes(tier));
+  function quick(label: string, pressed: boolean, onClick: () => void) {
+    return <button key={label} type="button" className="dir-chip" aria-pressed={pressed} onClick={onClick}>{label}</button>;
+  }
+
   return <div className="dir-controls" aria-busy={pending}>
-    <div className="dir-bar">
-      <label className="dir-sort">
-        <span className="row-label">Sort by</span>
-        <select value={shown.sort} onChange={(event) => {
-          const sort = event.target.value as DirectoryQuery["sort"];
-          if (sort !== shown.sort) go({ sort }, "sort");
-        }}>
-          {DIRECTORY_SORTS.map((sort) => <option key={sort} value={sort}>{SORT_LABEL[sort]}</option>)}
-        </select>
-      </label>
-      <button ref={filterButton} type="button" className="btn dir-filter-button" aria-expanded={sheetOpen} aria-controls="dir-filters" onClick={() => setSheetOpen(true)}>
-        Filters{activeFilters ? ` (${activeFilters})` : ""}
+    <div className="dir-quick" role="group" aria-label="Quick filters">
+      {quick("Good or better", goodOrBetter, () => go({ tier: goodOrBetter ? shown.tier.filter((tier) => !GOOD_OR_BETTER.includes(tier as (typeof GOOD_OR_BETTER)[number])) : [...new Set([...shown.tier, ...GOOD_OR_BETTER])] }, "filter"))}
+      {DIETS.map((diet) => quick(DIET_LABEL[diet], shown.diet.includes(diet), () => pick("diet", diet)))}
+      <button ref={filterButton} type="button" className="dir-chip dir-more" aria-expanded={sheetOpen} aria-controls="dir-filters" onClick={() => setSheetOpen(true)}>
+        All filters{activeFilters ? ` (${activeFilters})` : ""}
       </button>
     </div>
+    <label className="dir-sort">
+      <span className="row-label">Sort by</span>
+      <select value={shown.sort} onChange={(event) => {
+        const sort = event.target.value as DirectoryQuery["sort"];
+        if (sort !== shown.sort) go({ sort }, "sort");
+      }}>
+        {DIRECTORY_SORTS.map((sort) => <option key={sort} value={sort}>{SORT_LABEL[sort]}</option>)}
+      </select>
+    </label>
     {sheetOpen && <div className="dir-backdrop" aria-hidden="true" onClick={closeSheet} />}
     <div ref={sheet} id="dir-filters" className={`dir-filters${sheetOpen ? " open" : ""}`} role={sheetOpen ? "dialog" : undefined} aria-modal={sheetOpen ? true : undefined} aria-label="Filters">
       <div className="dir-sheet-head">
@@ -113,6 +123,7 @@ export default function DirectoryControls({ query, neighbourhoods, trackUsage = 
         <input type="checkbox" checked={shown.nee} onChange={() => go({ nee: !shown.nee }, "filter")} />
         <span>Show Restaurants with Not enough evidence</span>
       </label>
+      {activeFilters > 0 && <button type="button" className="btn btn-secondary dir-clear" onClick={() => go({ tier: [], family: [], diet: [], price: [], area: [], nee: false }, "filter")}>Clear all filters</button>}
     </div>
   </div>;
 }
