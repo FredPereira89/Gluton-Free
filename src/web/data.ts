@@ -6,7 +6,7 @@ import {
 } from "@/lib/api-contract";
 import { BlocksSchema, RollupSchema, type Blocks } from "@/verdict/blocks";
 import { PARAMS, quarterlySourceHistory, reviewWindowCutoff, type Rollup } from "@/verdict/rollup";
-import { heroReason, redFlagLine, strengthsAndWarnings } from "@/verdict/plain-report";
+import { evidenceGapReason, heroReason, redFlagLine, strengthsAndWarnings } from "@/verdict/plain-report";
 import { trendOf } from "@/verdict/trend";
 import type { DirectoryQuery, DirectoryResponse, SearchResponse } from "@/lib/api-contract";
 import { buildDirectory } from "@/lib/directory";
@@ -439,6 +439,10 @@ export type CompareEvidence = {
   strengths: { label: string; reviewers: number }[];
   warnings: { label: string; reviewers: number }[];
   redFlags: string[];
+  // A forcing red flag decides the Tier, so Compare keeps booking secondary for it.
+  forcesAvoid: boolean;
+  // Why there is no Verdict, null when there is one.
+  gapReason: string | null;
 };
 
 /** The same recurring Themes and red flags shown on each Report, read from its latest Verdict. */
@@ -457,6 +461,8 @@ export async function loadCompareEvidence(slugs: string[]): Promise<Record<strin
       strengths: strengths.map(({ label, reviewers }) => ({ label, reviewers })),
       warnings: warnings.map(({ label, reviewers }) => ({ label, reviewers })),
       redFlags: rollup.redFlags.map(redFlagLine),
+      forcesAvoid: rollup.redFlags.some((group) => group.forcesAvoid),
+      gapReason: rollup.state === "not_enough_evidence" ? evidenceGapReason(rollup.notEnoughEvidence) : null,
     } satisfies CompareEvidence];
   }));
 }

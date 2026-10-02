@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import type { RollupSchema } from "./blocks";
 import {
-  aspectPositions, aspectStandings, changePointNotice, confidenceReasons, consistencyLine, heroReason, heroSummary, missingEvidence,
+  aspectPositions, aspectStandings, changePointNotice, confidenceReasons, consistencyLine, evidenceGapReason, heroReason, heroSummary, missingEvidence,
   peerGroupName, provisionalNotice, redFlagLine, standingLevel, standingPhrase, strengthsAndWarnings,
 } from "./plain-report";
 
@@ -207,5 +207,18 @@ describe("consistencyLine", () => {
     expect(consistencyLine({ sd: 0.8, n: 40, windowMonths: 24 })).toBe("Reviewers' experiences vary somewhat (40 reviews, last 24 months)");
     expect(consistencyLine({ sd: 1.3, n: 40, windowMonths: 24 })).toBe("Reviewers' experiences vary a lot (40 reviews, last 24 months)");
     expect(consistencyLine({ sd: null, n: 1, windowMonths: 24 })).toBeNull();
+  });
+});
+
+describe("evidenceGapReason", () => {
+  const bars = { textReviews: { have: 3, need: 15, met: false }, foodMentions: { have: 9, need: 8, met: true }, newestReview: { have: 2, need: 18, met: true } };
+  it("prefers the reopening note, then the first unmet bar", () => {
+    const nee = { textReviews: 3, foodMentions: 9, newestAgeMonths: 2, missed: [], bars };
+    expect(evidenceGapReason({ ...nee, reasonLine: "Reopened after renovation on 1 Mar 2026; 9 Reviews since" })).toBe("Reopened after renovation on 1 Mar 2026; 9 Reviews since");
+    expect(evidenceGapReason(nee)).toBe("Needs at least 15 reviews with written text; has 3");
+  });
+  it("says the Reviews do not support a Verdict when every bar is met", () => {
+    const met = { ...bars, textReviews: { have: 15, need: 15, met: true } };
+    expect(evidenceGapReason({ textReviews: 15, foodMentions: 9, newestAgeMonths: 2, missed: [], bars: met })).toBe("The available Reviews do not support a Verdict.");
   });
 });

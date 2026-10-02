@@ -9,6 +9,7 @@ import { parseDirectoryQuery } from "@/lib/api-contract";
 import { safeDirectoryReturn } from "@/lib/directory-url";
 import { SHORTLIST_LIMIT, comparisonHref, shortlistSlugs } from "@/lib/shortlist";
 import { pageRole } from "@/lib/page-role";
+import { EVIDENCE_GAP_FALLBACK } from "@/verdict/plain-report";
 import { ConfChip, DietIcon, TierBadge, TrendChip } from "@/web/atoms";
 import { loadCompareEvidence, loadDirectory, type CompareEvidence } from "@/web/data";
 import { ExternalIcon } from "@/web/icons";
@@ -20,7 +21,7 @@ export const metadata: Metadata = { title: "Compare · Gluton-Free", robots: { i
 type Props = { searchParams?: Promise<Record<string, string | string[] | undefined>> };
 type Item = DirectoryItem;
 const many = (value: string | string[] | undefined) => (Array.isArray(value) ? value : value === undefined ? [] : [value]);
-const emptyEvidence: CompareEvidence = { strengths: [], warnings: [], redFlags: [] };
+const emptyEvidence: CompareEvidence = { strengths: [], warnings: [], redFlags: [], forcesAvoid: false, gapReason: null };
 
 function CompareRow({ label, items, children, className = "" }: {
   label: string; items: Item[]; children: (item: Item) => React.ReactNode; className?: string;
@@ -29,6 +30,28 @@ function CompareRow({ label, items, children, className = "" }: {
     <th scope="row" className="compare-row-label">{label}</th>
     {items.map((item) => <td key={item.slug}>{children(item)}</td>)}
   </tr>;
+}
+
+// Repeats the Restaurant names where a new group of facts starts, so a lower column never loses its owner.
+// The header row already names each column for assistive tech, so this repeat is visual only.
+function CompareGroup({ label, items }: { label: string; items: Item[] }) {
+  return <tr className="compare-group" aria-hidden="true">
+    <td className="compare-row-label">{label}</td>
+    {items.map((item) => <td key={item.slug} className="compare-group-name">{item.name}</td>)}
+  </tr>;
+}
+
+function WhyCell({ item, evidence }: { item: Item; evidence: CompareEvidence }) {
+  if (item.state === "verdict") {
+    const reason = item.reason ?? EVIDENCE_GAP_FALLBACK;
+    return evidence.forcesAvoid
+      ? <span className="compare-reason"><strong className="compare-flag-tag">Red flag</strong> {reason}</span>
+      : <span className="compare-reason">{reason}</span>;
+  }
+  return <div className="compare-gap">
+    <span className="compare-reason">{evidence.gapReason ?? EVIDENCE_GAP_FALLBACK}</span>
+    {evidence.redFlags.map((flag) => <span className="compare-red-flag" key={flag}><strong>Red flag</strong><span>{flag}</span></span>)}
+  </div>;
 }
 
 function ThemeList({ themes, empty, redFlags = [] }: {
@@ -48,6 +71,7 @@ function CompareTable({ items, evidence, from, back, trackUsage, showDish, showD
   trackUsage: boolean; showDish: boolean; showDiet: boolean;
 }) {
   const slugs = items.map((item) => item.slug);
+  const evidenceOf = (item: Item) => evidence[item.slug] ?? emptyEvidence;
   const report = (item: Item) => `/r/${encodeURIComponent(item.slug)}?from=${encodeURIComponent(back)}`;
   return <div className="compare-scroll" role="region" aria-label="Restaurant comparison" tabIndex={0}>
     <table className={`compare-table ${items.length === 3 ? "compare-three" : ""}`}>
@@ -63,14 +87,16 @@ function CompareTable({ items, evidence, from, back, trackUsage, showDish, showD
           {item.tier ? <TierBadge tier={item.tier} dashed={item.provisional} /> : <span className="chip nee-chip">Not enough evidence</span>}
           {item.confidence && <ConfChip level={item.confidence} compact />}
         </div>}</CompareRow>
-        <CompareRow label="Why" items={items}>{(item) => <span className="compare-reason">{item.reason ?? "Not enough Reviews yet for a Verdict."}</span>}</CompareRow>
+        <CompareRow label="Why" items={items}>{(item) => <WhyCell item={item} evidence={evidenceOf(item)} />}</CompareRow>
         <CompareRow label="More" items={items} className="compare-action-row">{(item) => <div className="compare-actions">
           <Link href={report(item)}>Read the Verdict</Link>
-          <UsageTrackedLink className="book sm compare-book" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">
+          {/* Report keeps booking secondary after a forced Avoid or a missing Verdict; Compare does the same. */}
+          <UsageTrackedLink className={`book sm compare-book${evidenceOf(item).forcesAvoid || item.state !== "verdict" ? " compare-book-secondary" : ""}`} track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">
             {item.booking.label}<ExternalIcon />
           </UsageTrackedLink>
           <CompareRemove slug={item.slug} name={item.name} slugs={slugs} from={from} />
         </div>}</CompareRow>
+        <CompareGroup label="Facts" items={items} />
         <CompareRow label="Format" items={items}>{(item) => item.format || "Not known"}</CompareRow>
         <CompareRow label="Price" items={items}>{(item) => item.priceTier ?? "Not known"}</CompareRow>
         <CompareRow label="Neighbourhood" items={items}>{(item) => item.neighbourhood || "Not known"}</CompareRow>
@@ -79,8 +105,9 @@ function CompareTable({ items, evidence, from, back, trackUsage, showDish, showD
         {showDiet && <CompareRow label="Dietary fit" items={items}>{(item) => item.dietaryFits.length
           ? <ul className="compare-diets">{item.dietaryFits.map((diet) => <li key={diet}><DietIcon diet={diet} text={DIET_LABEL[diet]} /></li>)}</ul>
           : <span className="muted">No dietary information yet</span>}</CompareRow>}
-        <CompareRow label="Reviewers praise" items={items} className="compare-theme-row">{(item) => <ThemeList themes={(evidence[item.slug] ?? emptyEvidence).strengths} empty="No recurring praise yet" />}</CompareRow>
-        <CompareRow label="Reviewers warn" items={items} className="compare-theme-row">{(item) => <ThemeList themes={(evidence[item.slug] ?? emptyEvidence).warnings} redFlags={(evidence[item.slug] ?? emptyEvidence).redFlags} empty="No recurring criticism" />}</CompareRow>
+        <CompareGroup label="Reviews" items={items} />
+        <CompareRow label="Reviewers praise" items={items} className="compare-theme-row">{(item) => <ThemeList themes={evidenceOf(item).strengths} empty="No recurring praise yet" />}</CompareRow>
+        <CompareRow label="Reviewers warn" items={items} className="compare-theme-row">{(item) => <ThemeList themes={evidenceOf(item).warnings} redFlags={evidenceOf(item).redFlags} empty="No recurring criticism" />}</CompareRow>
       </tbody>
     </table>
   </div>;
@@ -116,7 +143,7 @@ export default async function ComparePage({ searchParams = Promise.resolve({}) }
     {items.length >= 2
       ? <>
         {mixedFormats && <p className="compare-format-note"><strong>Different Formats.</strong> Each Tier compares its own kind of Restaurant. These Tiers aren’t directly comparable.</p>}
-        {items.length === 3 && <p className="compare-swipe-hint small">Swipe sideways to see the third Restaurant.</p>}
+        <p className="compare-swipe-hint small" data-count={items.length}>Swipe sideways to see every Restaurant.</p>
         <CompareTable items={items} evidence={evidence} from={from} back={back} trackUsage={role === "invitee"} showDish={showDish} showDiet={showDiet} />
         {(!showDish || !showDiet) && <p className="compare-note small muted">
           {!showDish && "No standout dish in the Reviews yet for any of these. "}
