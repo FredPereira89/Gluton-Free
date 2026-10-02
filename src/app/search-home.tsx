@@ -20,7 +20,7 @@ function detail(result: Result) {
   return [
     result.category,
     result.distanceMeters === null ? null : result.distanceMeters < 1000 ? `${result.distanceMeters} m away` : `${(result.distanceMeters / 1000).toFixed(1)} km away`,
-    result.stars === null ? null : `${result.stars.toFixed(1)} ★${result.reviewCount === null ? "" : ` · ${result.reviewCount} reviews`}`,
+    result.stars === null ? null : `${result.stars.toFixed(1)} stars${result.reviewCount === null ? "" : ` · ${result.reviewCount} reviews`}`,
     result.priceTier,
     result.status === "closed" ? "Closed now" : result.status === "temporarily_closed" ? "Temporarily closed" : null,
   ].filter(Boolean).join(" · ");
@@ -227,7 +227,7 @@ export default function SearchHome({ canAddRestaurant, initialQuery = "", trackU
   return <section className="index search-home">
     <h1>Find a Restaurant</h1>
     <p className="muted">Search by name, paste a Google Maps, Tripadvisor or TheFork link, or enter a Google place ID or CID.</p>
-    <label htmlFor="restaurant-search" className="eyebrow">Restaurant name or link</label>
+    <label htmlFor="restaurant-search" className="field-label">Restaurant name or link</label>
     <input id="restaurant-search" type="search" autoComplete="off" value={query}
       onChange={(event) => { setSearchedQuery(""); setQuery(event.target.value); }} placeholder="Name, link, Google place ID or CID" />
     <div role="status" aria-live="polite" className="small muted">

@@ -14,7 +14,6 @@ export default function PrivacyPage() {
         <Brand />
         <Link href="/sign-in">Sign in</Link>
       </header>
-      <p className="eyebrow">Invitation-only beta</p>
       <h1>Privacy notice</h1>
       <p className="privacy-lede">
         This notice explains the small amount of personal information Gluton-Free keeps about Invitees,

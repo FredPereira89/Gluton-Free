@@ -16,7 +16,7 @@ import { formatPercentile } from "@/verdict/peer";
 import { type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
 import { trendOf } from "@/verdict/trend";
 import { ConfChip, dateLabel, DietIcon, Explanation, ExternalIcon, monthLabel, TierBadge, TrendChip } from "@/web/atoms";
-import { Icon } from "@/web/icons";
+import { Icon, Stars } from "@/web/icons";
 import { loadRestaurantBundle } from "@/web/data";
 import type { InviteeBundle, ReportFacts as ReportFactsData, RestaurantBundle } from "@/lib/api-contract";
 import { projectInviteeBundle } from "@/lib/invitee-projection";
@@ -382,7 +382,7 @@ function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: M
               <figcaption className="small muted">
                 {source?.url ? <a href={source.url} rel="noreferrer nofollow" target="_blank">{source.name}</a> : source?.name ?? incident.source}
                 {` · ${monthLabel(incident.publishedAt.slice(0, 7))}`}
-                {incident.stars !== null && incident.stars !== undefined && <span className="stars" aria-label={`${incident.stars} stars`}>{` · ${"★".repeat(incident.stars)}${"☆".repeat(5 - incident.stars)}`}</span>}
+                {incident.stars !== null && incident.stars !== undefined && <>{" · "}<Stars value={incident.stars} /></>}
               </figcaption>
             </figure>
           );

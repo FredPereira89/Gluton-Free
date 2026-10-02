@@ -2,7 +2,7 @@
 // A quote with a Translate toggle. Links go to the Restaurant's page on the Source, never to
 // the individual Review.
 import { useState } from "react";
-import { ExternalIcon } from "./icons";
+import { ExternalIcon, Stars } from "./icons";
 
 export type QuoteProps = {
   text: string;
@@ -48,12 +48,7 @@ export function Quote(q: QuoteProps) {
       <blockquote lang={translated ? "en" : (q.lang ?? undefined)}>“{showing}”</blockquote>
       <figcaption className="meta">
         {q.lang && <span className="lang">{(translated ? "en" : q.lang).toUpperCase()}</span>}
-        {q.stars !== null && (
-          <span className="stars" aria-label={`${q.stars} stars`}>
-            {"★".repeat(q.stars)}
-            <span style={{ opacity: 0.25 }}>{"★".repeat(5 - q.stars)}</span>
-          </span>
-        )}
+        {q.stars !== null && <Stars value={q.stars} />}
         <span>
           {q.sourceName} · {q.month}
         </span>
