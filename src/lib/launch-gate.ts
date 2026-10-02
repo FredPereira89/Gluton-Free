@@ -1,7 +1,8 @@
 // Evidence helpers for the launch-gate checks in #105 (gates 8 and 9, issue #120).
 // The Owner still makes the judgement; these only draw the sample and read the Job history.
+import type { JobKind } from "@/lib/job";
 
-/** First month the scheduled refresh does real work; mirrors MONTHLY_REFRESH_START in src/trigger/monthly-refresh.ts. */
+/** First month the scheduled refresh does real work; src/trigger/monthly-refresh.ts imports it. */
 export const MONTHLY_REFRESH_START = new Date("2026-11-01T00:00:00.000Z");
 
 function seededRandom(seed: string): () => number {
@@ -30,7 +31,7 @@ export function drawVerdictSample<T>(candidates: readonly T[], n: number, seed: 
 
 export type GateJob = {
   id: number;
-  kind: "lookup" | "refresh" | "baseline" | "snapshot";
+  kind: Extract<JobKind, "refresh" | "snapshot">;
   status: "queued" | "running" | "succeeded" | "failed";
   triggerRunId: string | null;
   createdAt: Date;
