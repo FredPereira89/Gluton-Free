@@ -400,11 +400,11 @@ body:has(.directory) .topbar{max-width:1120px}
 .dir-table tbody td:last-child{border-radius:0 var(--r-card) var(--r-card) 0}
 .dir-meta{display:block;margin-top:2px;font-size:14px;font-weight:400;color:var(--muted)}
 .dir-table a{color:var(--ink)}
-.dir-table a.book{color:var(--on-brand);background:var(--surface)}
+.dir-table a.book{color:var(--ink)!important;background:var(--surface);border-color:var(--ink)}
 .dir-row:hover .tier,.dir-row:focus-within .tier{transform:scale(1.04)}
 .dir-diet{display:flex;gap:6px}
 .dir-diet .diet-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.dir-table a.book:hover{background:var(--brand)}
+.dir-table a.book:hover{background:var(--brand);color:var(--on-brand)!important;border-color:var(--on-brand)}
 .dir-empty{display:grid;gap:12px;justify-items:start;background:var(--surface);border:2px solid var(--line);border-radius:var(--r-card);padding:var(--s-5)}
 .dir-pages{display:flex;justify-content:space-between;align-items:center;gap:12px}
 @media(max-width:720px){
