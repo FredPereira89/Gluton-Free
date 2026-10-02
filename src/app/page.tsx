@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { AuthError, requireCaller } from "@/lib/auth";
 import { directoryQueryFromPage } from "@/lib/directory-url";
 import { WELCOME_DISMISSED_COOKIE } from "@/domain/welcome";
+import { ConfChip, TierBadge } from "@/web/atoms";
 import { loadDirectory } from "@/web/data";
 import { WelcomeCard } from "@/web/welcome-card";
 import Directory from "./directory";
@@ -20,11 +21,10 @@ function LandingPage() {
     <div className="public-page landing-page">
       <header className="landing-header">
         <Link className="landing-brand" href="/">Gluton-Free</Link>
-        <Link className="btn landing-sign-in" href="/sign-in">Have an invite? Sign in</Link>
+        <Link className="btn btn-secondary landing-sign-in" href="/sign-in">Have an invite? Sign in</Link>
       </header>
 
       <section className="landing-hero">
-        <p className="eyebrow">Lisbon dining · invitation-only beta</p>
         <h1>Choose your next table with confidence.</h1>
         <p className="landing-intro">
           Gluton-Free reads what diners say and turns it into a clear Verdict on Restaurants in Lisbon.
@@ -36,15 +36,13 @@ function LandingPage() {
           <span>Each judged against its own kind</span>
           <span>Invitation-only beta</span>
         </div>
+        <Link className="btn landing-cta" href="/sign-in">Sign in with your invite</Link>
       </section>
 
       <section className="landing-example" aria-labelledby="example-title">
         <div className="landing-example-heading">
-          <div>
-            <p className="eyebrow">Fictional example · no real Verdicts are public</p>
-            <h2 id="example-title">A sample report</h2>
-          </div>
-          <span className="example-label">Invented for this page</span>
+          <h2 id="example-title">A sample report</h2>
+          <span className="example-label">Fictional example · invented for this page</span>
         </div>
         <article className="sample-report" aria-label="Fictional Restaurant report">
           <div className="sample-report-top">
@@ -52,15 +50,15 @@ function LandingPage() {
               <p className="sample-report-kind">A fictional Lisbon tasca</p>
               <h3>Casa Imaginária</h3>
             </div>
-            <span className="tier t-good">Good</span>
+            <TierBadge tier="good" />
           </div>
           <p className="sample-report-reason">
             Solid choice for its kind. In this invented example, diners praise the simple plates;
             reports about busy-hour waits are mixed.
           </p>
           <div className="sample-report-foot">
-            <span className="chip conf-Medium">Medium confidence</span>
-            <span className="small muted">Every detail in this report is fictional.</span>
+            <ConfChip level="medium" />
+            <span className="small muted">Every detail in this report is fictional. No real Verdicts are public.</span>
           </div>
         </article>
       </section>

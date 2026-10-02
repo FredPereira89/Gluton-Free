@@ -41,7 +41,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
         </label>
         {next && <input type="hidden" name="next" value={next} />}
         {error === "invalid_credentials" && <p className="error">Wrong email or password.</p>}
-        <button className="btn" type="submit">
+        <button className="btn btn-secondary" type="submit">
           Sign in
         </button>
       </form>
