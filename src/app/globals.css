@@ -2,14 +2,14 @@
 /* Ementa do Dia: table-paper white printed in one blue ink. A Restaurant is a line on the menu: name, dotted leader, Verdict. The Tier reads from its label and its pips, never from hue alone. */
 :root{
   color-scheme:light;
-  --ground:#FBFBF8; --surface:#FFFFFF; --sunk:#F0EFE7; --ink:#141B3A; --muted:#454C6E; --faint:#555C7B; --line:#CDD0DE; --edge:#767D9A;
+  --ground:#F5EFE0; --surface:#FFFCF4; --sunk:#ECE4CE; --ink:#141B3A; --muted:#424968; --faint:#525877; --line:#D6CDB6; --edge:#6F7592;
   --brand:#1C3D9B; --on-brand:#FFFFFF; --coral:#D9402B; --sun:#FFE27A;
   --accent:#1C3D9B; --accent-soft:#E7ECF9; --focus:#1C3D9B;
   --t-avoid:#B5301D; --t-ok:#4D5578; --t-good:#1F6F43; --t-must:#14502F; --t-life:#8A5200;
   --t-avoid-bg:#FCE6E1; --t-ok-bg:#E9EBF3; --t-good-bg:#DEF0E5; --t-must-bg:#C5E4D1; --t-life-bg:#FFEAB3;
   --on-t:#FFFFFF;
   --flag:#B5301D; --flag-bg:#FCE6E1; --warn:#7A5200; --warn-bg:#FFF0C4;
-  --band:#DEE0EB; --shadow:0 1px 0 rgba(20,27,58,.08),0 6px 18px -10px rgba(20,27,58,.28);
+  --band:#E4DBC3; --shadow:0 1px 0 rgba(70,50,15,.10),0 10px 24px -14px rgba(50,35,10,.38);
   --r-sm:4px; --r-card:6px; --r-lobe:6px; --r-pill:999px;
   --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px;
   --sans:var(--font-sans),"Schibsted Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -484,11 +484,11 @@ body:has(.dir-controls[aria-busy="true"]) .ementa{opacity:.55}
   .dir-option{border:0;border-radius:var(--r-sm);background:none;padding:0 6px;min-height:36px}
   .dir-option:has(input:checked){background:var(--accent-soft)}
   .dir-nee{border:0;border-top:2px dotted var(--edge);border-radius:0;padding-top:12px}
-  .dir-row{grid-template-columns:minmax(0,1fr) auto;padding:18px 20px 14px;gap:4px 16px}
+  .dir-row{grid-template-columns:max-content minmax(0,1fr);padding:18px 22px 14px;gap:4px 16px}
   .line-top{grid-column:1/-1}
   .line-foot{justify-content:flex-end}
   .line-foot .book.sm{margin-left:6px}
-  .line-meta{align-self:center;white-space:nowrap}
+  .line-meta{align-self:center}
 }
 /* ---------- decision-first report (#112) ---------- */
 .A .notice{font-size:14px;color:var(--ink);background:var(--warn-bg);border-radius:var(--r-card);padding:8px 14px}
@@ -604,3 +604,37 @@ summary.small{cursor:pointer}
 .state-page{display:grid;gap:var(--s-4);justify-items:start;max-width:520px;margin:var(--s-7) auto 0;padding:var(--s-5);background:var(--surface);border:2px solid var(--brand);outline:2px solid var(--brand);outline-offset:3px;border-radius:var(--r-card);box-shadow:var(--shadow)}
 .state-page h1{font-size:clamp(26px,6vw,34px);font-weight:800;letter-spacing:-.03em;line-height:1.1}
 .state-actions{display:flex;flex-wrap:wrap;gap:var(--s-3)}
+/* ---------- Polish: a fuller menu (issue #121) ---------- */
+.ementa{overflow:clip}
+.ementa-course{display:grid;grid-template-columns:auto minmax(12px,1fr);align-items:center;column-gap:12px;padding:10px 16px 8px;background:var(--sunk);border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-family:var(--display);font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--brand)}
+.ementa-course:first-child{border-top:0}
+.ementa-course i{display:block;height:0;border-top:1px solid var(--brand);opacity:.45}
+.ementa-course + .dir-row{border-top:0}
+.dir-row:hover .line-name a,.dir-row:focus-within .line-name a{color:var(--brand)}
+.dir-head::after,.landing-menu h2::after{content:"";height:5px;border-block:1px solid var(--brand)}
+.dir-head::after{flex-basis:100%;margin-top:6px}
+.landing-menu h2::after{display:block;margin-top:10px}
+.A .sec{position:relative}
+.A .sec::before{content:"";position:absolute;top:-4px;left:4px;width:9px;height:9px;background:var(--brand);transform:rotate(45deg);box-shadow:0 0 0 4px var(--ground)}
+.landing-example{isolation:isolate}
+.sample-report::before,.sample-report::after{content:"";position:absolute;inset:0;z-index:-1;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card)}
+.sample-report::before{transform:rotate(-2.2deg) translate(-4px,5px)}
+.sample-report::after{transform:rotate(1.8deg) translate(5px,9px)}
+.landing-cta{width:auto;justify-self:stretch;margin:5px;box-shadow:0 0 0 3px var(--ground),0 0 0 5px var(--brand)}
+.landing-cta:focus-visible{outline-offset:8px}
+.landing-menu{display:grid;gap:12px}
+.landing-menu h2{font-size:clamp(26px,5vw,34px);font-weight:800;letter-spacing:-.02em}
+.landing-menu-lede{max-width:56ch;color:var(--ink)}
+.landing-menu-note{color:var(--muted);font-size:14px}
+.tier-line{display:grid;grid-template-columns:minmax(0,auto) minmax(24px,1fr) auto;align-items:end;column-gap:10px;padding:14px 18px;border-top:1px solid var(--line)}
+.tier-line:first-child{border-top:0}
+.tier-line .leader{margin-bottom:.4em}
+.tier-meaning{font-size:16px;line-height:1.35}
+@media(max-width:520px){.tier-line{grid-template-columns:minmax(24px,1fr) auto;row-gap:8px}.tier-meaning{grid-column:1/-1}.tier-line .tier{padding:3px 10px;gap:6px;font-size:15px}.tier-line .tier .pips i{width:8px;height:8px}}
+@media(min-width:900px){.landing-menu{grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);grid-template-areas:"title list" "lede list" "note list";grid-template-rows:auto auto 1fr;column-gap:clamp(32px,6vw,72px);align-items:start}.landing-menu h2{grid-area:title}.landing-menu-lede{grid-area:lede}.landing-menu-note{grid-area:note}.tier-menu{grid-area:list}}
+@media(min-width:900px){.landing-cta{width:fit-content;justify-self:start}}
+@media(min-width:1000px){
+  .dir-controls{border-top:3px solid var(--brand);box-shadow:var(--shadow)}
+  .dir-group legend{font-weight:800}
+  .dir-group + .dir-group{padding-top:16px;border-top:2px dotted var(--edge)}
+}

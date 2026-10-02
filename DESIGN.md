@@ -2,15 +2,15 @@
 name: Gluton-Free
 description: A Lisbon Restaurant Verdict guide set as an ementa, the paper menu of a tasca, printed in one blue ink on table-paper white.
 colors:
-  ground: "#FBFBF8"
-  surface: "#FFFFFF"
-  sunk: "#F0EFE7"
+  ground: "#F5EFE0"
+  surface: "#FFFCF4"
+  sunk: "#ECE4CE"
   ink: "#141B3A"
-  muted: "#454C6E"
-  faint: "#555C7B"
-  line: "#CDD0DE"
-  edge: "#767D9A"
-  band: "#DEE0EB"
+  muted: "#424968"
+  faint: "#525877"
+  line: "#D6CDB6"
+  edge: "#6F7592"
+  band: "#E4DBC3"
   brand: "#1C3D9B"
   on-brand: "#FFFFFF"
   accent: "#1C3D9B"
@@ -255,8 +255,8 @@ Table-paper white and blue-black ink, one saturated blue for everything interact
 Note: `--coral` #D9402B is declared in the build but no rule uses it; the tomato actually shipped is #B5301D. Treat #D9402B as unused.
 
 ### Neutral
-- **Table Paper** (#FBFBF8): page ground. **Card White** (#FFFFFF): ementa, hero, cards, sheet. **Sunk** (#F0EFE7): wells, chips, hover row. **Band** (#DEE0EB): rails, meters, skeleton blocks.
-- **Blue-Black Ink** (#141B3A): all text on fills; **Muted** (#454C6E), **Faint** (#555C7B); **Line** (#CDD0DE) hairlines; **Edge** (#767D9A) dotted rules, input and chip borders.
+- **Table Paper** (#F5EFE0): page ground. **Card Cream** (#FFFCF4): ementa, hero, cards, sheet. **Sunk** (#ECE4CE): wells, chips, hover row. **Band** (#E4DBC3): rails, meters, skeleton blocks.
+- **Blue-Black Ink** (#141B3A): all text on fills; **Muted** (#424968), **Faint** (#525877); **Line** (#D6CDB6) hairlines; **Edge** (#6F7592) dotted rules, input and chip borders.
 - **OK Slate** (`tier-ok` #4D5578 on #E9EBF3): OK Tier, Steady trend, and the family's neutral.
 
 ### Named steps
@@ -320,10 +320,10 @@ Top bar: Brand at left, a "Provisional · Lisboa" tagline (hidden at 480px and u
 
 ## Elevation & Depth
 
-Flat paper. Depth is a rule and a tone: white cards on Table Paper, Sunk wells inside cards, double rules to frame the important things. One soft paper lift exists for secondary cards.
+Flat paper. Depth is a rule and a tone: cream cards on Table Paper, Sunk wells inside cards, double rules to frame the important things. One soft paper lift exists for secondary cards.
 
 ### Shadow Vocabulary
-- **Paper lift** (`box-shadow: 0 1px 0 rgba(20,27,58,.08), 0 6px 18px -10px rgba(20,27,58,.28)`; dark `0 1px 0 rgba(0,0,0,.4), 0 6px 18px -10px rgba(0,0,0,.6)`): account, settings and index cards, the landing sample card, state pages, the feedback panel. The ementa, Report hero and filter sheet use the double rule instead and carry no shadow.
+- **Paper lift** (`box-shadow: 0 1px 0 rgba(70,50,15,.10), 0 10px 24px -14px rgba(50,35,10,.38)`; dark `0 1px 0 rgba(0,0,0,.4), 0 6px 18px -10px rgba(0,0,0,.6)`): account, settings and index cards, the landing sample card, state pages, the feedback panel. The ementa, Report hero and filter sheet use the double rule instead and carry no shadow.
 - **Highlight band** (`box-shadow: inset 0 -.42em 0 var(--sun)`): a flat marker stroke under the main reason; `inset 0 -.2em 0 var(--flag-bg)` under "eat" in the landing headline. Cloned across line breaks. An inset band, not a gradient and not a drop shadow.
 
 ### Named Rules
@@ -355,7 +355,7 @@ Chips are capsules on Sunk. Confidence: three round dots filled to level plus th
 - **Focus:** 3px blue (`focus`) outline, 3px offset. **Disabled:** Sunk fill, muted text, line border, full opacity, not-allowed.
 
 ### Directory ementa (signature)
-`ul.ementa`: white, double-rule frame, 6px radius. Each `.dir-row` is a ledger line, 1px `line` between rows, 16px padding. Top line is a grid: name (Bricolage 700) | dotted leader | Tier. Under it a muted 14px meta line (Format, Price, Area), then a foot: Confidence, Trend, dietary icons, and the Book link. The whole row is clickable through the name link's stretched overlay; the Book link sits above it. Hover or focus-within tints the row Sunk and draws the leader.
+`ul.ementa`: cream, double-rule frame, 6px radius. Each `.dir-row` is a ledger line, 1px `line` between rows, 16px padding. Top line is a grid: name (Bricolage 700) | dotted leader | Tier. Under it a muted 14px meta line (Format, Price, Area), then a foot: Confidence, Trend, dietary icons, and the Book link. The whole row is clickable through the name link's stretched overlay; the Book link sits above it. Hover or focus-within tints the row Sunk and draws the leader.
 
 **The leader** is a 2px dotted `edge` line from name to Verdict. On row hover or focus-within a second 2px dotted blue line is revealed left to right (`clip-path`, 200ms ease-out). Under `prefers-reduced-motion` all transitions collapse and the blue leader appears at once. Keyboard focus shows a 3px inset outline on the row.
 
@@ -414,3 +414,10 @@ Drawn SVG icons from `src/web/icons.tsx` and `atoms.tsx`: 24px viewBox, 2.25 str
 ## Scope and known gaps
 
 Beta surfaces on this system: landing, privacy, Directory, Report, history, search-home, settings (including invites), sign-in, account, feedback widget and inbox, baseline checks, owner questions, and the loading, error and not-found states. The Directory row has no reason line or standout dish (needs a DirectoryItem contract change). Portuguese UI is out of scope.
+
+## Polish additions (2026-10-02)
+- **Warm paper.** Ground #F5EFE0, Card Cream #FFFCF4, Sunk #ECE4CE, Line #D6CDB6, Band #E4DBC3; the paper lift is tinted warm (`rgba(70,50,15,.10)`, `rgba(50,35,10,.38)`). Dark twins unchanged. `themeColor` in `layout.tsx` and `manifest.ts` match the ground.
+- **Course headings** (`li.ementa-course`, aria-hidden): when the Directory is sorted by Tier, a Sunk band with a 13px uppercase Display label in blue ink and a hairline rule heads each Tier, and "Not enough evidence" heads the NEE rows. Not shown for other sorts.
+- **Ornament.** A double hairline rule under the Directory and "How a Verdict reads" titles; a blue CSS diamond on each Report section's dotted rule (the rule is broken by a ground-coloured gap).
+- **Landing.** Two rotated paper sheets sit behind the sample card; the primary button carries a double ring; "How a Verdict reads" lists the five Tiers as ementa lines (meaning, leader, Tier), highest first, beside the title at 900px and up.
+- **Sidebar.** At 1000px and up the filter panel gets a 3px blue top rule and the paper lift. The Directory row grid is `max-content minmax(0,1fr)`, so the meta line never overlaps the foot.

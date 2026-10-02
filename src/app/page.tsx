@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { AuthError, requireCaller } from "@/lib/auth";
 import { directoryQueryFromPage } from "@/lib/directory-url";
+import { TIERS, TIER_MEANING } from "@/domain/aspects";
 import { WELCOME_DISMISSED_COOKIE } from "@/domain/welcome";
 import { Brand } from "@/web/brand";
 import { ConfChip, TierBadge } from "@/web/atoms";
@@ -67,6 +68,19 @@ function LandingPage() {
             <li>Invitation-only beta</li>
           </ul>
         </div>
+      </section>
+
+      <section className="landing-menu" aria-labelledby="menu-title">
+        <h2 id="menu-title">How a Verdict reads</h2>
+        <p className="landing-menu-lede">Every Restaurant gets one Tier, judged against its own kind. Highest first.</p>
+        <ol className="ementa tier-menu">
+          {[...TIERS].reverse().map((tier) => <li key={tier} className="tier-line">
+            <p className="tier-meaning">{TIER_MEANING[tier]}</p>
+            <i className="leader" aria-hidden="true" />
+            <TierBadge tier={tier} />
+          </li>)}
+        </ol>
+        <p className="landing-menu-note">A dashed outline means the Tier is provisional.</p>
       </section>
 
       <footer className="landing-footer">

@@ -1,4 +1,6 @@
+import { Fragment } from "react";
 import Link from "next/link";
+import { TIER_LABEL } from "@/domain/aspects";
 import { ConfChip, DietIcon, TierBadge, TrendChip } from "@/web/atoms";
 import { ExternalIcon } from "@/web/icons";
 import type { DirectoryItem, DirectoryQuery, DirectoryResponse } from "@/lib/api-contract";
@@ -6,6 +8,15 @@ import { directoryHref } from "@/lib/directory-url";
 import { TierLegend } from "@/web/tier-legend";
 import { UsageTrackedLink, UsageTrackedNavLink } from "@/web/usage-tracking";
 import DirectoryControls from "./directory-controls";
+
+// Sorted by Tier, the ementa reads in courses: a heading where the Tier changes, like a menu's section titles.
+const courseOf = (item?: DirectoryItem) => (item ? item.tier ?? "nee" : null);
+
+function Course({ item }: { item: DirectoryItem }) {
+  return <li className="ementa-course" role="presentation" aria-hidden="true">
+    <span>{item.tier ? TIER_LABEL[item.tier] : "Not enough evidence"}</span>
+  </li>;
+}
 
 function Row({ item, trackUsage }: { item: DirectoryItem; trackUsage: boolean }) {
   // A Restaurant is one line of the ementa: name, a dotted leader, then its Verdict. Format, Price and Area sit under the name as one quiet line.
@@ -49,7 +60,10 @@ export default function Directory({ query, result, trackUsage = false }: { query
             {(filtered || query.nee) && <UsageTrackedNavLink className="btn" href="/" track={trackUsage} eventType="filter">Clear filters</UsageTrackedNavLink>}
           </div>
           : <ol className="ementa" aria-label="Restaurants">
-            {result.items.map((item) => <Row key={item.slug} item={item} trackUsage={trackUsage} />)}
+            {result.items.map((item, index) => <Fragment key={item.slug}>
+              {query.sort === "tier" && courseOf(item) !== courseOf(result.items[index - 1]) && <Course item={item} />}
+              <Row item={item} trackUsage={trackUsage} />
+            </Fragment>)}
           </ol>}
         {result.totalPages > 1 && <nav className="dir-pages" aria-label="Pages">
           {result.page > 1 ? <Link className="btn btn-secondary" rel="prev" href={view(result.page - 1)}>Previous</Link> : <span />}
