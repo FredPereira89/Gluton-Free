@@ -262,7 +262,7 @@ describe("Confidence and per-Source readings (issue #38)", () => {
     page.verdict!.blocks.rollup.sourceReadings = [{ source: "google", tier: "ok", textReviews12m: 3, quiet: true }];
     vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
-    expect(html).toContain("Crowd Source · quiet");
+    expect(html).toContain("Review site · few recent Reviews");
   });
 
   it("omits the quiet label for a Source with enough text Reviews", async () => {
@@ -284,7 +284,7 @@ describe("Over-time chart: composite layer (issue #41)", () => {
     vi.mocked(loadRestaurantBundle).mockResolvedValue(page);
     const html = renderToStaticMarkup(await VerdictPageRoute({ params: Promise.resolve({ slug: "sample" }) }));
     expect(html).toContain("chart-composite-dot-hollow");
-    expect(html).toContain("better than most similar restaurants");
+    expect(html).toContain("Better food than almost all tascas in Lisbon");
     expect(html).toContain("few reviews");
     expect(html).not.toMatch(/Pd/);
   });
@@ -459,14 +459,16 @@ describe("Decision-first report (issue #112)", () => {
     expect(html).toContain("1 reviewer<");
   });
 
-  it("puts a plain summary and theme chips in the hero, and the bar graphs inside 'How we judged this'", async () => {
+  it("puts the plain summary and theme chips in report highlights, and the bar graphs inside 'How we judged this'", async () => {
     const html = await render("invitee", withThemes(bundleWithPeers(40, 40)));
     const hero = html.slice(html.indexOf('<section class="hero">'), html.indexOf("</section>"));
-    expect(hero).toContain("hero-summary");
-    expect(hero).toContain("better than almost all tascas in Lisbon");
-    expect(hero).toContain("Reviewers praise");
-    expect(hero).toContain('theme-chip pos">Delicious food <b>30</b>');
-    expect(hero).toContain("Reviewers warn");
+    const highlightsStart = html.indexOf('<section class="sec report-highlights"');
+    const highlights = html.slice(highlightsStart, html.indexOf("</section>", highlightsStart));
+    expect(highlights).toContain("hero-summary");
+    expect(highlights).toContain("better than almost all tascas in Lisbon");
+    expect(highlights).toContain("Reviewers praise");
+    expect(highlights).toContain('theme-chip pos">Delicious food <b>30</b>');
+    expect(highlights).toContain("Reviewers warn");
     expect(hero).not.toContain('class="scorecard"');
     expect(hero).not.toContain('class="bars');
     const judged = html.slice(html.indexOf('<details class="judged"'));

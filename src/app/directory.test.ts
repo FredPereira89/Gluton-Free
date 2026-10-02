@@ -43,7 +43,7 @@ describe("directory", () => {
 
   it("shows each Restaurant's Tier, Confidence, Format label, Price, neighbourhood and booking link", () => {
     const html = render(result());
-    expect(html).toContain('href="/r/cantina"');
+    expect(html).toContain('href="/r/cantina?from=%2F"');
     expect(html).toContain("Cantina Zé");
     expect(html).toContain("Must Go");
     expect(html).toContain("High Confidence");
@@ -72,9 +72,9 @@ describe("directory", () => {
     expect(html).not.toContain("conf-");
   });
 
-  it("says how many Not enough evidence Restaurants are hidden", () => {
-    expect(render(result({ hiddenNotEnoughEvidence: 10 }))).toContain("10 with Not enough evidence hidden");
-    expect(render(result({ hiddenNotEnoughEvidence: 0 }))).not.toContain("Not enough evidence hidden");
+  it("offers a link to show hidden Not enough evidence Restaurants", () => {
+    expect(render(result({ hiddenNotEnoughEvidence: 10 }))).toContain("Show 10 with Not enough evidence");
+    expect(render(result({ hiddenNotEnoughEvidence: 0 }))).not.toContain("Show 0 with Not enough evidence");
   });
 
   it("links the previous and next page, keeping the rest of the view in the URL", () => {
