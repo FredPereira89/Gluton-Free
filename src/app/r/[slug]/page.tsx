@@ -37,7 +37,7 @@ import { FeedbackWidget } from "@/web/feedback-widget";
 import { UsageEventOnMount, UsageTrackedLink } from "@/web/usage-tracking";
 import { safeDirectoryReturn } from "@/lib/directory-url";
 
-type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ from?: string | string[] }> };
+type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ from?: string | string[] }> };
 
 // Both the Owner's bundle and the Invitee projection render through this one page, with the same report.
 // What only the Owner has (tools, jobs, questions) is read from `owner`, which is null for an Invitee.
@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: Pick<Props, "params">): Promi
   return { title: page ? `${page.restaurant.name} · Gluton-Free` : "Not found" };
 }
 
-export default async function VerdictPageRoute({ params }: Props) {
+export default async function VerdictPageRoute({ params, searchParams = Promise.resolve({}) }: Props) {
   await connection();
   const { slug } = await params;
   const [role, loaded, search] = await Promise.all([pageRole(), loadRestaurantBundle(slug), searchParams]);

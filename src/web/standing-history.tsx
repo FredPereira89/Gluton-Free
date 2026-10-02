@@ -37,10 +37,10 @@ export function StandingHistoryChart({ series, changePointAt }: Props) {
       <div id={chartId} className="history-scroll" tabIndex={0} role="region" aria-label={showAll ? "Full standing history, scrolls sideways" : "Latest eight quarters, scrolls sideways"}>
         <svg viewBox={"0 0 " + width + " 110"} width={showAll ? width : 360} height="110" role="img"
           aria-label={showAll ? "Full history of standing among similar Restaurants, by quarter" : "Latest eight quarters of standing among similar Restaurants"}>
-          {[["Higher", 100], ["Middle", 50], ["Lower", 0]].map(([word, percentile]) => (
+          {([["Higher", 100], ["Middle", 50], ["Lower", 0]] as const).map(([word, percentile]) => (
             <g key={word}>
-              <line x1={left} x2={right} y1={y(percentile as number)} y2={y(percentile as number)} className="chart-grid" />
-              <text x="2" y={y(percentile as number) + 4} className="chart-tick">{word}</text>
+              <line x1={left} x2={right} y1={y(percentile)} y2={y(percentile)} className="chart-grid" />
+              <text x="2" y={y(percentile) + 4} className="chart-tick">{word}</text>
             </g>
           ))}
           {changePointIndex >= 0 && (

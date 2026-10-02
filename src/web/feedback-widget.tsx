@@ -27,7 +27,7 @@ export function FeedbackWidget(props: FeedbackWidgetProps) {
   const buttonLabel = props.buttonLabel ?? "Feedback";
   const id = useId();
   const disclosure = useRef<HTMLDetailsElement>(null);
-  const trigger = useRef<HTMLSummaryElement>(null);
+  const trigger = useRef<HTMLElement>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

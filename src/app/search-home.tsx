@@ -31,7 +31,7 @@ function formatResetTime(resetAt: string): string {
   return new Date(resetAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function PreviewPanel({ loading, error, data, onClose, onStart, starting, startError }: {
+function PreviewPanel({ loading, error, data, onClose, onStart, onRetry, starting, startError }: {
   loading: boolean; error: boolean; data: PreviewLookupResponse | null; onClose: () => void;
   onStart: () => void; onRetry: () => void; starting: boolean; startError: boolean;
 }) {
