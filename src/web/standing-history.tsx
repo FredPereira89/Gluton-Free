@@ -13,7 +13,7 @@ function quarterOf(date: Date): string {
 export function StandingHistoryChart({ series, changePointAt }: Props) {
   const [showAll, setShowAll] = useState(false);
   const chartId = useId();
-  if (!series.some((quarter) => quarter.compositePercentile !== null)) return null;
+  if (!series.some((quarter) => quarter.compositePercentile != null)) return null;
 
   const visible = showAll ? series : series.slice(-8);
   const width = showAll ? Math.max(600, visible.length * 42) : 360;
@@ -51,11 +51,11 @@ export function StandingHistoryChart({ series, changePointAt }: Props) {
           )}
           {visible.slice(1).map((quarter, index) => {
             const previous = visible[index]!;
-            return previous.compositePercentile !== null && quarter.compositePercentile !== null
+            return previous.compositePercentile != null && quarter.compositePercentile != null
               ? <line key={quarter.quarter} x1={x(index)} y1={y(previous.compositePercentile)} x2={x(index + 1)} y2={y(quarter.compositePercentile)} className="chart-composite" />
               : null;
           })}
-          {visible.map((quarter, index) => quarter.compositePercentile === null ? null : (
+          {visible.map((quarter, index) => quarter.compositePercentile == null ? null : (
             <circle key={quarter.quarter} cx={x(index)} cy={y(quarter.compositePercentile)} r="4"
               className={quarter.enoughReviews ? "chart-composite-dot" : "chart-composite-dot-hollow"}>
               <title>{quarter.quarter + ": " + standingPhrase(quarter.compositePercentile) + " among similar Restaurants" + (quarter.enoughReviews ? "" : " · few reviews")}</title>
@@ -70,7 +70,7 @@ export function StandingHistoryChart({ series, changePointAt }: Props) {
         <summary>Quarterly values</summary>
         <ul>{visible.map((quarter) => (
           <li key={quarter.quarter}>
-            <strong>{quarter.quarter}</strong>: {quarter.compositePercentile === null
+            <strong>{quarter.quarter}</strong>: {quarter.compositePercentile == null
               ? "Not enough evidence to show a standing."
               : standingPhrase(quarter.compositePercentile) + " among similar Restaurants."}
             {" "}{quarter.enoughReviews ? "Enough written reviews." : "Few written reviews."}
