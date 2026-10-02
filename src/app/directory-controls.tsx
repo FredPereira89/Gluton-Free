@@ -60,7 +60,7 @@ export default function DirectoryControls({ query, neighbourhoods, trackUsage = 
   return <div className="dir-controls">
     <div className="dir-bar">
       <label className="dir-sort">
-        <span className="eyebrow">Sort by</span>
+        <span className="row-label">Sort by</span>
         <select value={query.sort} onChange={(event) => {
           const sort = event.target.value as DirectoryQuery["sort"];
           if (sort !== query.sort) go({ sort }, "sort");

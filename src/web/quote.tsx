@@ -2,6 +2,7 @@
 // A quote with a Translate toggle. Links go to the Restaurant's page on the Source, never to
 // the individual Review.
 import { useState } from "react";
+import { ExternalIcon } from "./icons";
 
 export type QuoteProps = {
   text: string;
@@ -62,7 +63,7 @@ export function Quote(q: QuoteProps) {
         {error && <span role="alert">Translation unavailable. Try again.</span>}
         {q.sourceUrl && (
           <a className="small" href={q.sourceUrl} rel="noreferrer nofollow" target="_blank" title={`Opens the Restaurant’s page on ${q.sourceName} (never the individual Review)`}>
-            on {q.sourceName} ↗
+            on {q.sourceName} <ExternalIcon />
           </a>
         )}
       </figcaption>

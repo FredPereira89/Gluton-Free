@@ -10,5 +10,6 @@ export function TierLegend() {
         <dd>{TIER_MEANING[tier]}</dd>
       </div>)}
     </dl>
+    <p className="small legend-note">A dashed outline means the Tier is provisional.</p>
   </details>;
 }

@@ -15,7 +15,8 @@ import {
 import { formatPercentile } from "@/verdict/peer";
 import { type SourceDisagreement, type SourceReading } from "@/verdict/rollup";
 import { trendOf } from "@/verdict/trend";
-import { ConfChip, dateLabel, Explanation, monthLabel, TierBadge, TrendChip } from "@/web/atoms";
+import { ConfChip, dateLabel, DietIcon, Explanation, ExternalIcon, monthLabel, TierBadge, TrendChip } from "@/web/atoms";
+import { Icon } from "@/web/icons";
 import { loadRestaurantBundle } from "@/web/data";
 import type { InviteeBundle, ReportFacts as ReportFactsData, RestaurantBundle } from "@/lib/api-contract";
 import { projectInviteeBundle } from "@/lib/invitee-projection";
@@ -75,16 +76,16 @@ export default async function VerdictPageRoute({ params }: Props) {
           <span key={s.code}>
             {" · "}
             <a href={s.url} rel="noreferrer nofollow" target="_blank">
-              {s.name} ↗
+              {s.name} <ExternalIcon />
             </a>
           </span>
         ))}
-        {R.booking && <>
-          {" · "}
-          <UsageTrackedLink track={role === "invitee"} href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label} ↗</UsageTrackedLink>
-        </>}
       </p>
     </div>
+  );
+  // The booking link is the next step after the Verdict, so it sits in the hero's first screen as a capsule.
+  const bookLink = R.booking && (
+    <UsageTrackedLink className="book" track={role === "invitee"} href={R.booking.url} rel="noopener noreferrer" target="_blank">{R.booking.label}<ExternalIcon /></UsageTrackedLink>
   );
   const baseChips = (
     <>
@@ -92,7 +93,7 @@ export default async function VerdictPageRoute({ params }: Props) {
       {R.priceTier && <span className="chip">{R.priceTier}</span>}
     </>
   );
-  const historyLink = <p className="small"><Link href={`/r/${encodeURIComponent(R.slug)}/history`}>See how this verdict has changed</Link></p>;
+  const historyLink = <p className="small touch"><Link href={`/r/${encodeURIComponent(R.slug)}/history`}>See how this verdict has changed</Link></p>;
   const activity = (
     <>
       <RefreshWhileBusy status={activeJob?.status ?? null} />
@@ -111,9 +112,10 @@ export default async function VerdictPageRoute({ params }: Props) {
         <section className="hero">
           {head}
           {activity}
+          <p className="explain">No Verdict yet: the Reviews have not been read.</p>
+          {bookLink}
           <div className="chips">{baseChips}</div>
           <ReportFacts facts={page.reportFacts} />
-          <p className="explain">No Verdict yet: the Reviews have not been read.</p>
         </section>
         {owner && <SourceRetryBanners slug={R.slug} questions={owner.ownerQuestions} />}
         <Sources page={page} owner={owner} />
@@ -165,12 +167,13 @@ export default async function VerdictPageRoute({ params }: Props) {
           <div>
             <span className="nee">Not enough evidence</span>
           </div>
+          {nee.reasonLine && !changePointNotice(r) && <p className="explain">{nee.reasonLine}</p>}
+          {bookLink}
           <div className="chips">{baseChips}</div>
           <ReportFacts facts={page.reportFacts} />
           {notices}
-          {nee.reasonLine && !changePointNotice(r) && <p className="explain">{nee.reasonLine}</p>}
           <div>
-            <p className="eyebrow">What is missing</p>
+            <h2 className="row-label">What is missing</h2>
             <ul className="missing">
               {missingEvidence(nee).map((line) => <li key={line}>{line}</li>)}
             </ul>
@@ -210,21 +213,22 @@ export default async function VerdictPageRoute({ params }: Props) {
       <section className="hero">
         {head}
         {activity}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 14px", alignItems: "center" }}>
+        <div className="tier-row">
           <TierBadge tier={(forced ? "avoid" : r.tier) as Tier} size="lg" dashed={r.provisional} />
+          <ConfChip level={r.confidence.level} />
         </div>
-        <TierLegend />
         {!forced && <p className="explain">{heroReason(r, ctx)}</p>}
+        {bookLink}
         {summary && <p className="hero-summary">{summary}</p>}
         {!forced && (strengths.length > 0 || warnings.length > 0) && (
           <div className="hero-themes">
             <div className="theme-row">
-              <span className="eyebrow">Reviewers praise</span>
+              <span className="row-label">Reviewers praise</span>
               {strengths.length ? strengths.map((t) => <span key={t.label} className="theme-chip pos">{t.label} <b>{t.reviewers}</b></span>)
                 : <span className="small muted">No recurring praise yet</span>}
             </div>
             <div className="theme-row">
-              <span className="eyebrow">Reviewers warn</span>
+              <span className="row-label">Reviewers warn</span>
               {warnings.length ? warnings.map((t) => <span key={t.label} className="theme-chip neg">{t.label} <b>{t.reviewers}</b></span>)
                 : <span className="small muted">No recurring criticism</span>}
             </div>
@@ -233,10 +237,10 @@ export default async function VerdictPageRoute({ params }: Props) {
         {notices}
         <div className="chips">
           {baseChips}
-          <ConfChip level={r.confidence.level} />
           <TrendChip trend={r.provisional ? null : trendOf(r.series, r.confidence.level, new Date())} />
         </div>
         <ReportFacts facts={page.reportFacts} />
+        <TierLegend />
         {r.redFlags.map((g) => <RedFlagCallout key={g.group} group={g} sources={sourceByCode} />)}
         {role === "invitee" && (forced || r.tier === "avoid" || r.redFlags.length > 0) && (
           <FeedbackWidget kind="restaurant_issue" restaurantSlug={R.slug} buttonLabel="Something wrong? Tell us" />
@@ -279,11 +283,11 @@ export default async function VerdictPageRoute({ params }: Props) {
               <h3>What reviewers raise</h3>
               <div className="cols">
                 <div>
-                  <div className="eyebrow">Strengths</div>
+                  <h4 className="row-label">Strengths</h4>
                   {strengths.length ? <ThemeBars items={strengths} max={maxReviewers} /> : <p className="small muted">No recurring praise yet.</p>}
                 </div>
                 <div>
-                  <div className="eyebrow">Warnings</div>
+                  <h4 className="row-label">Warnings</h4>
                   {warnings.length ? <ThemeBars items={warnings} max={maxReviewers} negative /> : <p className="small muted">No recurring criticism.</p>}
                 </div>
               </div>
@@ -337,7 +341,7 @@ function ReportFacts({ facts }: { facts: ReportFactsData }) {
       {facts.dietaryFits.length > 0 && (
         <div>
           <h2>Dietary fit</h2>
-          <ul>{facts.dietaryFits.map((diet) => <li key={diet}>{DIET_LABEL[diet]}</li>)}</ul>
+          <ul>{facts.dietaryFits.map((diet) => <li key={diet}><DietIcon diet={diet} text={DIET_LABEL[diet]} /></li>)}</ul>
         </div>
       )}
     </section>
@@ -363,7 +367,7 @@ function ThemeBars({ items, max, negative }: { items: ThemeBarItem[]; max: numbe
 function RedFlagCallout({ group: g, sources }: { group: RedFlagGroup; sources: Map<string, SourceLink> }) {
   return (
     <aside className={`flag ${g.forcesAvoid ? "" : "minor"}`} aria-label={`${g.group === "health" ? "Health" : "Money"} red flag`}>
-      <span className="ico" aria-hidden="true">!</span>
+      <span className="ico" aria-hidden="true"><Icon d="M12 6v7M12 17.5h.01" size={16} /></span>
       <div>
         <b>{redFlagLine(g)}</b>
         <p className="small">
@@ -419,7 +423,7 @@ function Sources({ page, owner, perSource, sourceReadings }: { page: InviteeBund
                 <tr key={s.code}>
                   <td>
                     <a href={s.url} rel="noreferrer nofollow" target="_blank">
-                      {s.name} ↗
+                      {s.name} <ExternalIcon />
                     </a>
                     <div className="small muted">{s.kind === "crowd" ? "Crowd Source" : "Editorial Source"}{reading?.quiet && " · quiet"}</div>
                     {owner && s.matchProvenance === "auto_accepted" && (
@@ -428,19 +432,19 @@ function Sources({ page, owner, perSource, sourceReadings }: { page: InviteeBund
                       </div>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Access">
                     <span className={`acc ${s.access === "personal_only" ? "personal" : "public"}`}>
                       {s.access === "personal_only" ? "personal-only" : "public-OK"}
                     </span>
                   </td>
-                  <td className="num">{s.reviewCount?.toLocaleString("en") ?? "—"}</td>
-                  <td className="num">{s.textCount?.toLocaleString("en") ?? "—"}</td>
-                  <td className="num">{s.rating?.toFixed(1) ?? "—"}</td>
-                  <td>{reading?.tier ? TIER_LABEL[reading.tier] : "—"}</td>
-                  <td>{dateLabel(s.newestAt)}</td>
-                  <td className="num">{w ? w.text.toLocaleString("en") : "—"}</td>
-                  <td>{w?.windowStart ? dateLabel(w.windowStart) : "—"}</td>
-                  <td>{s.fetchStatus.replaceAll("_", " ")}</td>
+                  <td className="num" data-label="Reviews">{s.reviewCount?.toLocaleString("en") ?? "—"}</td>
+                  <td className="num" data-label="With text">{s.textCount?.toLocaleString("en") ?? "—"}</td>
+                  <td className="num" data-label="Rating">{s.rating?.toFixed(1) ?? "—"}</td>
+                  <td data-label="Tier reading">{reading?.tier ? TIER_LABEL[reading.tier] : "—"}</td>
+                  <td data-label="Newest">{dateLabel(s.newestAt)}</td>
+                  <td className="num" data-label="Window">{w ? w.text.toLocaleString("en") : "—"}</td>
+                  <td data-label="Window since">{w?.windowStart ? dateLabel(w.windowStart) : "—"}</td>
+                  <td data-label="Status">{s.fetchStatus.replaceAll("_", " ")}</td>
                 </tr>
               );
             })}
