@@ -5,7 +5,8 @@ import {
   type IdPagination, type ReportFacts, type RestaurantBundle, type RestaurantListResponse, type VerdictHistoryResponse,
 } from "@/lib/api-contract";
 import { BlocksSchema, type Blocks } from "@/verdict/blocks";
-import { PARAMS, quarterlySourceHistory, reviewWindowCutoff } from "@/verdict/rollup";
+import { PARAMS, quarterlySourceHistory, reviewWindowCutoff, type Rollup } from "@/verdict/rollup";
+import { heroReason } from "@/verdict/plain-report";
 import { trendOf } from "@/verdict/trend";
 import type { DirectoryQuery, DirectoryResponse, SearchResponse } from "@/lib/api-contract";
 import { buildDirectory } from "@/lib/directory";
@@ -437,11 +438,12 @@ async function loadDishDietaryFacts(windows: { id: number; as_of: Date; since: D
 export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryResponse> {
   const now = new Date();
   const rows = await db()`
-    select r.id, v.created_at, v.blocks->'rollup'->>'changePointAt' as change_point_at, r.slug, r.name, r.address, r.area, r.lat, r.lng, r.format, r.price_tier,
+    select r.id, v.created_at, v.blocks->'rollup'->>'changePointAt' as change_point_at, r.slug, r.name, r.city, r.address, r.area, r.lat, r.lng, r.format, r.price_tier,
            v.state, v.tier, v.confidence, v.provisional,
            (select (s->>'percentile')::float8 from jsonb_array_elements(v.blocks->'rollup'->'standings') s where s->>'input' = 'food') as food_percentile,
            (select (s->>'percentile')::float8 from jsonb_array_elements(v.blocks->'rollup'->'standings') s where s->>'input' = 'value') as value_percentile,
            v.blocks->'rollup'->'series' as series,
+           jsonb_build_object('tier', v.tier, 'redFlags', coalesce(v.blocks->'rollup'->'redFlags', '[]'::jsonb), 'inputs', coalesce(v.blocks->'rollup'->'inputs', '[]'::jsonb), 'standings', coalesce(v.blocks->'rollup'->'standings', '[]'::jsonb)) as reason_src,
            (select place_ref from listing where restaurant_id = r.id and source_code = 'google') as google_place_id,
            (select url from listing where restaurant_id = r.id and source_code = 'thefork') as thefork_url
     from restaurant r
@@ -452,6 +454,8 @@ export async function loadDirectory(query: DirectoryQuery): Promise<DirectoryRes
   const categories = rows.length ? await db()`select restaurant_id, categories from listing where restaurant_id in (select jsonb_array_elements_text(${db().json(rows.map((r) => r.id))}::jsonb)::bigint)` : [];
   return buildDirectory(
     rows.map((r) => ({
+      reason: r.state === "verdict" && r.tier ? heroReason(r.reason_src as Rollup, { format: r.format ?? "", city: r.city }) : null,
+      standoutDish: standoutDishes(facts.filter((f) => Number(f.restaurant_id) === Number(r.id)).map((f) => ({ reviewId: Number(f.id), dishes: (f.standout_dishes ?? []) as string[] })))[0]?.name ?? null,
       dietaryFits: dietaryFits(facts.filter((f) => Number(f.restaurant_id) === Number(r.id)).map((f) => ({ reviewId: Number(f.id), praise: f.dietary_praise, complaints: f.dietary_complaints })), categories.filter((l) => Number(l.restaurant_id) === Number(r.id)).flatMap((l) => l.categories ?? [])),
       slug: r.slug,
       name: r.name,

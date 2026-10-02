@@ -344,6 +344,20 @@
                               ]
                             }
                           },
+                          "reason": {
+                            "default": null,
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "standoutDish": {
+                            "default": null,
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "booking": {
                             "type": "object",
                             "properties": {
@@ -383,6 +397,8 @@
                           "neighbourhood",
                           "trend",
                           "dietaryFits",
+                          "reason",
+                          "standoutDish",
                           "booking"
                         ],
                         "additionalProperties": false
