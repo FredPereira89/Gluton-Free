@@ -7,19 +7,21 @@ import { UsageTrackedLink, UsageTrackedNavLink } from "@/web/usage-tracking";
 import DirectoryControls from "./directory-controls";
 
 function Row({ item, trackUsage }: { item: DirectoryItem; trackUsage: boolean }) {
+  // Format, Price and Area sit under the name as one quiet line, so the table keeps six columns.
+  const meta = [item.format, item.priceTier, item.neighbourhood].filter(Boolean).join(" · ");
   return <tr className="dir-row">
-    <th scope="row" className="dir-name"><Link href={`/r/${encodeURIComponent(item.slug)}`}>{item.name}</Link></th>
+    <th scope="row" className="dir-name">
+      <Link href={`/r/${encodeURIComponent(item.slug)}`}>{item.name}</Link>
+      {meta && <span className="dir-meta">{meta}</span>}
+    </th>
     <td data-label="Tier">
       {item.tier ? <TierBadge tier={item.tier} dashed={item.provisional} /> : <span className="chip nee-chip">Not enough evidence</span>}
     </td>
     <td data-label="Confidence">{item.confidence ? <ConfChip level={item.confidence} compact /> : <span className="muted">–</span>}</td>
     <td data-label="Trend">{item.trend ? <TrendChip trend={item.trend} /> : <span className="muted">–</span>}</td>
-    <td data-label="Format">{item.format || <span className="muted">–</span>}</td>
     <td data-label="Dietary fit">{item.dietaryFits.length > 0
       ? <span className="dir-diet">{item.dietaryFits.map((diet) => <DietIcon key={diet} diet={diet} iconOnly />)}</span>
       : <span className="muted">–</span>}</td>
-    <td data-label="Price">{item.priceTier ?? <span className="muted">–</span>}</td>
-    <td data-label="Area">{item.neighbourhood}</td>
     <td className="dir-book">
       <UsageTrackedLink className="book sm" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">{item.booking.label}<ExternalIcon /></UsageTrackedLink>
     </td>
@@ -44,7 +46,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
         {(filtered || query.nee) && <UsageTrackedNavLink className="btn" href="/" track={trackUsage} eventType="filter">Clear filters</UsageTrackedNavLink>}
       </div>
       : <div className="dir-scroll"><table className="dir-table">
-        <thead><tr><th scope="col">Restaurant</th><th scope="col">Tier</th><th scope="col">Confidence</th><th scope="col">Trend</th><th scope="col">Format</th><th scope="col">Dietary fit</th><th scope="col">Price</th><th scope="col">Area</th><th scope="col">Book</th></tr></thead>
+        <thead><tr><th scope="col">Restaurant</th><th scope="col">Tier</th><th scope="col">Confidence</th><th scope="col">Trend</th><th scope="col">Dietary fit</th><th scope="col">Book</th></tr></thead>
         <tbody>{result.items.map((item) => <Row key={item.slug} item={item} trackUsage={trackUsage} />)}</tbody>
       </table></div>}
     {result.totalPages > 1 && <nav className="dir-pages" aria-label="Pages">

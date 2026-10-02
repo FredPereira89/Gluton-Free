@@ -372,10 +372,11 @@ body:has(.directory) .topbar{max-width:1120px}
 .dir-scroll{overflow-x:auto}
 /* A Restaurant row: a lobe of cream with the Tier at its heart and the Book capsule on its edge. */
 .dir-table{width:100%;border-collapse:separate;border-spacing:0 8px}
-.dir-table thead th{text-align:left;font-size:14px;font-weight:700;color:var(--muted);padding:0 10px 2px}
+.dir-table thead th{white-space:nowrap;text-align:left;font-size:14px;font-weight:700;color:var(--muted);padding:0 10px 2px}
 .dir-table td,.dir-table tbody th{background:var(--surface);padding:12px 10px;text-align:left;vertical-align:middle;font-weight:400}
 .dir-table tbody th.dir-name{font-weight:700;font-size:17px;border-radius:var(--r-card) 0 0 var(--r-card)}
 .dir-table tbody td:last-child{border-radius:0 var(--r-card) var(--r-card) 0}
+.dir-meta{display:block;margin-top:2px;font-size:14px;font-weight:400;color:var(--muted)}
 .dir-table a{color:var(--ink)}
 .dir-table a.book{color:var(--on-brand);background:var(--surface)}
 .dir-row:hover .tier,.dir-row:focus-within .tier{transform:scale(1.04)}
@@ -408,10 +409,7 @@ body:has(.directory) .topbar{max-width:1120px}
   .dir-diet{flex-wrap:wrap}
   .dir-diet .diet-text{position:static;width:auto;height:auto;overflow:visible;clip:auto}
   .dir-diet .diet{padding-right:10px;background:var(--accent-soft);border-radius:var(--r-pill);font-size:14px}
-  .dir-table td[data-label="Format"]{order:5;flex:1 1 100%;color:var(--muted);font-size:15px}
-  .dir-table td[data-label="Price"]{order:6;color:var(--muted);font-size:15px}
-  .dir-table td[data-label="Area"]{order:7;color:var(--muted);font-size:15px}
-  .dir-table td.dir-book{order:8;flex:1 1 100%;border-radius:0;position:relative;z-index:1}
+  .dir-table td.dir-book{order:5;flex:1 1 100%;border-radius:0;position:relative;z-index:1}
   .dir-table td.dir-book .book{display:flex;width:100%}
 }
 
