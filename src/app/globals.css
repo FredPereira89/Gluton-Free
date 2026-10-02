@@ -189,6 +189,7 @@ body:has(.signin) .topbar{display:none}
 body:has(.public-page) .topbar{display:none}
 /* Invitees read the report pages but cannot open Settings. */
 body:has(.invitee-view) .topbar a[href="/settings"]{display:none}
+.wrap{overflow-wrap:break-word}
 .wrap:has(.landing-page){max-width:960px}
 .wrap:has(.directory){max-width:1120px}
 body:has(.directory) .topbar{max-width:1120px}
@@ -488,3 +489,19 @@ body:has(.directory) .topbar{max-width:1120px}
   table.src td[data-label]::before{content:attr(data-label);display:block;font-size:13px;font-weight:700;color:var(--muted)}
   table.src td.num{text-align:left}
 }
+
+/* ---------- loading, error and not-found states (#121) ---------- */
+.skeleton-page{display:grid;gap:var(--s-3);margin-top:var(--s-6)}
+.skel{background:var(--sunk);border-radius:var(--r-card);animation:skel-pulse 1.4s ease-in-out infinite}
+.skel-title{height:32px;width:min(60%,260px);border-radius:var(--r-sm)}
+.skel-bar{height:44px;width:100%;border-radius:var(--r-pill)}
+.skel-row{height:132px;border-radius:var(--r-lobe) var(--r-lobe) var(--r-lobe) var(--r-sm)}
+.skeleton-hero{min-height:min(520px,70vh)}
+.skeleton-hero .skel-line{height:18px;border-radius:var(--r-sm)}
+.skeleton-hero .skel-line.short{width:60%}
+.skeleton-hero .skel-tier{height:56px;width:min(100%,300px);border-radius:var(--r-pill)}
+.skeleton-hero .skel-book{height:48px;border-radius:var(--r-pill);margin-top:auto}
+@keyframes skel-pulse{50%{opacity:.55}}
+.state-page{display:grid;gap:var(--s-4);justify-items:start;max-width:520px;margin:var(--s-7) auto 0;padding:var(--s-5);background:var(--surface);border-radius:var(--r-lobe) var(--r-lobe) var(--r-lobe) var(--r-sm);box-shadow:var(--shadow)}
+.state-page h1{font-size:clamp(26px,6vw,34px);font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.state-actions{display:flex;flex-wrap:wrap;gap:var(--s-3)}
