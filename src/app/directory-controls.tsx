@@ -32,6 +32,7 @@ export default function DirectoryControls({ query, neighbourhoods, resultCount, 
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mobileViewport, setMobileViewport] = useState(false);
+  const [areaSearch, setAreaSearch] = useState("");
   const [pending, startTransition] = useTransition();
   // The controls show the tap at once; the server-rendered query replaces it when the new view arrives.
   const [shown, showOptimistic] = useOptimistic(query, (current: DirectoryQuery, next: Partial<DirectoryQuery>) => ({ ...current, ...next }));
@@ -104,15 +105,23 @@ export default function DirectoryControls({ query, neighbourhoods, resultCount, 
   }
   function group<K extends ListFilter>(name: K, legend: string, options: { value: DirectoryQuery[K][number]; label: string; count?: number }[]) {
     const chosen = shown[name].length;
-    // In the phone sheet each group folds away behind its name, so the whole list is not one long scroll. The desktop sidebar starts with them open.
-    return <details className="dir-group" key={name} open={mobileViewport ? undefined : true}>
+    // Common desktop filters start open; selected groups remain visible in either layout.
+    const open = chosen > 0 || (!mobileViewport && (name === "price" || name === "diet"));
+    const normalise = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase();
+    const visibleOptions = name === "area" ? options.filter((option) => normalise(option.label).includes(normalise(areaSearch.trim()))) : options;
+    return <details className="dir-group" key={name} open={open}>
       <summary><span>{legend}</span>{chosen > 0 && <span className="dir-group-count">{chosen} chosen</span>}</summary>
+      {name === "area" && <label className="dir-area-search">
+        <span className="small">Find a neighbourhood</span>
+        <input type="search" value={areaSearch} onChange={(event) => setAreaSearch(event.target.value)} />
+      </label>}
       <div className={name === "area" ? "dir-options dir-areas" : "dir-options"} role="group" aria-label={legend}>
-        {options.map((option) => <label key={String(option.value)} className="dir-option">
+        {visibleOptions.map((option) => <label key={String(option.value)} className="dir-option">
           <input type="checkbox" checked={(shown[name] as readonly unknown[]).includes(option.value)} onChange={() => pick(name, option.value)} />
           <span>{option.label}</span>
           {option.count !== undefined && <span className="muted small">{option.count}</span>}
         </label>)}
+        {visibleOptions.length === 0 && <p className="small muted" role="status">No neighbourhoods match your search.</p>}
       </div>
     </details>;
   }
@@ -137,14 +146,14 @@ export default function DirectoryControls({ query, neighbourhoods, resultCount, 
   }
 
   const filterOptions = <>
-    {group("area", "Neighbourhood", neighbourhoods.map(({ name, count }) => ({ value: name, label: name, count })))}
     {group("price", "Price", PRICE_TIERS.map((price) => ({ value: price, label: price })))}
     {group("diet", "Dietary fit", DIETS.map((diet) => ({ value: diet, label: DIET_LABEL[diet] })))}
+    {group("area", "Neighbourhood", neighbourhoods.map(({ name, count }) => ({ value: name, label: name, count })))}
     {group("family", "Kind of place", FORMAT_FAMILIES.map((family) => ({ value: family.code, label: family.label })))}
     {group("tier", "Tier", TIERS.map((tier) => ({ value: tier, label: TIER_LABEL[tier] })).reverse())}
     <label className="dir-option dir-nee">
       <input type="checkbox" checked={shown.nee} onChange={() => go({ nee: !shown.nee }, "filter")} />
-      <span>Show Restaurants with Not enough evidence</span>
+      <span>Include Restaurants with Not enough evidence</span>
     </label>
     {activeFilters > 0 && <button type="button" className="btn btn-secondary dir-clear" onClick={() => go({ tier: [], family: [], diet: [], price: [], area: [], nee: false }, "filter")}>Clear all filters</button>}
   </>;

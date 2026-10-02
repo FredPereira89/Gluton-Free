@@ -68,9 +68,9 @@ describe("directory", () => {
     expect(html).not.toContain("conf-");
   });
 
-  it("offers a link to show hidden Not enough evidence Restaurants", () => {
-    expect(render(result({ hiddenNotEnoughEvidence: 10 }))).toContain("Show 10 with Not enough evidence");
-    expect(render(result({ hiddenNotEnoughEvidence: 0 }))).not.toContain("Show 0 with Not enough evidence");
+  it("offers a link to include hidden Not enough evidence Restaurants", () => {
+    expect(render(result({ hiddenNotEnoughEvidence: 10 }))).toContain("Include 10 with Not enough evidence");
+    expect(render(result({ hiddenNotEnoughEvidence: 0 }))).not.toContain("Include 0 with Not enough evidence");
   });
 
   it("links the previous and next page, keeping the rest of the view in the URL", () => {

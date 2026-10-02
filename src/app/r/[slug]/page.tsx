@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ASPECT_LABEL, INPUT_LABEL, TIER_LABEL, type Tier } from "@/domain/aspects";
 import { formatLabel } from "@/domain/format-labels";
+import { sourceListingUrl } from "@/domain/source-link";
 import {
   aspectPositions, changePointNotice, heroSummary, leadStanding, confidenceReasons, consistencyLine, heroReason, missingEvidence,
   peerGroupName, provisionalNotice, redFlagLine, strengthsAndWarnings,
@@ -44,7 +45,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ from?
 // What only the Owner has (tools, jobs, questions) is read from `owner`, which is null for an Invitee.
 type ReportVerdict = NonNullable<InviteeBundle["verdict"]>;
 type RedFlagGroup = ReportVerdict["blocks"]["rollup"]["redFlags"][number];
-type SourceLink = { name: string; url: string; access: "public_ok" | "personal_only" };
+type SourceLink = { name: string; url: string | null; access: "public_ok" | "personal_only" };
 
 
 export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
@@ -67,7 +68,7 @@ export default async function VerdictPageRoute({ params, searchParams = Promise.
   const secondaryBooking = hasForcingRedFlag || v?.blocks.rollup.state !== "verdict";
   const marker = owner ? null : <><InviteeView /><UsageEventOnMount type="report_opened" actionKey={R.slug} /></>;
   const ctx = { format: R.format, city: R.city };
-  const sourceByCode = new Map<string, SourceLink>(page.sources.map((s) => [s.code, s]));
+  const sourceByCode = new Map<string, SourceLink>(page.sources.map((s) => [s.code, { ...s, url: sourceListingUrl(s.code, s.url) }]));
   const activeJob = owner?.activeJob ?? null;
 
   // The Review sites are listed under Evidence, so the hero's first screen keeps to the Verdict and the next step.
@@ -430,8 +431,10 @@ function Sources({ page, owner, perSource, sourceReadings }: { page: InviteeBund
         {page.sources.map((s) => {
           const w = perSource?.[s.code];
           const reading = sourceReadings?.find((sr) => sr.source === s.code);
+          const url = sourceListingUrl(s.code, s.url);
           return <article className="source-card" key={s.code}>
-            <h3><a href={s.url} rel="noreferrer nofollow" target="_blank">{s.name} <ExternalIcon /></a></h3>
+            <h3>{url ? <a href={url} rel="noreferrer nofollow" target="_blank">{s.name} <ExternalIcon /></a> : s.name}</h3>
+            {!url && <p className="small muted">Source link unavailable.</p>}
             <p className="small muted">{s.kind === "crowd" ? "Review site" : "Guide or critic"}{reading?.quiet ? " · few recent Reviews" : ""}</p>
             <dl>
               <dt>Reviews at this source</dt><dd>{s.reviewCount?.toLocaleString("en") ?? "—"}</dd>

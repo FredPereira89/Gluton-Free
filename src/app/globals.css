@@ -751,7 +751,12 @@ body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 .search-home h1{font-size:clamp(26px,7vw,36px);font-weight:800;}
 @media(max-width:520px){body:has(.directory) .directory{margin-top:var(--s-4)}}
 
-/* Filters: each group folds behind its name on a phone; the desktop sidebar keeps them open. */
+/* Filters fold behind their names; desktop Price and Dietary fit start open. */
+.dir-group:not([open])>*:not(summary){display:none}
+.dir-shortlist-help{margin:0 0 var(--s-2)}
+.dir-area-search{display:grid;gap:6px}
+.dir-area-search input{width:100%;min-width:0;min-height:44px}
+.dir-areas{max-height:260px;overflow-y:auto;align-content:start}
 .dir-group>summary{display:flex;align-items:center;gap:10px;min-height:48px;cursor:pointer;list-style:none;font-family:var(--display);font-size:17px;font-weight:700;color:var(--ink)}
 .dir-group>summary::-webkit-details-marker{display:none}
 .dir-group>summary>span:first-child{flex:1}
@@ -764,8 +769,7 @@ body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
 .dir-mobile-filter-sheet .dir-nee{margin-top:8px}
 .dir-mobile-filter-sheet .dir-clear{margin-top:12px}
 @media(min-width:1000px){
-  .dir-group>summary{min-height:32px;cursor:default;font-weight:800;pointer-events:none}
-  .dir-group>summary::after{display:none}
+  .dir-group>summary{min-height:44px;font-weight:800}
 }
 
 /* Rows: one calm line per Restaurant; the shortlist is the diner's own action, Booking waits for the Report on a phone. */
@@ -833,21 +837,21 @@ html:has(.compare-page){overflow-x:clip}
 .compare-scroll:focus-visible{outline-offset:4px}
 .compare-loading-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:var(--s-3)}
 .compare-loading-row .skel-card{min-width:0}
-.compare-table{width:100%;min-width:356px;table-layout:fixed;border-spacing:0;text-align:left}
-.compare-table.compare-three{min-width:480px}
-.compare-label-col{width:112px}
+.compare-table{width:100%;min-width:336px;table-layout:fixed;border-spacing:0;text-align:left}
+.compare-table.compare-three{min-width:472px}
+.compare-label-col{width:64px}
 .compare-table th,.compare-table td{vertical-align:top;padding:12px 8px;border-bottom:1px dotted var(--edge)}
 .compare-table td{border-left:1px solid var(--line);overflow-wrap:anywhere}
 .compare-table tbody tr:last-child th,.compare-table tbody tr:last-child td{border-bottom:0}
 .compare-corner,.compare-row-label{position:sticky;left:0;z-index:1;background:var(--surface)}
 .compare-table .compare-corner{z-index:2;background:var(--sunk)}
 .compare-table thead th{background:var(--sunk);border-bottom:2px solid var(--ink)}
-.compare-restaurant{scroll-snap-align:start;scroll-margin-left:112px}
+.compare-restaurant{scroll-snap-align:start;scroll-margin-left:64px}
 .compare-name{display:block;color:var(--ink);font-family:var(--display);font-size:clamp(17px,2.3vw,25px);font-weight:400;line-height:1.1;text-decoration:none;overflow-wrap:anywhere}
 .compare-name:hover{color:var(--accent);text-decoration:underline}
 .compare-table .book.sm.compare-book{width:100%;min-height:44px;padding:6px 8px;font-family:var(--sans);font-size:13px;font-weight:800;line-height:1.15;white-space:normal;box-shadow:none}
 .compare-book .icon{width:14px;height:14px}
-.compare-row-label{color:var(--muted);font-size:12px;font-weight:800;line-height:1.2;overflow-wrap:normal}
+.compare-row-label{color:var(--muted);font-size:12px;font-weight:800;line-height:1.2;overflow-wrap:anywhere}
 .compare-table td{font-size:14px;line-height:1.35}
 .compare-verdict{display:grid;justify-items:start;gap:7px}
 .compare-table .tier{padding:4px 7px;border-color:var(--ink);background:transparent;color:var(--ink);font-family:var(--sans);font-size:13px;font-weight:800;line-height:1.15;white-space:normal;gap:5px}
@@ -877,6 +881,11 @@ html:has(.compare-page){overflow-x:clip}
   .compare-table .book.sm.compare-book{width:fit-content;min-width:152px;font-size:15px}
   .compare-verdict{display:flex;flex-wrap:wrap;align-items:center}
   .compare-themes{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+}
+
+@media(max-width:719px){
+  .compare-page{gap:var(--s-3);margin-top:var(--s-3)}
+  .compare-format-note{padding:8px 12px;font-size:14px}
 }
 
 /* Report: back and shortlist share a row; the next action and the Evidence jump sit together under the Verdict. */

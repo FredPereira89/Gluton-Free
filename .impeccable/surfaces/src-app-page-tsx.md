@@ -26,4 +26,6 @@ FORM: Own-world direction authored from the owner's brief, not a catalogue roll;
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
 ## Round 3 update (2026-10-02)
+
+Directory discovery: visible shortlist instruction above results; evidence-gap controls say Include. Desktop filters put Price and Dietary fit first, fold other groups and offer neighbourhood search. Compare uses compact phone spacing, a 64px fact column and Read the Verdict before booking in each action cell. Evidence links reject destinations that do not match their Source attribution.
 Mode: Operate. The first phone screen must show Verdict, Confidence, the main reason and the next action (Open in Google Maps), with a "Read the Evidence" jump to `#report-evidence`. Hero carries name and address only; Google and Tripadvisor links stay in Sources. Dietary fit always renders, with an honest unknown state. Back link and shortlist button share one row. See `docs/design-round-3-decision-journey.md`.

@@ -15,4 +15,6 @@ Direction in the Recorte world: a cream, 28px-radius hero card on the lemon grou
 
 Anti-goals: stars or a numeric score as the Verdict, Google and Tripadvisor links in the hero (they live in Sources), imagery implying a listed Restaurant, winner styling.
 
+Evidence links: quotes, incidents and Source headings link only to matching Source Listing destinations. Invalid links are omitted without hiding Review attribution or Evidence; the Source card names the unavailable link.
+
 First viewport (390px): Verdict, Confidence, reason and the Maps action all above 700px.

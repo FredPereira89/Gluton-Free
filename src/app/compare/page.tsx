@@ -65,10 +65,10 @@ function CompareTable({ items, evidence, from, back, trackUsage, showDish, showD
         </div>}</CompareRow>
         <CompareRow label="Why" items={items}>{(item) => <span className="compare-reason">{item.reason ?? "Not enough Reviews yet for a Verdict."}</span>}</CompareRow>
         <CompareRow label="More" items={items} className="compare-action-row">{(item) => <div className="compare-actions">
+          <Link href={report(item)}>Read the Verdict</Link>
           <UsageTrackedLink className="book sm compare-book" track={trackUsage} href={item.booking.url} target="_blank" rel="noopener noreferrer">
             {item.booking.label}<ExternalIcon />
           </UsageTrackedLink>
-          <Link href={report(item)}>Read the Verdict</Link>
           <CompareRemove slug={item.slug} name={item.name} slugs={slugs} from={from} />
         </div>}</CompareRow>
         <CompareRow label="Format" items={items}>{(item) => item.format || "Not known"}</CompareRow>
@@ -111,13 +111,12 @@ export default async function ComparePage({ searchParams = Promise.resolve({}) }
     <Link className="btn btn-secondary report-back" href={from}>Back to results</Link>
     <header className="compare-head">
       <h1>Compare</h1>
-      <p className="muted">Your shortlist, lined up to help you choose where to eat.</p>
     </header>
     {missing > 0 && <p className="notice" role="status">{missing === 1 ? "One Restaurant" : `${missing} Restaurants`} on this list could not be found.</p>}
     {items.length >= 2
       ? <>
-        {mixedFormats && <p className="compare-format-note"><strong>Different Formats.</strong> Each Verdict is judged against Restaurants of its own kind, so the Tiers do not compare directly.</p>}
-        {items.length === 3 && <p className="compare-swipe-hint small">On a phone, swipe the comparison sideways to see the third Restaurant.</p>}
+        {mixedFormats && <p className="compare-format-note"><strong>Different Formats.</strong> Each Tier compares its own kind of Restaurant. These Tiers aren’t directly comparable.</p>}
+        {items.length === 3 && <p className="compare-swipe-hint small">Swipe sideways to see the third Restaurant.</p>}
         <CompareTable items={items} evidence={evidence} from={from} back={back} trackUsage={role === "invitee"} showDish={showDish} showDiet={showDiet} />
         {(!showDish || !showDiet) && <p className="compare-note small muted">
           {!showDish && "No standout dish in the Reviews yet for any of these. "}

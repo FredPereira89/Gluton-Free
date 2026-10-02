@@ -57,7 +57,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
   for (const price of query.price) filterGroups.push({ label: `Price: ${price}`, href: withFilters({ price: query.price.filter((value) => value !== price) }) });
   for (const area of query.area) filterGroups.push({ label: `Neighbourhood: ${area}`, href: withFilters({ area: query.area.filter((value) => value !== area) }) });
   for (const diet of query.diet) filterGroups.push({ label: `Dietary fit: ${DIET_LABEL[diet as (typeof DIETS)[number]]}`, href: withFilters({ diet: query.diet.filter((value) => value !== diet) }) });
-  if (query.nee) filterGroups.push({ label: "Not enough evidence", href: withFilters({ nee: false }) });
+  if (query.nee) filterGroups.push({ label: "Including Not enough evidence", href: withFilters({ nee: false }) });
   const hasFilters = query.tier.length > 0 || query.family.length > 0 || query.price.length > 0 || query.area.length > 0 || query.diet.length > 0 || query.nee;
   const view = (page: number) => directoryHref({ ...query, page });
   return <section className="directory" aria-labelledby="directory-title">
@@ -65,7 +65,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
       <h2 id="directory-title">All Restaurants</h2>
       <p className="small muted" role="status">
         {result.total} {result.total === 1 ? "Restaurant" : "Restaurants"}
-        {!query.nee && result.hiddenNotEnoughEvidence > 0 && <> · <Link href={directoryHref({ ...query, nee: true }, { resetPage: true })}>Show {result.hiddenNotEnoughEvidence} with Not enough evidence</Link></>}
+        {!query.nee && result.hiddenNotEnoughEvidence > 0 && <> · <Link href={directoryHref({ ...query, nee: true }, { resetPage: true })}>Include {result.hiddenNotEnoughEvidence} with Not enough evidence</Link></>}
       </p>
     </div>
     {filterGroups.length > 0 && <ul className="active-filters" aria-label="Active search and filters">
@@ -74,6 +74,7 @@ export default function Directory({ query, result, trackUsage = false }: { query
     <div className="dir-layout">
       <DirectoryControls query={query} neighbourhoods={result.neighbourhoods} resultCount={result.total} trackUsage={trackUsage} />
       <div className="dir-main">
+        {result.items.length > 0 && <p className="dir-shortlist-help small muted">Use Shortlist (+) on two or three Restaurants to compare.</p>}
         {result.items.length === 0
           ? <div className="dir-empty">
             <p><strong>{query.q ? `No Restaurants match “${query.q}”.` : "No Restaurants match these filters."}</strong></p>
