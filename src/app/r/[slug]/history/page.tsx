@@ -35,9 +35,12 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
       </section>
       <section className="sec">
         {history.items.length === 0 ? (
-          <p className="muted">{pagination.cursor ? "No older Verdicts." : "No Verdict yet."}</p>
+          <div className="dir-empty">
+            <p><strong>{pagination.cursor ? "No older Verdicts." : "No Verdict yet."}</strong></p>
+            {!pagination.cursor && <p className="small muted">A Verdict appears here once there is enough evidence to issue one.</p>}
+          </div>
         ) : (
-          <div className="tbl-wrap">
+          <div className="tbl-wrap" tabIndex={0} role="region" aria-label="Verdict history">
             <table className="src">
               <thead>
                 <tr>
@@ -51,17 +54,17 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
               <tbody>
                 {history.items.map((v) => (
                   <tr key={v.id}>
-                    <td>{dateLabel(v.issuedAt)}</td>
-                    <td>
+                    <td data-label="Issued">{dateLabel(v.issuedAt)}</td>
+                    <td data-label="Tier">
                       {v.state === "verdict" && v.tier ? (
                         <TierBadge tier={v.tier} dashed={v.provisional} />
                       ) : (
-                        <span className="nee">Not enough evidence</span>
+                        <span className="chip nee-chip">Not enough evidence</span>
                       )}
                     </td>
-                    <td>{v.confidence ? <ConfChip level={v.confidence} /> : "—"}</td>
-                    <td>{v.provisional ? <span className="chip prov">{role === "invitee" ? "Early verdict" : "Provisional"}</span> : "—"}</td>
-                    {role !== "invitee" && <td>{v.peerSnapshotId === null ? "—" : `Peer snapshot #${v.peerSnapshotId}`}</td>}
+                    <td data-label="Confidence">{v.confidence ? <ConfChip level={v.confidence} /> : <span className="muted">—</span>}</td>
+                    <td data-label={role === "invitee" ? "Early verdict" : "Provisional"}>{v.provisional ? <span className="chip prov">{role === "invitee" ? "Early verdict" : "Provisional"}</span> : <span className="muted">—</span>}</td>
+                    {role !== "invitee" && <td data-label="Peer snapshot">{v.peerSnapshotId === null ? <span className="muted">—</span> : `Peer snapshot #${v.peerSnapshotId}`}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -69,7 +72,7 @@ export default async function VerdictHistoryPage({ params, searchParams }: Props
           </div>
         )}
         {history.nextCursor && (
-          <Link className="next-page" href={`${restaurantHref}/history?${next}`}>Older Verdicts</Link>
+          <Link className="btn btn-secondary next-page" href={`${restaurantHref}/history?${next}`}>Older Verdicts</Link>
         )}
       </section>
     </div>

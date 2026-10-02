@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { OwnerQuestion } from "@/lib/api-contract";
 import { acceptedJobSchema } from "@/lib/api-contract";
 import { CHANGE_POINT_LABEL } from "@/domain/aspects";
+import { ExternalIcon } from "./icons";
 
 function ChangePointQuestion({ slug, question }: { slug: string; question: Extract<OwnerQuestion, { kind: "change_point" }> }) {
   const router = useRouter();
@@ -132,7 +133,7 @@ export function OwnerQuestions({ slug, questions }: { slug: string; questions: O
             return <li className="owner-question-candidate" key={candidate.placeRef}>
               <div>
                 <a href={candidate.url} target="_blank" rel="noreferrer">
-                  {candidate.name} <span aria-hidden="true">↗</span>
+                  {candidate.name} <ExternalIcon />
                 </a>
                 <p className="small muted">{evidence}</p>
               </div>

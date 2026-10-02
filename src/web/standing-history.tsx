@@ -26,7 +26,7 @@ export function StandingHistoryChart({ series, changePointAt }: Props) {
     <div className="composite-history">
       <h3>How its standing has moved</h3>
       <p className="small muted">Each quarter&rsquo;s reviews, compared with today&rsquo;s other restaurants of its kind. A hollow dot means few written reviews that quarter.</p>
-      <div className="history-scroll">
+      <div className="history-scroll" tabIndex={0} role="region" aria-label="Standing by quarter, scrolls sideways">
         <svg viewBox={`0 0 ${width} 110`} width={width} height="110" role="img" aria-label="Standing among similar restaurants, by quarter">
           {[["Higher", 100], ["Middle", 50], ["Lower", 0]].map(([word, pct]) => (
             <g key={word}>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Brand } from "@/web/brand";
 
 export const metadata: Metadata = {
   title: "Privacy notice · Gluton-Free",
@@ -10,10 +11,9 @@ export default function PrivacyPage() {
   return (
     <article className="public-page privacy-page">
       <header className="privacy-header">
-        <Link className="landing-brand" href="/">Gluton-Free</Link>
+        <Brand />
         <Link href="/sign-in">Sign in</Link>
       </header>
-      <p className="eyebrow">Invitation-only beta</p>
       <h1>Privacy notice</h1>
       <p className="privacy-lede">
         This notice explains the small amount of personal information Gluton-Free keeps about Invitees,

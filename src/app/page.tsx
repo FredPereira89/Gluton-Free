@@ -4,6 +4,8 @@ import { cookies, headers } from "next/headers";
 import { AuthError, requireCaller } from "@/lib/auth";
 import { directoryQueryFromPage } from "@/lib/directory-url";
 import { WELCOME_DISMISSED_COOKIE } from "@/domain/welcome";
+import { Brand } from "@/web/brand";
+import { ConfChip, TierBadge } from "@/web/atoms";
 import { loadDirectory } from "@/web/data";
 import { WelcomeCard } from "@/web/welcome-card";
 import Directory from "./directory";
@@ -19,50 +21,52 @@ function LandingPage() {
   return (
     <div className="public-page landing-page">
       <header className="landing-header">
-        <Link className="landing-brand" href="/">Gluton-Free</Link>
-        <Link className="btn landing-sign-in" href="/sign-in">Have an invite? Sign in</Link>
+        <Brand />
+        <Link className="btn btn-secondary landing-sign-in" href="/sign-in">Sign in</Link>
       </header>
 
-      <section className="landing-hero">
-        <p className="eyebrow">Lisbon dining · invitation-only beta</p>
-        <h1>Choose your next table with confidence.</h1>
-        <p className="landing-intro">
-          Gluton-Free reads what diners say and turns it into a clear Verdict on Restaurants in Lisbon.
-          Each Restaurant is judged against others of its own kind, so a tasca is compared with tascas,
-          not with every restaurant in the city.
-        </p>
-        <div className="landing-facts" aria-label="About Gluton-Free">
-          <span>Lisbon only</span>
-          <span>Each judged against its own kind</span>
-          <span>Invitation-only beta</span>
-        </div>
-      </section>
-
-      <section className="landing-example" aria-labelledby="example-title">
-        <div className="landing-example-heading">
-          <div>
-            <p className="eyebrow">Fictional example · no real Verdicts are public</p>
-            <h2 id="example-title">A sample report</h2>
-          </div>
-          <span className="example-label">Invented for this page</span>
-        </div>
-        <article className="sample-report" aria-label="Fictional Restaurant report">
-          <div className="sample-report-top">
-            <div>
-              <p className="sample-report-kind">A fictional Lisbon tasca</p>
-              <h3>Casa Imaginária</h3>
-            </div>
-            <span className="tier t-good">Good</span>
-          </div>
-          <p className="sample-report-reason">
-            Solid choice for its kind. In this invented example, diners praise the simple plates;
-            reports about busy-hour waits are mixed.
+      <section className="landing-top" aria-labelledby="landing-title">
+        <div className="landing-copy">
+          <h1 id="landing-title">Know where to <span className="hl-eat">eat</span> in Lisbon.</h1>
+          <p className="landing-intro">
+            Gluton-Free is a Lisbon Restaurant Verdict guide. It reads what diners say and gives each Restaurant
+            one clear Verdict, judged against others of its own kind, so a tasca is compared with tascas,
+            not with every restaurant in the city.
           </p>
-          <div className="sample-report-foot">
-            <span className="chip conf-Medium">Medium confidence</span>
-            <span className="small muted">Every detail in this report is fictional.</span>
-          </div>
-        </article>
+        </div>
+
+        <div className="landing-example">
+          <article className="sample-report" aria-labelledby="example-title">
+            <h2 id="example-title" className="sr-only">A sample report</h2>
+            <div className="sample-line">
+              <h3>Casa Imaginária</h3>
+              <i className="leader" aria-hidden="true" />
+              <TierBadge tier="good" />
+            </div>
+            <p className="sample-report-kind">A fictional Lisbon tasca</p>
+            <p className="sample-report-reason">
+              <span className="hl">Solid choice for its kind.</span> In this invented example, diners praise the simple plates;
+              reports about busy-hour waits are mixed.
+            </p>
+            <div className="sample-report-foot">
+              <div className="sample-report-conf">
+                <ConfChip level="medium" />
+                <span className="small muted">Every detail in this report is fictional. No real Verdicts are public.</span>
+              </div>
+              <span className="stamp" aria-hidden="true">Not a real Verdict</span>
+            </div>
+          </article>
+          <p className="example-label">Fictional example · invented for this page</p>
+        </div>
+
+        <div className="landing-actions">
+          <Link className="btn landing-cta" href="/sign-in">Sign in with your invite</Link>
+          <ul className="landing-facts" aria-label="About Gluton-Free">
+            <li>Lisbon only</li>
+            <li>Each judged against its own kind</li>
+            <li>Invitation-only beta</li>
+          </ul>
+        </div>
       </section>
 
       <footer className="landing-footer">

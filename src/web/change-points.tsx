@@ -56,11 +56,11 @@ export function ChangePoints({ slug, items, disabled = false }: { slug: string; 
   return <div className="ev-list">
     {items.map((point) => <div key={point.id}>
       {point.occurredOn}: {point.description}{" "}
-      <button type="button" disabled={disabled || busy} onClick={() => void remove(point.id, point.description)}
+      <button type="button" className="btn btn-secondary" disabled={disabled || busy} onClick={() => void remove(point.id, point.description)}
         aria-label={`Delete ${point.description} Change point`}>Delete</button>
     </div>)}
     <p className="small muted">Only the newest Change point governs the Review window.</p>
-    <form onSubmit={(event) => { event.preventDefault(); void declare(); }}>
+    <form className="form" onSubmit={(event) => { event.preventDefault(); void declare(); }}>
       <label className="field">Kind
         <select value={kind} disabled={disabled || busy} onChange={(event) => setKind(event.target.value as ChangePointKind)}>
           {CHANGE_POINT_KINDS.map((k) => <option key={k} value={k}>{CHANGE_POINT_LABEL[k]}</option>)}

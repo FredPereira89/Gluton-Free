@@ -370,7 +370,7 @@ describe("Restaurant Verdict red flags", () => {
     expect(html).toContain("2 recent reviews report food poisoning");
     expect(html).toContain("1 recent review reports overcharging");
     expect(html).toContain("An unordered couvert was on the bill");
-    expect(html).toContain('aria-label="5 stars"');
+    expect(html).toContain('aria-label="5 out of 5 stars"');
     expect(html).toContain("Sources");
     expect(html).not.toContain("How it compares");
     expect(html).not.toContain("What reviewers say");

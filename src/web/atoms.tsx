@@ -1,11 +1,14 @@
 // Server-rendered atoms of the Verdict page, after the prototype's helpers.
 import { Fragment, type ReactNode } from "react";
 import { INPUT_LABEL, TIERS, TIER_LABEL, type Tier } from "@/domain/aspects";
+import { DIET_LABEL, type Diet } from "@/domain/dish-dietary";
+import { Icon } from "./icons";
 import type { Blocks } from "@/verdict/blocks";
 import type { Trend } from "@/verdict/trend";
 import { formatPercentile } from "@/verdict/peer";
 
 const TIER_CLASS: Record<Tier, string> = { avoid: "t-avoid", ok: "t-ok", good: "t-good", must_go: "t-must", life_changing: "t-life" };
+
 
 export function TierBadge({ tier, size = "", dashed = false }: { tier: Tier; size?: string; dashed?: boolean }) {
   const idx = TIERS.indexOf(tier);
@@ -24,32 +27,50 @@ export function TierBadge({ tier, size = "", dashed = false }: { tier: Tier; siz
 const CONF = { low: ["Low", 1], medium: ["Medium", 2], high: ["High", 3] } as const;
 
 const TREND = {
-  improving: ["Improving", "↑"],
-  steady: ["Steady", "→"],
-  slipping: ["Slipping", "↓"],
+  improving: ["Improving", "M4 16l6-6 4 4 6-7M15 7h5v5"],
+  steady: ["Steady", "M4 12h16M15 7l5 5-5 5"],
+  slipping: ["Slipping", "M4 8l6 6 4-4 6 7M15 17h5v-5"],
 } as const;
 
 /** The Trend chip (issue #113): where the Restaurant's standing among its Peers is heading. Renders nothing without a Trend. */
 export function TrendChip({ trend }: { trend: Trend | null | undefined }) {
   if (!trend) return null;
-  const [label, arrow] = TREND[trend];
+  const [label, path] = TREND[trend];
   return (
     <span className={`chip trend-${trend}`} title="Standing among similar restaurants over the last 12 months">
-      <span aria-hidden="true">{arrow}</span> {label}
+      <Icon d={path} size={14} /> {label}
     </span>
   );
 }
 
-export function ConfChip({ level }: { level: "low" | "medium" | "high" }) {
+/** Three round dots plus the level. `compact` shortens the visible word on tight rows; the full phrase stays for screen readers. */
+export function ConfChip({ level, compact = false }: { level: "low" | "medium" | "high"; compact?: boolean }) {
   const [label, n] = CONF[level];
   return (
-    <span className={`chip conf-${label}`}>
+    <span className={`chip conf-${label}`} title={compact ? `${label} Confidence` : undefined}>
       <span className="dots" aria-hidden="true">
         {[1, 2, 3].map((j) => (
           <i key={j} className={j <= n ? "on" : ""} />
         ))}
       </span>
-      {label} Confidence
+      {compact ? <><span aria-hidden="true">{label}</span><span className="sr-only">{label} Confidence</span></> : <>{label} Confidence</>}
+    </span>
+  );
+}
+
+const DIET_ICON: Record<Diet, string> = {
+  vegetarian: "M12 21v-9M12 12c0-4-3-6-7-6 0 4 3 6 7 6zM12 15c0-3 2-5 6-5 0 3-2 5-6 5z",
+  vegan: "M5 19C5 10 10 5 19 5c0 9-5 14-14 14zM5 19l8-8",
+  gluten_free: "M12 21V9M12 9c-2-.5-3-2-3-4 2 .5 3 2 3 4zM12 9c2-.5 3-2 3-4-2 .5-3 2-3 4zM12 15c-2-.5-3-2-3-4M12 15c2-.5 3-2 3-4M4 4l16 16",
+};
+
+/** A Dietary fit badge: a drawn icon in a round tint. Icon-only (`iconOnly`) hides the name visually on wide screens (still read aloud, and a tooltip) and shows it on phone cards. */
+export function DietIcon({ diet, text, iconOnly = false }: { diet: Diet; text?: string; iconOnly?: boolean }) {
+  const name = text ?? DIET_LABEL[diet];
+  return (
+    <span className={`diet diet-${diet}`} title={iconOnly ? name : undefined}>
+      <span className="diet-badge"><Icon d={DIET_ICON[diet]} size={16} /></span>
+      <span className={iconOnly ? "diet-text" : ""}>{name}</span>
     </span>
   );
 }
